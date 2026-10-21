@@ -1,0 +1,355 @@
+{
+  "id": "vultures-cyprus-arena",
+  "title": "Αποστολή: Οι Γύπες της Κύπρου - BoundPad Vulture Arena",
+  "description": "Διαδραστικό εκπαιδευτικό πρόγραμμα περιβαλλοντικής ενημέρωσης για τον Γύπα Πυρόχρου (Όρνιο) στην Κύπρο.",
+  "title_en": "Mission: The Vultures of Cyprus - BoundPad Vulture Arena",
+  "description_en": "Interactive educational environmental program about the Griffon Vulture in Cyprus.",
+  "phase": "waiting_lobby",
+  "synthesisPrompt": "Συνθέστε τα συμπεράσματα, τα στοιχεία και τις πληροφορίες που αντλήσατε από τις αποστολές για τη συζήτηση στην τάξη:",
+  "synthesisPrompt_en": "Synthesize your findings, evidence, and discoveries from the quests for the classroom discussion:",
+  "synthesisNotes": [],
+  "activeRound": 1,
+  "updatedAt": 1792065146900,
+  "timer": {
+    "totalSeconds": 1500,
+    "remainingSeconds": 1500,
+    "isRunning": false,
+    "updatedAt": 1791567966550
+  },
+  "teams": [
+    {
+      "id": "team-alpha",
+      "name": "Ομάδα Α: Γενικά χαρακτηριστικά - αναγνώριση",
+      "avatar": "🧭",
+      "color": "#10b981",
+      "slogan": "Ανακαλύπτουμε τα πάντα!",
+      "name_en": "Team A: General Characteristics & Identification",
+      "slogan_en": "Discovering everything!"
+    },
+    {
+      "id": "team-beta",
+      "name": "Ομάδα Β: Περιβάλλον - Ενδιαίτημα",
+      "avatar": "⚡",
+      "color": "#06b6d4",
+      "slogan": "Ταχύτητα και σκέψη!",
+      "name_en": "Team B: Environment & Habitat",
+      "slogan_en": "Speed and intellect!"
+    },
+    {
+      "id": "team-gamma",
+      "name": "Ομάδα Γ: Διατροφή - Συνήθειες",
+      "avatar": "🚀",
+      "color": "#f59e0b",
+      "slogan": "Στοχεύουμε στα αστέρια!",
+      "name_en": "Team C: Diet & Habits",
+      "slogan_en": "Aiming for the stars!"
+    },
+    {
+      "id": "team-delta",
+      "name": "Ομάδα Δ: Απειλές- Προστασία - Λύσεις",
+      "avatar": "🔬",
+      "color": "#8b5cf6",
+      "slogan": "Η λογική κερδίζει!",
+      "name_en": "Team D: Threats, Protection & Solutions",
+      "slogan_en": "Logic prevails!"
+    }
+  ],
+  "questions": [
+    {
+      "id": "quest-1",
+      "title": "Είδος γύπα",
+      "title_en": "Vulture species",
+      "description": "Κοιτάξτε προσεκτικά την φωτογραφία. Ποια φωτογραφία απεικονίζει το είδος γύπα που έχουμε στην Κύπρο;",
+      "description_en": "Look carefully at the photograph. Which photograph depicts the species of vulture that we have in Cyprus?",
+      "type": "multiple_choice",
+      "points": 100,
+      "imageUrl": "data:image/jpeg;base64,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",
+      "assignedTeamIds": [
+        "team-gamma"
+      ],
+      "isActive": true,
+      "payload": {
+        "options": [
+          "Στον αέρα",
+          "Στο έδαφος",
+          "Στο νερό"
+        ],
+        "correctOptionIndex": 1
+      },
+      "title_en": "Tροφή",
+      "description_en": "Που βρίσκουν την τροφή τους οι γύπες;",
+      "payload_en": {
+        "options": [
+          "In the air",
+          "On the ground",
+          "In the water"
+        ],
+        "correctOptionIndex": 1
+      }
+    },
+    {
+      "id": "quest-1791826501193",
+      "title": "Απειλές",
+      "description": "Ποια είναι η κυριότερη αιτία για την οποία ο γύπας κινδυνεύει με εξαφάνιση στην Κύπρο;",
+      "type": "multiple_choice",
+      "points": 100,
+      "assignedTeamIds": [
+        "team-delta"
+      ],
+      "isActive": true,
+      "payload": {
+        "options": [
+          "Η δηλητηρίαση",
+          "Η κλιματική αλλαγή",
+          "Τα άλλα αρπακτικά πουλιά"
+        ],
+        "correctOptionIndex": 0
+      },
+      "title_en": "Απειλές",
+      "description_en": "Ποια είναι η κυριότερη αιτία για την οποία ο γύπας κινδυνεύει με εξαφάνιση στην Κύπρο;",
+      "payload_en": {
+        "options": [
+          "Poisoning",
+          "Climate change",
+          "Other predatory birds"
+        ],
+        "correctOptionIndex": 0
+      }
+    },
+    {
+      "id": "quest-1791826620573",
+      "title": "Πομποί GPS",
+      "description": "Παρατηρήστε προσεκτικά το γύπα που κρέμεται απο την οροφή. Τι παρατηρείτε στην πλάτη του;",
+      "type": "multiple_choice",
+      "points": 100,
+      "assignedTeamIds": [
+        "team-delta"
+      ],
+      "isActive": true,
+      "payload": {
+        "options": [
+          "Ένα πομπό GPS",
+          "Μια ταΐστρα",
+          "Μια κάμερα"
+        ],
+        "correctOptionIndex": 0
+      },
+      "title_en": "Πομποί GPS",
+      "description_en": "Παρατηρήστε προσεκτικά το γύπα που κρέμεται απο την οροφή. Τι παρατηρείτε στην πλάτη του;",
+      "payload_en": {
+        "options": [
+          "A GPS transmitter",
+          "A feeder",
+          "A camera"
+        ],
+        "correctOptionIndex": 0
+      }
+    },
+    {
+      "id": "quest-1791826720078",
+      "title": "Χρήση πομπών GPS",
+      "description": "Γιατί πιστεύετε οι επιστήμονες τοποθετούν πομπούς GPS στους γύπες; Επιλέξτε όσα ισχύουν.",
+      "type": "multiple_choice",
+      "points": 100,
+      "assignedTeamIds": [
+        "team-delta"
+      ],
+      "isActive": true,
+      "payload": {
+        "options": [
+          "Για να παρακολουθούν τις κινήσεις τους και να μαθαίνουν που κινούνται, που φωλιάζουν και που τρέφονται.",
+          "Για να εντοπίζουν γρήγορα αν κάποιος γύπας κινδυνεύει ή έχει πεθάνει (π.χ. από δηλητηρίαση).",
+          "Για να μπορούν να τους ελέγχουν απο απόσταση.",
+          "Για να τους βοηθούν να βρίσκουν τροφή."
+        ],
+        "correctOptionIndices": [
+          0,
+          1
+        ],
+        "correctOptionIndex": 0
+      },
+      "title_en": "Χρήση πομπών GPS",
+      "description_en": "Γιατί πιστεύετε οι επιστήμονες τοποθετούν πομπούς GPS στους γύπες; Επιλέξτε όσα ισχύουν.",
+      "payload_en": {
+        "options": [
+          "To monitor their movements and learn where they move, where they nest and where they feed.",
+          "To quickly detect if a vulture is at risk or has died (e.g. from poisoning).",
+          "To be able to control them remotely.",
+          "To help them find food."
+        ],
+        "correctOptionIndices": [
+          0,
+          1
+        ],
+        "correctOptionIndex": 0
+      }
+    },
+    {
+      "id": "quest-1791826839352",
+      "title": "Δακτυλίωση",
+      "description": "Εκτός από πομπό GPS, οι ερευνητές τοποθετούν στα πόδια των γυπών και ειδικά δακτυλίδια με αριθμούς/γράμματα. Για ποιο λόγο πιστεύετε ότι γίνεται αυτό;",
+      "type": "multiple_choice",
+      "points": 100,
+      "assignedTeamIds": [
+        "team-delta"
+      ],
+      "isActive": true,
+      "payload": {
+        "options": [
+          "Για να μπορούν να αναγνωρίζουν τον κάθε γύπα ξεχωριστά από μακριά (π.χ. με κιάλια ή τηλεσκόπιο)",
+          "Για να μετρούν πόσο γρήγορα πετάει",
+          "Για να προστατεύεται το πόδι του από τραυματισμούς"
+        ],
+        "correctOptionIndex": 0
+      },
+      "title_en": "Δακτυλίωση",
+      "description_en": "Εκτός από πομπό GPS, οι ερευνητές τοποθετούν στα πόδια των γυπών και ειδικά δακτυλίδια με αριθμούς/γράμματα. Για ποιο λόγο πιστεύετε ότι γίνεται αυτό;",
+      "payload_en": {
+        "options": [
+          "To be able to recognize each vulture individually from a distance (e.g. with binoculars or telescope)",
+          "To measure how fast he flies",
+          "To protect his foot from injuries"
+        ],
+        "correctOptionIndex": 0
+      }
+    },
+    {
+      "id": "quest-1791826978589",
+      "title": "Εισαγωγή γυπών από την Ισπανία",
+      "description": "Επειδή ο πληθυσμός του γύπα στην Κύπρο ήταν πολύ μικρός, τα τελευταία χρόνια μεταφέρθηκαν γύπες από άλλη χώρα για να ενισχυθεί ο πληθυσμός τους. Από ποια χώρα ήρθαν αυτοί οι γύπες;",
+      "type": "multiple_choice",
+      "points": 100,
+      "assignedTeamIds": [
+        "team-delta"
+      ],
+      "isActive": true,
+      "payload": {
+        "options": [
+          "Από την Ισπανία",
+          "Από την Αγγλία",
+          "Από την Ιταλία",
+          "Από την Αίγυπτο"
+        ],
+        "correctOptionIndex": 0
+      },
+      "title_en": "Εισαγωγή γυπών από την Ισπανία",
+      "description_en": "Επειδή ο πληθυσμός του γύπα στην Κύπρο ήταν πολύ μικρός, τα τελευταία χρόνια μεταφέρθηκαν γύπες από άλλη χώρα για να ενισχυθεί ο πληθυσμός τους. Από ποια χώρα ήρθαν αυτοί οι γύπες;",
+      "payload_en": {
+        "options": [
+          "From Spain",
+          "From England",
+          "From Italy",
+          "From Egypt"
+        ],
+        "correctOptionIndex": 0
+      }
+    },
+    {
+      "id": "quest-1791827051410",
+      "title": "Ταΐστρες",
+      "description": "Σε ορισμένες περιοχές της Κύπρου υπάρχουν ειδικές περιφραγμένες εγκαταστάσεις όπου οι λειτουργοί αφήνουν καθαρό και ασφαλές κρέας για τους γύπες. Πώς ονομάζονται αυτές οι εγκαταστάσεις;",
+      "type": "multiple_choice",
+      "points": 100,
+      "assignedTeamIds": [
+        "team-delta"
+      ],
+      "isActive": true,
+      "payload": {
+        "options": [
+          "Ταΐστρες γυπών",
+          "Καταφύγια πουλιών",
+          "Κλωβοί προστασίας"
+        ],
+        "correctOptionIndex": 0
+      },
+      "title_en": "Ταΐστρες",
+      "description_en": "Σε ορισμένες περιοχές της Κύπρου υπάρχουν ειδικές περιφραγμένες εγκαταστάσεις όπου οι λειτουργοί αφήνουν καθαρό και ασφαλές κρέας για τους γύπες. Πώς ονομάζονται αυτές οι εγκαταστάσεις;",
+      "payload_en": {
+        "options": [
+          "Vulture feeders",
+          "Bird shelters",
+          "Protection cages"
+        ],
+        "correctOptionIndex": 0
+      }
+    },
+    {
+      "id": "quest-1791827117188",
+      "title": "Ειδικά εκπαιδευμένοι σκύλοι",
+      "description": "Για την προστασία των γυπών από τα δηλητηριασμένα δολώματα, χρησιμοποιούνται στην Κύπρο ειδικά εκπαιδευμένα ζώα. Ποια είναι αυτά;",
+      "type": "multiple_choice",
+      "points": 100,
+      "assignedTeamIds": [
+        "team-delta"
+      ],
+      "isActive": true,
+      "payload": {
+        "options": [
+          "Ειδικά εκπαιδευμένοι σκύλοι που μυρίζουν και εντοπίζουν τα δηλητήρια στην ύπαιθρο",
+          "Άλλα αρπακτικά πουλιά που καθοδηγούν τους γύπες",
+          "Άλογα που περιπολούν στα βουνά"
+        ],
+        "correctOptionIndex": 0
+      },
+      "title_en": "Ειδικά εκπαιδευμένοι σκύλοι",
+      "description_en": "Για την προστασία των γυπών από τα δηλητηριασμένα δολώματα, χρησιμοποιούνται στην Κύπρο ειδικά εκπαιδευμένα ζώα. Ποια είναι αυτά;",
+      "payload_en": {
+        "options": [
+          "Specially trained dogs that smell and detect poisons in the countryside",
+          "Other predatory birds that guide vultures",
+          "Horses patrolling the mountains"
+        ],
+        "correctOptionIndex": 0
+      }
+    }
+  ],
+  "submissions": {},
+  "teamSequentialModes": {
+    "team-alpha": true,
+    "team-beta": true,
+    "team-gamma": true,
+    "team-delta": true
+  },
+  "teamQuestionOrders": {
+    "team-alpha": [
+      "quest-1",
+      "quest-2",
+      "quest-5",
+      "quest-1791573377610",
+      "quest-1791574059554",
+      "quest-1791574173201",
+      "quest-1791574285992",
+      "quest-1791574363988",
+      "quest-1791634126409",
+      "quest-1791634357987",
+      "quest-1791634647469",
+      "quest-1791634740983"
+    ],
+    "team-beta": [
+      "quest-1791574626175",
+      "quest-1791634533715",
+      "quest-text-quiz",
+      "quest-1791634126409",
+      "quest-1791634357987",
+      "quest-1791634740983",
+      "quest-1791634647469"
+    ],
+    "team-gamma": [
+      "quest-1791825310292",
+      "quest-1791825460313",
+      "quest-1791825618576",
+      "quest-1791825678992",
+      "quest-1791826001916",
+      "quest-1791826128821"
+    ],
+    "team-delta": [
+      "quest-1791826501193",
+      "quest-1791826620573",
+      "quest-1791826720078",
+      "quest-1791826839352",
+      "quest-1791826978589",
+      "quest-1791827051410",
+      "quest-1791827117188"
+    ]
+  }
+}

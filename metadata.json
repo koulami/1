@@ -1,0 +1,10 @@
+{
+  "name": "Remix BoundPad - Actionbound \u0026 Padlet Interactive Team Arena",
+  "description": "Διαδραστική πλατφόρμα αποστολών και παιχνιδιών τύπου Actionbound \u0026 Padlet με ζωντανές στήλες ομάδων, κουίζ, QR, παζλ, κοινόχρηστη οθόνη και χρονόμετρο.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
