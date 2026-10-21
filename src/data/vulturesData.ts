@@ -1,0 +1,1320 @@
+import { GameState, Team, Question } from '../types/game';
+import { SVG_IMAGES } from './vultureAssets';
+
+/**
+ * 4 Ομάδες της Αρένας των Γυπών
+ */
+export const VULTURE_TEAMS: Team[] = [
+  {
+    "id": "team-alpha",
+    "name": "Ομάδα 1: Οι Γυπαετοί (Κοκκαλάδες)",
+    "name_en": "Team 1: The Bearded Vultures (Lammergeiers)",
+    "color": "#f97316",
+    "avatar": "🦅",
+    "slogan": "Κυρίαρχοι των ψηλών κορυφών & των φαραγγιών!",
+    "slogan_en": "Lords of the high peaks and alpine gorges!"
+  },
+  {
+    "id": "team-beta",
+    "name": "Ομάδα 2: Τα Όρνια (Όρνια Κρήτης & Πίνδου)",
+    "name_en": "Team 2: The Griffon Vultures",
+    "color": "#10b981",
+    "avatar": "🪶",
+    "slogan": "Αετομάτηδες στα θερμά ανοδικά ρεύματα!",
+    "slogan_en": "Eagle-eyed navigators of thermal updrafts!"
+  },
+  {
+    "id": "team-gamma",
+    "name": "Ομάδα 3: Οι Μαυρόγυπες (Γίγαντες της Δαδιάς)",
+    "name_en": "Team 3: The Black Vultures (Giants of Dadia)",
+    "color": "#06b6d4",
+    "avatar": "🌲",
+    "slogan": "Φύλακες του αρχέγονου δάσους!",
+    "slogan_en": "Guardians of the ancient forest!"
+  },
+  {
+    "id": "team-delta",
+    "name": "Ομάδα 4: Οι Ασπροπάρηδες (Ταξιδιώτες του Νείλου)",
+    "name_en": "Team 4: The Egyptian Vultures (Nile Voyagers)",
+    "color": "#8b5cf6",
+    "avatar": "🌍",
+    "slogan": "Ευφυΐα και διηπειρωτικά ταξίδια!",
+    "slogan_en": "Intelligence and intercontinental journeys!"
+  }
+];
+
+/**
+ * Μέρος 1: Τα 4 Είδη & Βιολογικά Χαρακτηριστικά (Αποστολές 1 - 8)
+ */
+export const BIOLOGY_QUESTS: Question[] = [
+  {
+    "id": "vulture-quest-1",
+    "title": "Τα 4 Είδη Γυπών της Ελλάδας & της Ευρώπης",
+    "title_en": "The 4 Vulture Species of Greece & Europe",
+    "description": "Ποια είναι τα 4 μοναδικά είδη γυπών που ζουν και αναπαράγονται στην Ελλάδα και την υπόλοιπη Ευρώπη;",
+    "description_en": "What are the 4 unique vulture species that live and breed in Greece and the rest of Europe?",
+    "type": "multiple_choice",
+    "points": 100,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta",
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "options": [
+        "Όρνιο, Γυπαετός, Μαυρόγυπας, Ασπροπάρης",
+        "Χρυσαετός, Σπιζαετός, Θαλασσαετός, Φιδαετός",
+        "Κοράκι, Κίσσα, Καλιακούδα, Κορακοειδές",
+        "Πελαργός, Ερωδιός, Κορμοράνος, Πελεκάνος"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "Griffon Vulture, Bearded Vulture, Black Vulture, Egyptian Vulture",
+        "Golden Eagle, Bonelli Eagle, White-tailed Eagle, Short-toed Snake Eagle",
+        "Raven, Jay, Chough, Magpie",
+        "White Stork, Heron, Cormorant, Pelican"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Στην Ελλάδα και την Ευρώπη επιβιώνουν μόνο 4 είδη γυπών: το Όρνιο (Gyps fulvus), ο Γυπαετός (Gypaetus barbatus), ο Μαυρόγυπας (Aegypius monachus) και ο Ασπροπάρης (Neophron percnopterus).",
+    "explanation_en": "In Greece and Europe only 4 vulture species survive: the Griffon Vulture (Gyps fulvus), Bearded Vulture (Gypaetus barbatus), Black Vulture (Aegypius monachus), and Egyptian Vulture (Neophron percnopterus)."
+  },
+  {
+    "id": "vulture-quest-2",
+    "title": "Σωστό ή Λάθος: Ο Κοκκαλάς και η Διατροφή με Οστά",
+    "title_en": "True or False: The Bone-Eating Lammergeier",
+    "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με τη διατροφή του Γυπαετού (Gypaetus barbatus).",
+    "description_en": "Evaluate the following statement regarding the diet of the Bearded Vulture (Gypaetus barbatus): \"It is the only bird in the world whose diet consists of 70-90% bones.\"",
+    "type": "true_false",
+    "points": 90,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyB%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230284c7%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23bae6fd%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22mountain%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23475569%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22vultureChest%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23f97316%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23ea580c%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyB)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22500%22%20cy%3D%2290%22%20r%3D%2245%22%20fill%3D%22%23fef08a%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Rugged%20Alpine%20Peaks%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20120%2C220%20230%2C310%20380%2C180%20500%2C280%20600%2C200%20600%2C400%22%20fill%3D%22url(%23mountain)%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C220%20150%2C260%2090%2C260%22%20fill%3D%22%23cbd5e1%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22380%2C180%20410%2C230%20350%2C230%22%20fill%3D%22%23cbd5e1%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Soaring%20Bearded%20Vulture%20(Gypaetus%20barbatus)%20--%3E%0A%20%20%20%20%20%20%3C!--%20Pointed%20wings%20%26%20Diamond-shaped%20wedge%20tail%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(180%2C%2070)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Left%20Wing%20(Long%2C%20narrow%2C%20falcon-like)%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C80%20Q%2040%2C40%20-40%2C30%20Q%2030%2C70%20110%2C95%20Z%22%20fill%3D%22%23334155%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Right%20Wing%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20Q%20230%2C40%20310%2C30%20Q%20240%2C70%20160%2C95%20Z%22%20fill%3D%22%23334155%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Diamond%20Wedge%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22135%2C100%20120%2C165%20135%2C185%20150%2C165%22%20fill%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Body%20with%20Rusty%20Orange%20Underside%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22135%22%20cy%3D%2285%22%20rx%3D%2226%22%20ry%3D%2218%22%20fill%3D%22url(%23vultureChest)%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Head%20%26%20Black%20Eye%20Mask%20%26%20Chin%20Beard%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22135%22%20cy%3D%2265%22%20r%3D%2214%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20125%2C62%20Q%20135%2C55%20145%2C62%20Q%20135%2C70%20125%2C62%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Beard%20tuft%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22133%2C75%20137%2C75%20135%2C84%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22131%2C58%20139%2C58%20135%2C48%22%20fill%3D%22%23e2e8f0%22%20stroke%3D%22%23475569%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23f8fafc%22%3E%CE%93%CF%85%CF%80%CE%B1%CE%B5%CF%84%CF%8C%CF%82%20(Gypaetus%20barbatus)%20-%20%CE%9F%20%CE%86%CF%81%CF%87%CE%BF%CE%BD%CF%84%CE%B1%CF%82%20%CF%84%CF%89%CE%BD%20%CE%9A%CE%BF%CF%81%CF%85%CF%86%CF%8E%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-delta"
+    ],
+    "payload": {
+      "correctValue": true
+    },
+    "payload_en": {
+      "correctValue": true
+    },
+    "explanation": "Σωστό! Ο Γυπαετός (γνωστός στην Κρήτη ως «Κοκκαλάς») είναι το μοναδικό σπονδυλωτό ζώο του οποίου η διατροφή αποτελείται κατά 70-90% από κόκαλα, τα οποία σπάει ρίχνοντάς τα από 50-80 μέτρα ύψος πάνω σε απόκρημνες βραχώδεις σάρες (σπαστήρες).",
+    "explanation_en": "True! The Bearded Vulture (known in Crete as \"Kokkalas\") is the only vertebrate animal whose diet consists of 70-90% bones, which it breaks by dropping them from 50-80 metres onto rocky ossuaries (choppers)."
+  },
+  {
+    "id": "vulture-quest-3",
+    "title": "Αντιστοίχιση: Επιστημονική Ονομασία των 4 Γυπών",
+    "title_en": "Matching: Scientific Names of the 4 Vultures",
+    "description": "Αντιστοιχίστε το κοινό ελληνικό όνομα κάθε γύπα με την επίσημη λατινική επιστημονική ονομασία του.",
+    "description_en": "Match the common name of each vulture with its official Latin scientific binomial name.",
+    "type": "text_match",
+    "points": 120,
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta"
+    ],
+    "payload": {
+      "pairs": [
+        {
+          "id": "p1",
+          "left": "Όρνιο",
+          "right": "Gyps fulvus"
+        },
+        {
+          "id": "p2",
+          "left": "Γυπαετός",
+          "right": "Gypaetus barbatus"
+        },
+        {
+          "id": "p3",
+          "left": "Μαυρόγυπας",
+          "right": "Aegypius monachus"
+        },
+        {
+          "id": "p4",
+          "left": "Ασπροπάρης",
+          "right": "Neophron percnopterus"
+        }
+      ]
+    },
+    "payload_en": {
+      "pairs": [
+        {
+          "id": "p1",
+          "left": "Griffon Vulture",
+          "right": "Gyps fulvus"
+        },
+        {
+          "id": "p2",
+          "left": "Bearded Vulture",
+          "right": "Gypaetus barbatus"
+        },
+        {
+          "id": "p3",
+          "left": "Black / Cinereous Vulture",
+          "right": "Aegypius monachus"
+        },
+        {
+          "id": "p4",
+          "left": "Egyptian Vulture",
+          "right": "Neophron percnopterus"
+        }
+      ]
+    },
+    "explanation": "Η ταξινομική διάκριση δείχνει ότι κάθε γύπας ανήκει σε διαφορετικό γένος, έχοντας εξειδικευτεί σε ξεχωριστό οικολογικό ρόλο.",
+    "explanation_en": "The taxonomic classification shows that each species belongs to a distinct genus, adapted to a specialized ecological niche."
+  },
+  {
+    "id": "vulture-quest-4",
+    "title": "Αναγνώριση Σιλουέτας & Χαρακτηριστικών Πτήσης",
+    "title_en": "Flight Silhouette & Identification Characteristics",
+    "description": "Συνδέστε κάθε είδος γύπα με το διακριτικό σχήμα της ουράς και των φτερών του στον ουρανό.",
+    "description_en": "Match each vulture species with its distinctive tail shape and wing silhouette in the sky.",
+    "type": "image_match",
+    "points": 130,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-beta",
+      "team-gamma"
+    ],
+    "payload": {
+      "pairs": [
+        {
+          "id": "sm1",
+          "image": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyB%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230284c7%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23bae6fd%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22mountain%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23475569%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22vultureChest%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23f97316%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23ea580c%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyB)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22500%22%20cy%3D%2290%22%20r%3D%2245%22%20fill%3D%22%23fef08a%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Rugged%20Alpine%20Peaks%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20120%2C220%20230%2C310%20380%2C180%20500%2C280%20600%2C200%20600%2C400%22%20fill%3D%22url(%23mountain)%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C220%20150%2C260%2090%2C260%22%20fill%3D%22%23cbd5e1%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22380%2C180%20410%2C230%20350%2C230%22%20fill%3D%22%23cbd5e1%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Soaring%20Bearded%20Vulture%20(Gypaetus%20barbatus)%20--%3E%0A%20%20%20%20%20%20%3C!--%20Pointed%20wings%20%26%20Diamond-shaped%20wedge%20tail%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(180%2C%2070)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Left%20Wing%20(Long%2C%20narrow%2C%20falcon-like)%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C80%20Q%2040%2C40%20-40%2C30%20Q%2030%2C70%20110%2C95%20Z%22%20fill%3D%22%23334155%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Right%20Wing%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20Q%20230%2C40%20310%2C30%20Q%20240%2C70%20160%2C95%20Z%22%20fill%3D%22%23334155%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Diamond%20Wedge%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22135%2C100%20120%2C165%20135%2C185%20150%2C165%22%20fill%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Body%20with%20Rusty%20Orange%20Underside%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22135%22%20cy%3D%2285%22%20rx%3D%2226%22%20ry%3D%2218%22%20fill%3D%22url(%23vultureChest)%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Head%20%26%20Black%20Eye%20Mask%20%26%20Chin%20Beard%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22135%22%20cy%3D%2265%22%20r%3D%2214%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20125%2C62%20Q%20135%2C55%20145%2C62%20Q%20135%2C70%20125%2C62%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Beard%20tuft%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22133%2C75%20137%2C75%20135%2C84%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22131%2C58%20139%2C58%20135%2C48%22%20fill%3D%22%23e2e8f0%22%20stroke%3D%22%23475569%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23f8fafc%22%3E%CE%93%CF%85%CF%80%CE%B1%CE%B5%CF%84%CF%8C%CF%82%20(Gypaetus%20barbatus)%20-%20%CE%9F%20%CE%86%CF%81%CF%87%CE%BF%CE%BD%CF%84%CE%B1%CF%82%20%CF%84%CF%89%CE%BD%20%CE%9A%CE%BF%CF%81%CF%85%CF%86%CF%8E%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+          "text": "Γυπαετός: Μακριά φτερά και ρομβοειδής σφηνοειδής ουρά σαν διαμάντι"
+        },
+        {
+          "id": "sm2",
+          "image": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+          "text": "Όρνιο: Πολύ φαρδιά φτερά με βαθιά «δάχτυλα» και πολύ κοντή ουρά"
+        },
+        {
+          "id": "sm3",
+          "image": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22dadiaBg%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23064e3b%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23022c22%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23dadiaBg)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Dadia%20Black%20Pine%20Forest%20Silhouette%20--%3E%0A%20%20%20%20%20%20%3Cg%20fill%3D%22%23022c22%22%20stroke%3D%22%23064e3b%22%20stroke-width%3D%222%22%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%2240%2C400%2080%2C180%20120%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22110%2C400%20160%2C140%20210%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22200%2C400%20240%2C220%20280%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22380%2C400%20440%2C130%20500%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22490%2C400%20540%2C190%20590%2C400%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Giant%20Black%20Pine%20with%20Massive%20Nest%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22290%22%20y%3D%22160%22%20width%3D%2224%22%20height%3D%22240%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Nest%20Bowl%20on%20Pine%20Top%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22302%22%20cy%3D%22165%22%20rx%3D%2265%22%20ry%3D%2222%22%20fill%3D%22%2378350f%22%20stroke%3D%22%23292524%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Black%20Vulture%20(Aegypius%20monachus)%20on%20Nest%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(260%2C%2060)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Massive%20Black-Brown%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2285%22%20rx%3D%2230%22%20ry%3D%2224%22%20fill%3D%22%2318181b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Folded%20Broad%20Wings%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%2020%2C70%20Q%2030%2C120%2040%2C115%20Q%2060%2C120%2065%2C70%20Z%22%20fill%3D%22%2309090b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Pale%20Bluish-Grey%20Bare%20Head%20and%20Huge%20Bill%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2250%22%20rx%3D%2212%22%20ry%3D%2214%22%20fill%3D%22%2394a3b8%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Powerful%20Dark%20Hooked%20Bill%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%2040%2C42%20Q%2052%2C38%2046%2C55%20Q%2038%2C50%2040%2C42%20Z%22%20fill%3D%22%230f172a%22%20stroke%3D%22%23475569%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Dark%20Eye%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%2240%22%20cy%3D%2248%22%20r%3D%223%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Black%20ruff%20collar%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2264%22%20rx%3D%2216%22%20ry%3D%226%22%20fill%3D%22%2318181b%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23f8fafc%22%3E%CE%9C%CE%B1%CF%85%CF%81%CF%8C%CE%B3%CF%85%CF%80%CE%B1%CF%82%20(Aegypius%20monachus)%20-%20%CE%9F%20%CE%93%CE%AF%CE%B3%CE%B1%CE%BD%CF%84%CE%B1%CF%82%20%CF%84%CE%B7%CF%82%20%CE%94%CE%B1%CE%B4%CE%B9%CE%AC%CF%82%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+          "text": "Μαυρόγυπας: Τεράστια μονοκόμματα ορθογώνια φτερά (άνοιγμα ~3 μέτρα)"
+        },
+        {
+          "id": "sm4",
+          "image": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22desertSky%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef08a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23desertSky)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22100%22%20cy%3D%2290%22%20r%3D%2240%22%20fill%3D%22%23fef08a%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sand%20Dunes%20%2F%20Mediterranean%20Hills%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C340%20Q%20150%2C290%20300%2C330%20T%20600%2C310%20L%20600%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23d97706%22%20opacity%3D%220.7%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C360%20Q%20200%2C320%20400%2C360%20T%20600%2C340%20L%20600%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Egyptian%20Vulture%20(Neophron%20percnopterus)%20--%3E%0A%20%20%20%20%20%20%3C!--%20Striking%20White%20body%20with%20Jet%20Black%20Flight%20Feathers%20%26%20Yellow%20Face%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2070)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Black%20%26%20White%20Wings%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C80%20Q%2040%2C45%20-30%2C40%20Q%2030%2C85%20105%2C95%20Z%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-30%2C40%20Q%2010%2C75%2070%2C85%20L%2050%2C92%20L%20-25%2C48%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20140%2C80%20Q%20220%2C45%20290%2C40%20Q%20230%2C85%20155%2C95%20Z%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20290%2C40%20Q%20250%2C75%20190%2C85%20L%20210%2C92%20L%20285%2C48%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Wedge-shaped%20Pure%20White%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C95%20130%2C145%20140%2C95%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22130%22%20cy%3D%2285%22%20rx%3D%2220%22%20ry%3D%2214%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Bare%20Bright%20Yellow%20Facial%20Mask%20%26%20Spiky%20Crest%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22130%22%20cy%3D%2262%22%20r%3D%2212%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22126%2C50%20130%2C42%20134%2C50%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C54%20125%2C46%20128%2C54%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Slender%20Hooked%20Bill%20with%20Dark%20Tip%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C62%20132%2C62%20130%2C50%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22129%2C52%20131%2C52%20130%2C48%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%2378350f%22%3E%CE%91%CF%83%CF%80%CF%81%CE%BF%CF%80%CE%AC%CF%81%CE%B7%CF%82%20(Neophron%20percnopterus)%20-%20%CE%9F%20%CE%A3%CE%BF%CF%86%CF%8C%CF%82%20%CE%A4%CE%B1%CE%BE%CE%B9%CE%B4%CE%B9%CF%8E%CF%84%CE%B7%CF%82%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+          "text": "Ασπροπάρης: Λευκό σώμα, μαύρες άκρες φτερών και λευκή τριγωνική ουρά"
+        }
+      ]
+    },
+    "payload_en": {
+      "pairs": [
+        {
+          "id": "sm1",
+          "image": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyB%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230284c7%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23bae6fd%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22mountain%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23475569%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22vultureChest%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23f97316%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23ea580c%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyB)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22500%22%20cy%3D%2290%22%20r%3D%2245%22%20fill%3D%22%23fef08a%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Rugged%20Alpine%20Peaks%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20120%2C220%20230%2C310%20380%2C180%20500%2C280%20600%2C200%20600%2C400%22%20fill%3D%22url(%23mountain)%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C220%20150%2C260%2090%2C260%22%20fill%3D%22%23cbd5e1%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22380%2C180%20410%2C230%20350%2C230%22%20fill%3D%22%23cbd5e1%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Soaring%20Bearded%20Vulture%20(Gypaetus%20barbatus)%20--%3E%0A%20%20%20%20%20%20%3C!--%20Pointed%20wings%20%26%20Diamond-shaped%20wedge%20tail%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(180%2C%2070)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Left%20Wing%20(Long%2C%20narrow%2C%20falcon-like)%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C80%20Q%2040%2C40%20-40%2C30%20Q%2030%2C70%20110%2C95%20Z%22%20fill%3D%22%23334155%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Right%20Wing%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20Q%20230%2C40%20310%2C30%20Q%20240%2C70%20160%2C95%20Z%22%20fill%3D%22%23334155%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Diamond%20Wedge%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22135%2C100%20120%2C165%20135%2C185%20150%2C165%22%20fill%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Body%20with%20Rusty%20Orange%20Underside%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22135%22%20cy%3D%2285%22%20rx%3D%2226%22%20ry%3D%2218%22%20fill%3D%22url(%23vultureChest)%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Head%20%26%20Black%20Eye%20Mask%20%26%20Chin%20Beard%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22135%22%20cy%3D%2265%22%20r%3D%2214%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20125%2C62%20Q%20135%2C55%20145%2C62%20Q%20135%2C70%20125%2C62%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Beard%20tuft%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22133%2C75%20137%2C75%20135%2C84%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22131%2C58%20139%2C58%20135%2C48%22%20fill%3D%22%23e2e8f0%22%20stroke%3D%22%23475569%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23f8fafc%22%3E%CE%93%CF%85%CF%80%CE%B1%CE%B5%CF%84%CF%8C%CF%82%20(Gypaetus%20barbatus)%20-%20%CE%9F%20%CE%86%CF%81%CF%87%CE%BF%CE%BD%CF%84%CE%B1%CF%82%20%CF%84%CF%89%CE%BD%20%CE%9A%CE%BF%CF%81%CF%85%CF%86%CF%8E%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+          "text": "Bearded Vulture: Long wings and diamond wedge-shaped tail"
+        },
+        {
+          "id": "sm2",
+          "image": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+          "text": "Griffon Vulture: Broad wings with deep splayed fingers and very short tail"
+        },
+        {
+          "id": "sm3",
+          "image": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22dadiaBg%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23064e3b%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23022c22%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23dadiaBg)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Dadia%20Black%20Pine%20Forest%20Silhouette%20--%3E%0A%20%20%20%20%20%20%3Cg%20fill%3D%22%23022c22%22%20stroke%3D%22%23064e3b%22%20stroke-width%3D%222%22%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%2240%2C400%2080%2C180%20120%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22110%2C400%20160%2C140%20210%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22200%2C400%20240%2C220%20280%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22380%2C400%20440%2C130%20500%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22490%2C400%20540%2C190%20590%2C400%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Giant%20Black%20Pine%20with%20Massive%20Nest%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22290%22%20y%3D%22160%22%20width%3D%2224%22%20height%3D%22240%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Nest%20Bowl%20on%20Pine%20Top%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22302%22%20cy%3D%22165%22%20rx%3D%2265%22%20ry%3D%2222%22%20fill%3D%22%2378350f%22%20stroke%3D%22%23292524%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Black%20Vulture%20(Aegypius%20monachus)%20on%20Nest%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(260%2C%2060)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Massive%20Black-Brown%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2285%22%20rx%3D%2230%22%20ry%3D%2224%22%20fill%3D%22%2318181b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Folded%20Broad%20Wings%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%2020%2C70%20Q%2030%2C120%2040%2C115%20Q%2060%2C120%2065%2C70%20Z%22%20fill%3D%22%2309090b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Pale%20Bluish-Grey%20Bare%20Head%20and%20Huge%20Bill%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2250%22%20rx%3D%2212%22%20ry%3D%2214%22%20fill%3D%22%2394a3b8%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Powerful%20Dark%20Hooked%20Bill%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%2040%2C42%20Q%2052%2C38%2046%2C55%20Q%2038%2C50%2040%2C42%20Z%22%20fill%3D%22%230f172a%22%20stroke%3D%22%23475569%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Dark%20Eye%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%2240%22%20cy%3D%2248%22%20r%3D%223%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Black%20ruff%20collar%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2264%22%20rx%3D%2216%22%20ry%3D%226%22%20fill%3D%22%2318181b%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23f8fafc%22%3E%CE%9C%CE%B1%CF%85%CF%81%CF%8C%CE%B3%CF%85%CF%80%CE%B1%CF%82%20(Aegypius%20monachus)%20-%20%CE%9F%20%CE%93%CE%AF%CE%B3%CE%B1%CE%BD%CF%84%CE%B1%CF%82%20%CF%84%CE%B7%CF%82%20%CE%94%CE%B1%CE%B4%CE%B9%CE%AC%CF%82%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+          "text": "Black Vulture: Massive rectangular dark wings (wingspan ~3 metres)"
+        },
+        {
+          "id": "sm4",
+          "image": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22desertSky%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef08a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23desertSky)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22100%22%20cy%3D%2290%22%20r%3D%2240%22%20fill%3D%22%23fef08a%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sand%20Dunes%20%2F%20Mediterranean%20Hills%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C340%20Q%20150%2C290%20300%2C330%20T%20600%2C310%20L%20600%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23d97706%22%20opacity%3D%220.7%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C360%20Q%20200%2C320%20400%2C360%20T%20600%2C340%20L%20600%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Egyptian%20Vulture%20(Neophron%20percnopterus)%20--%3E%0A%20%20%20%20%20%20%3C!--%20Striking%20White%20body%20with%20Jet%20Black%20Flight%20Feathers%20%26%20Yellow%20Face%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2070)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Black%20%26%20White%20Wings%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C80%20Q%2040%2C45%20-30%2C40%20Q%2030%2C85%20105%2C95%20Z%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-30%2C40%20Q%2010%2C75%2070%2C85%20L%2050%2C92%20L%20-25%2C48%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20140%2C80%20Q%20220%2C45%20290%2C40%20Q%20230%2C85%20155%2C95%20Z%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20290%2C40%20Q%20250%2C75%20190%2C85%20L%20210%2C92%20L%20285%2C48%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Wedge-shaped%20Pure%20White%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C95%20130%2C145%20140%2C95%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22130%22%20cy%3D%2285%22%20rx%3D%2220%22%20ry%3D%2214%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Bare%20Bright%20Yellow%20Facial%20Mask%20%26%20Spiky%20Crest%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22130%22%20cy%3D%2262%22%20r%3D%2212%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22126%2C50%20130%2C42%20134%2C50%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C54%20125%2C46%20128%2C54%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Slender%20Hooked%20Bill%20with%20Dark%20Tip%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C62%20132%2C62%20130%2C50%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22129%2C52%20131%2C52%20130%2C48%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%2378350f%22%3E%CE%91%CF%83%CF%80%CF%81%CE%BF%CF%80%CE%AC%CF%81%CE%B7%CF%82%20(Neophron%20percnopterus)%20-%20%CE%9F%20%CE%A3%CE%BF%CF%86%CF%8C%CF%82%20%CE%A4%CE%B1%CE%BE%CE%B9%CE%B4%CE%B9%CF%8E%CF%84%CE%B7%CF%82%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+          "text": "Egyptian Vulture: White body, black wingtips, and triangular white tail"
+        }
+      ]
+    },
+    "explanation": "Η σιλουέτα πτήσης επιτρέπει στους ορνιθολόγους να αναγνωρίζουν τους γύπες από χιλιόμετρα μακριά.",
+    "explanation_en": "Flight silhouettes allow ornithologists to identify vulture species from kilometres away."
+  },
+  {
+    "id": "vulture-quest-5",
+    "title": "Ο Γίγαντας του Δάσους της Δαδιάς",
+    "title_en": "The Giant of Dadia Forest",
+    "description": "Ποιο είδος γύπα έχει άνοιγμα φτερών σχεδόν 3 μέτρα και φωλιάζει αποκλειστικά στις κορυφές των πανύψηλων μαύρων πεύκων στο Εθνικό Πάρκο Δάσους Δαδιάς στον Έβρο;",
+    "description_en": "Which vulture species has a wingspan of nearly 3 metres and nests exclusively on top of massive black pine trees in Dadia National Park, Evros?",
+    "type": "multiple_choice",
+    "points": 110,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22dadiaBg%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23064e3b%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23022c22%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23dadiaBg)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Dadia%20Black%20Pine%20Forest%20Silhouette%20--%3E%0A%20%20%20%20%20%20%3Cg%20fill%3D%22%23022c22%22%20stroke%3D%22%23064e3b%22%20stroke-width%3D%222%22%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%2240%2C400%2080%2C180%20120%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22110%2C400%20160%2C140%20210%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22200%2C400%20240%2C220%20280%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22380%2C400%20440%2C130%20500%2C400%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22490%2C400%20540%2C190%20590%2C400%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Giant%20Black%20Pine%20with%20Massive%20Nest%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22290%22%20y%3D%22160%22%20width%3D%2224%22%20height%3D%22240%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Nest%20Bowl%20on%20Pine%20Top%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22302%22%20cy%3D%22165%22%20rx%3D%2265%22%20ry%3D%2222%22%20fill%3D%22%2378350f%22%20stroke%3D%22%23292524%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Black%20Vulture%20(Aegypius%20monachus)%20on%20Nest%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(260%2C%2060)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Massive%20Black-Brown%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2285%22%20rx%3D%2230%22%20ry%3D%2224%22%20fill%3D%22%2318181b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Folded%20Broad%20Wings%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%2020%2C70%20Q%2030%2C120%2040%2C115%20Q%2060%2C120%2065%2C70%20Z%22%20fill%3D%22%2309090b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Pale%20Bluish-Grey%20Bare%20Head%20and%20Huge%20Bill%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2250%22%20rx%3D%2212%22%20ry%3D%2214%22%20fill%3D%22%2394a3b8%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Powerful%20Dark%20Hooked%20Bill%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%2040%2C42%20Q%2052%2C38%2046%2C55%20Q%2038%2C50%2040%2C42%20Z%22%20fill%3D%22%230f172a%22%20stroke%3D%22%23475569%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Dark%20Eye%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%2240%22%20cy%3D%2248%22%20r%3D%223%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Black%20ruff%20collar%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%2242%22%20cy%3D%2264%22%20rx%3D%2216%22%20ry%3D%226%22%20fill%3D%22%2318181b%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23f8fafc%22%3E%CE%9C%CE%B1%CF%85%CF%81%CF%8C%CE%B3%CF%85%CF%80%CE%B1%CF%82%20(Aegypius%20monachus)%20-%20%CE%9F%20%CE%93%CE%AF%CE%B3%CE%B1%CE%BD%CF%84%CE%B1%CF%82%20%CF%84%CE%B7%CF%82%20%CE%94%CE%B1%CE%B4%CE%B9%CE%AC%CF%82%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "options": [
+        "Ο Μαυρόγυπας (Aegypius monachus)",
+        "Ο Γυπαετός (Gypaetus barbatus)",
+        "Το Όρνιο (Gyps fulvus)",
+        "Ο Χρυσαετός (Aquila chrysaetos)"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "The Black Vulture / Cinereous Vulture (Aegypius monachus)",
+        "The Bearded Vulture (Gypaetus barbatus)",
+        "The Griffon Vulture (Gyps fulvus)",
+        "The Golden Eagle (Aquila chrysaetos)"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Το Δάσος της Δαδιάς φιλοξενεί τη μοναδική αναπαραγόμενη αποικία Μαυρόγυπα στα Βαλκάνια. Οι φωλιές τους στις κορυφές των μαύρων και τραχειών πεύκων φτάνουν σε διάμετρο έως και τα 2 μέτρα!",
+    "explanation_en": "Dadia Forest hosts the only breeding colony of Black Vultures in the Balkans. Their nests atop black pines can reach up to 2 metres in diameter!"
+  },
+  {
+    "id": "vulture-quest-6",
+    "title": "Σωστό ή Λάθος: Ο Ασπροπάρης και η Χρήση Εργαλείων",
+    "title_en": "True or False: Egyptian Vulture Tool Use",
+    "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με την ευφυΐα του Ασπροπάρη (Neophron percnopterus).",
+    "description_en": "Evaluate the claim: \"The Egyptian Vulture is one of the very few birds known to use tools, picking up stones in its beak to smash thick eggs.\"",
+    "type": "true_false",
+    "points": 100,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22desertSky%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef08a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23desertSky)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22100%22%20cy%3D%2290%22%20r%3D%2240%22%20fill%3D%22%23fef08a%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sand%20Dunes%20%2F%20Mediterranean%20Hills%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C340%20Q%20150%2C290%20300%2C330%20T%20600%2C310%20L%20600%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23d97706%22%20opacity%3D%220.7%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C360%20Q%20200%2C320%20400%2C360%20T%20600%2C340%20L%20600%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Egyptian%20Vulture%20(Neophron%20percnopterus)%20--%3E%0A%20%20%20%20%20%20%3C!--%20Striking%20White%20body%20with%20Jet%20Black%20Flight%20Feathers%20%26%20Yellow%20Face%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2070)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Black%20%26%20White%20Wings%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C80%20Q%2040%2C45%20-30%2C40%20Q%2030%2C85%20105%2C95%20Z%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-30%2C40%20Q%2010%2C75%2070%2C85%20L%2050%2C92%20L%20-25%2C48%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20140%2C80%20Q%20220%2C45%20290%2C40%20Q%20230%2C85%20155%2C95%20Z%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20290%2C40%20Q%20250%2C75%20190%2C85%20L%20210%2C92%20L%20285%2C48%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Wedge-shaped%20Pure%20White%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C95%20130%2C145%20140%2C95%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22130%22%20cy%3D%2285%22%20rx%3D%2220%22%20ry%3D%2214%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Bare%20Bright%20Yellow%20Facial%20Mask%20%26%20Spiky%20Crest%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22130%22%20cy%3D%2262%22%20r%3D%2212%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22126%2C50%20130%2C42%20134%2C50%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C54%20125%2C46%20128%2C54%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Slender%20Hooked%20Bill%20with%20Dark%20Tip%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C62%20132%2C62%20130%2C50%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22129%2C52%20131%2C52%20130%2C48%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%2378350f%22%3E%CE%91%CF%83%CF%80%CF%81%CE%BF%CF%80%CE%AC%CF%81%CE%B7%CF%82%20(Neophron%20percnopterus)%20-%20%CE%9F%20%CE%A3%CE%BF%CF%86%CF%8C%CF%82%20%CE%A4%CE%B1%CE%BE%CE%B9%CE%B4%CE%B9%CF%8E%CF%84%CE%B7%CF%82%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-delta",
+      "team-beta"
+    ],
+    "payload": {
+      "correctValue": true
+    },
+    "payload_en": {
+      "correctValue": true
+    },
+    "explanation": "Σωστό! Ο Ασπροπάρης είναι παγκοσμίως διάσημος ως ένα από τα σπάνια είδη πουλιών που χρησιμοποιεί εργαλεία: μαζεύει πέτρες με το ράμφος του και τις εκσφενδονίζει με δύναμη για να σπάσει χοντρά αυγά άλλων πουλιών (όπως στρουθοκαμήλων στην Αφρική).",
+    "explanation_en": "True! The Egyptian Vulture is world-renowned as one of the few bird species that uses tools: it holds stones in its beak and hurls them repeatedly to crack open thick bird eggs."
+  },
+  {
+    "id": "vulture-quest-7",
+    "title": "Το Μυστικό του Πορτοκαλί Φτερώματος του Γυπαετού",
+    "title_en": "Secret of the Bearded Vulture Rusty Plumage",
+    "description": "Από πού προέρχεται το εντυπωσιακό πορτοκαλί-κοκκινωπό χρώμα στο στήθος και την κοιλιά του ενήλικου Γυπαετού;",
+    "description_en": "Where does the striking orange-rusty coloration on the breast and underbelly of adult Bearded Vultures come from?",
+    "type": "multiple_choice",
+    "points": 110,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyB%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230284c7%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23bae6fd%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22mountain%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23475569%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22vultureChest%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23f97316%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23ea580c%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyB)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22500%22%20cy%3D%2290%22%20r%3D%2245%22%20fill%3D%22%23fef08a%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Rugged%20Alpine%20Peaks%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20120%2C220%20230%2C310%20380%2C180%20500%2C280%20600%2C200%20600%2C400%22%20fill%3D%22url(%23mountain)%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C220%20150%2C260%2090%2C260%22%20fill%3D%22%23cbd5e1%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22380%2C180%20410%2C230%20350%2C230%22%20fill%3D%22%23cbd5e1%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Soaring%20Bearded%20Vulture%20(Gypaetus%20barbatus)%20--%3E%0A%20%20%20%20%20%20%3C!--%20Pointed%20wings%20%26%20Diamond-shaped%20wedge%20tail%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(180%2C%2070)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Left%20Wing%20(Long%2C%20narrow%2C%20falcon-like)%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C80%20Q%2040%2C40%20-40%2C30%20Q%2030%2C70%20110%2C95%20Z%22%20fill%3D%22%23334155%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Right%20Wing%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20Q%20230%2C40%20310%2C30%20Q%20240%2C70%20160%2C95%20Z%22%20fill%3D%22%23334155%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Diamond%20Wedge%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22135%2C100%20120%2C165%20135%2C185%20150%2C165%22%20fill%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Body%20with%20Rusty%20Orange%20Underside%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22135%22%20cy%3D%2285%22%20rx%3D%2226%22%20ry%3D%2218%22%20fill%3D%22url(%23vultureChest)%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Head%20%26%20Black%20Eye%20Mask%20%26%20Chin%20Beard%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22135%22%20cy%3D%2265%22%20r%3D%2214%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20125%2C62%20Q%20135%2C55%20145%2C62%20Q%20135%2C70%20125%2C62%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Beard%20tuft%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22133%2C75%20137%2C75%20135%2C84%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22131%2C58%20139%2C58%20135%2C48%22%20fill%3D%22%23e2e8f0%22%20stroke%3D%22%23475569%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23f8fafc%22%3E%CE%93%CF%85%CF%80%CE%B1%CE%B5%CF%84%CF%8C%CF%82%20(Gypaetus%20barbatus)%20-%20%CE%9F%20%CE%86%CF%81%CF%87%CE%BF%CE%BD%CF%84%CE%B1%CF%82%20%CF%84%CF%89%CE%BD%20%CE%9A%CE%BF%CF%81%CF%85%CF%86%CF%8E%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-gamma"
+    ],
+    "payload": {
+      "options": [
+        "Κάνει ενεργητικά «λουτρά» σε λάσπη και νερό πλούσιο σε οξείδια σιδήρου (ώχρα)",
+        "Από το αίμα των ζώων που τρέφεται",
+        "Είναι το φυσικό γενετικό χρώμα των φτερών του χωρίς καμία εξωτερική επίδραση",
+        "Από την έκθεση στις υπεριώδεις ακτίνες του ηλίου στις κορυφές"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "It deliberately bathes in mud and spring water rich in iron oxides (ochre)",
+        "From the blood of the animals it feeds on",
+        "It is the natural genetic feather pigmentation without external influence",
+        "From high-altitude ultraviolet sun radiation on alpine peaks"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Τα φτερά του γυπαετού είναι φυσικά λευκά! Τα πουλιά κάνουν επίτηδες καλλωπιστικά λουτρά σε πηγές πλούσιες σε οξείδια σιδήρου, βάφοντας τα φτερά τους πορτοκαλί. Όσο πιο πορτοκαλί είναι ένα πουλί, τόσο υψηλότερο κοινωνικό status εκπέμπει.",
+    "explanation_en": "The feathers are naturally white! The birds deliberately bathe in iron oxide-rich mud springs, dyeing their plumage orange. Deeper orange indicates higher social dominance and territorial experience."
+  },
+  {
+    "id": "vulture-quest-8",
+    "title": "Παζλ: Το Όρνιο σε Ανοδικά Θερμά Ρεύματα",
+    "title_en": "Puzzle: Griffon Vulture in Thermal Updrafts",
+    "description": "Συναρμολογήστε το παζλ που αναπαριστά το Όρνιο να γλιστρά αβίαστα πάνω από τα απόκρημνα φαράγγια χωρίς να χτυπά τα φτερά του.",
+    "description_en": "Assemble the puzzle depicting the Griffon Vulture effortlessly soaring over rugged gorges without flapping its wings.",
+    "type": "puzzle",
+    "points": 120,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-beta",
+      "team-alpha"
+    ],
+    "payload": {
+      "gridPieces": 9,
+      "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20"
+    },
+    "payload_en": {
+      "gridPieces": 9,
+      "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20"
+    },
+    "explanation": "Τα όρνια χρησιμοποιούν τα θερμά ανοδικά ρεύματα αέρα (thermals) για να ανυψώνονται κυκλικά έως και 3.000 μέτρα, εξοικονομώντας ενέργεια καθώς μπορούν να διανύσουν 200+ χιλιόμετρα ημερησίως για αναζήτηση τροφής!",
+    "explanation_en": "Griffons utilize rising thermal air currents to spiral up to 3,000 metres, conserving energy and covering over 200 km per day in search of food!"
+  }
+];
+
+/**
+ * Μέρος 2: Οικολογικός Ρόλος & Εξελικτικές Προσαρμογές (Αποστολές 9 - 14)
+ */
+export const ECOLOGY_QUESTS: Question[] = [
+  {
+    "id": "vulture-quest-9",
+    "title": "Οι Καθαριστές της Φύσης: Δημόσια Υγεία & Οικοσύστημα",
+    "title_en": "Nature Sanitizers: Public Health & Ecosystem Services",
+    "description": "Ποια είναι η πιο ανεκτίμητη οικολογική υπηρεσία που προσφέρουν οι γύπες στον άνθρωπο και στο φυσικό περιβάλλον;",
+    "description_en": "What is the most invaluable ecological service that vultures provide to humanity and the natural environment?",
+    "type": "multiple_choice",
+    "points": 120,
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta",
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "options": [
+        "Καθαρίζουν ταχύτατα τη φύση από ψοφίμια, εμποδίζοντας τη διάδοση άνθρακα, λύσσας και χολέρας",
+        "Επικονιάζουν τα φυτά των ορεινών όγκων",
+        "Φτιάχνουν φωλιές που χρησιμοποιούνται από άλλα είδη πουλιών",
+        "Μειώνουν τον πληθυσμό των επιβλαβών εντόμων στα δάση"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "Rapidly sanitize nature by consuming carcasses, preventing deadly anthrax, rabies, and cholera outbreaks",
+        "Pollinate high-altitude mountain vegetation",
+        "Build nests subsequently reused by songbirds",
+        "Control agricultural pest insects in mountain forests"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Οι γύπες είναι οι απόλυτοι υγειονομικοί καθαριστές της φύσης. Χωρίς αυτούς, τα νεκρά ζώα αποσυντίθενται αργά, μολύνοντας τον υδροφόρο ορίζοντα και πολλαπλασιάζοντας επικίνδυνα παθογόνα βακτήρια και αδέσποτα ζώα με λύσσα.",
+    "explanation_en": "Vultures are nature sanitation officers. Without them, carcasses rot slowly, contaminating water sources and multiplying lethal bacteria and rabid feral animals."
+  },
+  {
+    "id": "vulture-quest-10",
+    "title": "Σωστό ή Λάθος: Το Πανίσχυρο Όξινο Στομάχι των Γυπών",
+    "title_en": "True or False: The Super-Acidic Vulture Stomach",
+    "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με το πεπτικό σύστημα των γυπών.",
+    "description_en": "Evaluate the claim: \"Vulture gastric stomach acid is so acidic (pH close to 1, similar to battery acid) that it can neutralize deadly bacteria like anthrax and botulism.\"",
+    "type": "true_false",
+    "points": 90,
+    "assignedTeamIds": [
+      "team-beta",
+      "team-gamma"
+    ],
+    "payload": {
+      "correctValue": true
+    },
+    "payload_en": {
+      "correctValue": true
+    },
+    "explanation": "Σωστό! Το στομάχι των γυπών έχει pH κοντά στο 1 (τόσο όξινο όσο το οξύ μπαταρίας αυτοκινήτου). Μπορεί να διαλύσει ακόμη και πυκνά οστά και εξολοθρεύει τα περισσότερα θανατηφόρα βακτήρια, καθιστώντας τους γύπες άτρωτους σε ασθένειες που θα σκότωναν άλλα ζώα.",
+    "explanation_en": "True! Vulture gastric acid has a pH near 1 (comparable to car battery acid). It digests dense bones and destroys nearly all lethal microorganisms, rendering vultures immune to pathogens."
+  },
+  {
+    "id": "vulture-quest-11",
+    "title": "Η «Ιεραρχία στο Τραπέζι»: Ποιος τρώει τι;",
+    "title_en": "Carcass Dining Hierarchy: Who Eats What?",
+    "description": "Αντιστοιχίστε το κάθε είδος γύπα με το συγκεκριμένο μέρος του κουφαριού που καταναλώνει χάρη στην εξειδίκευση του ράμφους του.",
+    "description_en": "Match each vulture species with the specific part of the carcass it consumes due to its specialized bill morphology.",
+    "type": "text_match",
+    "points": 130,
+    "assignedTeamIds": [
+      "team-gamma",
+      "team-alpha"
+    ],
+    "payload": {
+      "pairs": [
+        {
+          "id": "h1",
+          "left": "Μαυρόγυπας (Ισχυρό ράμφος)",
+          "right": "Σκληρό δέρμα, χόνδροι και τένοντες (ανοίγει το κουφάρι)"
+        },
+        {
+          "id": "h2",
+          "left": "Όρνιο (Μακρύς γυμνός λαιμός)",
+          "right": "Μαλακό κρέας και εσωτερικά σπλάχνα"
+        },
+        {
+          "id": "h3",
+          "left": "Γυπαετός (Εξειδικευμένο στομάχι)",
+          "right": "Οστά που καταπίνει ολόκληρα ή σπάει στα βράχια"
+        },
+        {
+          "id": "h4",
+          "left": "Ασπροπάρης (Λεπτό ράμφος)",
+          "right": "Μικρά υπολείμματα, έντομα και μικρά κομμάτια"
+        }
+      ]
+    },
+    "payload_en": {
+      "pairs": [
+        {
+          "id": "h1",
+          "left": "Black Vulture (Powerful heavy bill)",
+          "right": "Tough hide, skin, cartilage, and tendons (opens the carcass)"
+        },
+        {
+          "id": "h2",
+          "left": "Griffon Vulture (Long bare neck)",
+          "right": "Soft muscle meat and internal viscera"
+        },
+        {
+          "id": "h3",
+          "left": "Bearded Vulture (Specialized stomach)",
+          "right": "Bones swallowed whole or dropped on rocks"
+        },
+        {
+          "id": "h4",
+          "left": "Egyptian Vulture (Slender forceps bill)",
+          "right": "Scraps, small meat fragments, and insects"
+        }
+      ]
+    },
+    "explanation": "Η τέλεια οικολογική συνεργασία! Κανένα είδος δεν ανταγωνίζεται ευθέως το άλλο: ο Μαυρόγυπας ανοίγει το σκληρό τομάρι, τα Όρνια τρώνε το κρέας, ο Γυπαετός καθαρίζει τα κόκαλα και ο Ασπροπάρης μαζεύει τα τελευταία ψίχουλα.",
+    "explanation_en": "Flawless ecological synergy! They do not compete directly: Black Vultures tear the tough hide, Griffons strip the flesh, Bearded Vultures consume the bones, and Egyptian Vultures glean the remaining crumbs."
+  },
+  {
+    "id": "vulture-quest-12",
+    "title": "Αποστολή Πεδίου: Τροφικό Πλέγμα & Παραδοσιακή Κτηνοτροφία",
+    "title_en": "Field Task: Food Web & Pastoral Livestock Farming",
+    "description": "Επιβεβαιώστε τα 4 κρίσιμα στοιχεία που συνδέουν την παραδοσιακή εκτατική κτηνοτροφία με την επιβίωση των γυπών στην ελληνική ύπαιθρο.",
+    "description_en": "Confirm the 4 critical elements linking traditional extensive pastoralism with the survival of vultures in the Greek countryside.",
+    "type": "task",
+    "points": 120,
+    "assignedTeamIds": [
+      "team-delta",
+      "team-alpha"
+    ],
+    "payload": {
+      "instructions": "Ελέγξτε προσεκτικά κάθε σημείο και σημειώστε τα ως ολοκληρωμένα:",
+      "checklist": [
+        "Κοπάδια αιγοπροβάτων που βόσκουν ελεύθερα στα βουνά (φυσική πηγή τροφής)",
+        "Απουσία δηλητηριασμένων δολωμάτων και φολών στους βοσκότοπους",
+        "Μη χρήση τοξικών κτηνιατρικών φαρμάκων (δικλοφενάκη) στα ζώα",
+        "Συνεργασία κτηνοτρόφων με τις δασικές υπηρεσίες και ορνιθολογικές οργανώσεις"
+      ],
+      "completionPrompt": "Επιβεβαιώστε ότι η ομάδα σας κατανόησε τη σημασία της εκτατικής κτηνοτροφίας για τους γύπες."
+    },
+    "payload_en": {
+      "instructions": "Carefully review each point and mark them completed:",
+      "checklist": [
+        "Free-ranging flocks of sheep and goats grazing in mountains (natural food source)",
+        "Complete absence of illegal poison baits in pastoral pastures",
+        "Non-use of toxic veterinary drugs (diclofenac) in livestock",
+        "Active collaboration between pastoralists, forest services, and conservation NGOs"
+      ],
+      "completionPrompt": "Confirm that your team understands the synergy between extensive pastoralism and vultures."
+    },
+    "explanation": "Οι γύπες της Ευρώπης συνδέονται άρρηκτα εδώ και χιλιετίες με την παραδοσιακή κτηνοτροφία. Η εγκατάλειψη της ορεινής υπαίθρου στερεί από τους γύπες τη βασική τους πηγή τροφής.",
+    "explanation_en": "European vultures have been inextricably linked with traditional extensive pastoralism for millennia. Rural abandonment deprives them of essential foraging opportunities."
+  },
+  {
+    "id": "vulture-quest-13",
+    "title": "Η Εξελικτική Προσαρμογή του Γυμνού Λαιμού στο Όρνιο",
+    "title_en": "Evolutionary Adaptation of the Bare Neck in Griffons",
+    "description": "Για ποιο λόγο το Όρνιο έχει μακρύ λαιμό χωρίς πυκνά φτερά, καλυμμένο μόνο με λεπτό χνούδι;",
+    "description_en": "Why does the Griffon Vulture have a long neck devoid of dense contour feathers, covered only in fine down?",
+    "type": "multiple_choice",
+    "points": 100,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-beta",
+      "team-alpha"
+    ],
+    "payload": {
+      "options": [
+        "Για να διατηρείται καθαρός όταν βυθίζει το κεφάλι του βαθιά μέσα στο κουφάρι χωρίς να λερώνει φτερά",
+        "Για να πετάει με μεγαλύτερη ταχύτητα στον αέρα",
+        "Γιατί έχασε τα φτερά του από επιθέσεις αρπακτικών",
+        "Για να τρομάζει τους ανταγωνιστές του στο έδαφος"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "To maintain hygiene when probing deep inside carcasses without blood clotting on feathers",
+        "To achieve higher aerodynamic airspeed in flight",
+        "Because feathers were lost during battles with ground predators",
+        "To intimidate rival scavengers on the ground"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Εάν ο λαιμός είχε κανονικά φτερά, το αίμα και τα υπολείμματα τροφής θα κολλούσαν, προκαλώντας βακτηριακές λοιμώξεις. Το γυμνό δέρμα καθαρίζεται πανεύκολα και απολυμαίνεται από την ηλιακή ακτινοβολία όταν το πουλί λιάζεται!",
+    "explanation_en": "If feathered, blood and viscera would coagulate, inducing lethal bacterial infections. Bare skin is easily cleaned and sterilized by solar UV radiation as the bird sunbathes."
+  },
+  {
+    "id": "vulture-quest-14",
+    "title": "Σωστό ή Λάθος: Θηρευτές ή Αυστηρά Πτωματοφάγοι;",
+    "title_en": "True or False: Predators or Obligate Scavengers?",
+    "description": "Εξετάστε τον μύθο: «Οι γύπες συχνά επιτίθενται και σκοτώνουν υγιή ζωντανά πρόβατα και μοσχάρια.»",
+    "description_en": "Evaluate the myth: \"Vultures frequently attack and kill healthy living sheep and calves in the mountains.\"",
+    "type": "true_false",
+    "points": 90,
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-gamma"
+    ],
+    "payload": {
+      "correctValue": false
+    },
+    "payload_en": {
+      "correctValue": false
+    },
+    "explanation": "Λάθος! Είναι ένας επιβλαβής μύθος. Οι γύπες είναι «υποχρεωτικοί πτωματοφάγοι» (obligate scavengers). Τα νύχια των ποδιών τους είναι κοντά, αμβλέα και αδύναμα (σαν της κότας) — δεν μπορούν να πιάσουν ή να σκοτώσουν ζωντανό υγιές ζώο, παρά μόνο να τραφούν από ήδη νεκρά κουφάρια.",
+    "explanation_en": "False! This is a harmful rural myth. Vultures are obligate scavengers. Their talons are flat, blunt, and weak like a chicken — physically incapable of grasping or killing healthy livestock."
+  }
+];
+
+/**
+ * Μέρος 3: Ανθρωπογενείς Απειλές & Επιπτώσεις (Αποστολές 15 - 20)
+ */
+export const THREATS_QUESTS: Question[] = [
+  {
+    "id": "vulture-quest-15",
+    "title": "Η Υπ’ Αριθμόν 1 Απειλή: Δηλητηριασμένα Δολώματα (Φόλες)",
+    "title_en": "Threat Number One: Illegal Poison Baits",
+    "description": "Ποια είναι η κυριότερη αιτία που οδήγησε τους γύπες στα πρόθυρα της εξαφάνισης στην ηπειρωτική Ελλάδα και τα Βαλκάνια;",
+    "description_en": "What is the primary factor that drove vultures to the verge of regional extinction across mainland Greece and the Balkans?",
+    "type": "multiple_choice",
+    "points": 130,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22%23064e3b%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Detection%20Dog%20Silhouette%20with%20Vest%20--%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22450%22%20cy%3D%22100%22%20r%3D%2240%22%20fill%3D%22%2310b981%22%20opacity%3D%220.2%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Badge%20%2F%20Shield%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22300%2C60%20380%2C100%20380%2C220%20300%2C280%20220%2C220%20220%2C100%22%20fill%3D%22%23022c22%22%20stroke%3D%22%2310b981%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22245%22%20y%3D%22160%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22900%22%20font-size%3D%2218%22%20fill%3D%22%236ee7b7%22%3EK9%20UNIT%3C%2Ftext%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22235%22%20y%3D%22195%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2212%22%20fill%3D%22%23a7f3d0%22%3E%CE%91%CE%9D%CE%A4%CE%99%CE%94%CE%97%CE%9B%CE%97%CE%A4%CE%97%CE%A1%CE%99%CE%9F%3C%2Ftext%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22240%22%20y%3D%22220%22%20font-size%3D%2234%22%3E%F0%9F%90%95%E2%80%8D%F0%9F%A6%BA%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta",
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "options": [
+        "Η παράνομη διασπορά δηλητηριασμένων δολωμάτων (φόλες) στην ύπαιθρο",
+        "Η φυσική γήρανση των πουλιών",
+        "Ο ανταγωνισμός από τα κοράκια",
+        "Η έλλειψη νερού στα βουνά"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "The illegal placement of poisoned baits in the countryside targeting carnivores",
+        "Natural senescence and aging of birds",
+        "Competition from common ravens",
+        "Lack of drinking water in mountain streams"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Τα δηλητηριασμένα δολώματα που τοποθετούνται παράνομα στην ύπαιθρο (συχνά για λύκους, αλεπούδες ή αδέσποτα) είναι καταστροφικά. Επειδή τα Όρνια τρέφονται ομαδικά, ένα και μόνο δηλητηριασμένο ζώο μπορεί να σκοτώσει σε μία ώρα 10, 20 ή και ολόκληρη την τοπική αποικία!",
+    "explanation_en": "Poison baits illegally placed for wolves or foxes are catastrophic. Because Griffon Vultures feed communally, a single poisoned carcass can annihilate 10, 20, or an entire regional breeding colony within hours!"
+  },
+  {
+    "id": "vulture-quest-16",
+    "title": "Σωστό ή Λάθος: Το Κτηνιατρικό Φάρμακο Δικλοφενάκη",
+    "title_en": "True or False: The Veterinary Drug Diclofenac",
+    "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με τις επιπτώσεις φαρμάκων στους γύπες.",
+    "description_en": "Evaluate the claim: \"The veterinary use of the anti-inflammatory drug diclofenac in livestock wiped out 99% of Asian vultures due to kidney failure within a single decade.\"",
+    "type": "true_false",
+    "points": 100,
+    "assignedTeamIds": [
+      "team-beta",
+      "team-delta"
+    ],
+    "payload": {
+      "correctValue": true
+    },
+    "payload_en": {
+      "correctValue": true
+    },
+    "explanation": "Σωστό! Η χρήση δικλοφενάκης σε αγελάδες στην Ινδία οδήγησε στη μεγαλύτερη κατάρρευση πληθυσμού πτηνών στην ιστορία (εξαφανίστηκαν πάνω από 40 εκατομμύρια γύπες!). Στην Ευρώπη δίνεται μεγάλος αγώνας για την πλήρη απαγόρευση επικίνδυνων κτηνιατρικών φαρμάκων.",
+    "explanation_en": "True! Veterinary diclofenac administered to cattle caused the fastest avian population crash in human history (over 40 million vultures died from visceral gout). Strict European regulations now fight to ban harmful veterinary NSAIDs."
+  },
+  {
+    "id": "vulture-quest-17",
+    "title": "Αντιστοίχιση Ανθρωπογενών Απειλών & Επιπτώσεων",
+    "title_en": "Matching Anthropogenic Threats & Conservation Impacts",
+    "description": "Συνδέστε κάθε απειλή με τον συγκεκριμένο τρόπο που πλήττει τους γύπες.",
+    "description_en": "Match each anthropogenic threat with the exact mechanism by which it harms vultures.",
+    "type": "text_match",
+    "points": 120,
+    "assignedTeamIds": [
+      "team-gamma",
+      "team-beta"
+    ],
+    "payload": {
+      "pairs": [
+        {
+          "id": "t1",
+          "left": "Δηλητηριασμένα δολώματα (φόλες)",
+          "right": "Μαζική θανάτωση δεκάδων ατόμων σε ένα μόνο γεύμα"
+        },
+        {
+          "id": "t2",
+          "left": "Μη μονωμένοι πυλώνες ρεύματος",
+          "right": "Ηλεκτροπληξία κατά την προσγείωση μεγάλων πουλιών"
+        },
+        {
+          "id": "t3",
+          "left": "Αιολικά πάρκα σε διάδρομους πτήσης",
+          "right": "Θανάσιμη πρόσκρουση στις περιστρεφόμενες πτέρυγες"
+        },
+        {
+          "id": "t4",
+          "left": "Σκάγια μολύβδου (κυνήγι)",
+          "right": "Χρόνια δηλητηρίαση (μολυβδίαση) από κατάποση μολύβδου"
+        }
+      ]
+    },
+    "payload_en": {
+      "pairs": [
+        {
+          "id": "t1",
+          "left": "Illegal poison baits",
+          "right": "Mass mortality of dozens of birds at a single meal"
+        },
+        {
+          "id": "t2",
+          "left": "Uninsulated medium-voltage pylons",
+          "right": "Electrocution when large wings bridge live wires"
+        },
+        {
+          "id": "t3",
+          "left": "Wind turbines in flight corridors",
+          "right": "Fatal collision with rapidly rotating turbine blades"
+        },
+        {
+          "id": "t4",
+          "left": "Lead ammunition (hunting)",
+          "right": "Chronic lead intoxication (plumbism) from bullet fragments"
+        }
+      ]
+    },
+    "explanation": "Η αντιμετώπιση των απειλών απαιτεί μόνωση πυλώνων, αυστηρό έλεγχο χωροθέτησης αιολικών και απαγόρευση μολύβδινων σκαγιών.",
+    "explanation_en": "Mitigating threats requires pylon insulation retrofitting, micro-siting of wind parks, and banning toxic lead ammunition."
+  },
+  {
+    "id": "vulture-quest-18",
+    "title": "Οι Ειδικές Αντιδηλητηριαστικές Ομάδες Σκύλων (K9 Units)",
+    "title_en": "Specialized Anti-Poison Dog Units (K9 Units)",
+    "description": "Ποιος είναι ο ρόλος των ειδικά εκπαιδευμένων σκύλων ανίχνευσης που δραστηριοποιούνται στη Θράκη, την Κρήτη και την Ήπειρο;",
+    "description_en": "What is the vital role of the specialized conservation detection dogs operating in Thrace, Crete, and Epirus?",
+    "type": "multiple_choice",
+    "points": 110,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22%23064e3b%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Detection%20Dog%20Silhouette%20with%20Vest%20--%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22450%22%20cy%3D%22100%22%20r%3D%2240%22%20fill%3D%22%2310b981%22%20opacity%3D%220.2%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Badge%20%2F%20Shield%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22300%2C60%20380%2C100%20380%2C220%20300%2C280%20220%2C220%20220%2C100%22%20fill%3D%22%23022c22%22%20stroke%3D%22%2310b981%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22245%22%20y%3D%22160%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22900%22%20font-size%3D%2218%22%20fill%3D%22%236ee7b7%22%3EK9%20UNIT%3C%2Ftext%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22235%22%20y%3D%22195%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2212%22%20fill%3D%22%23a7f3d0%22%3E%CE%91%CE%9D%CE%A4%CE%99%CE%94%CE%97%CE%9B%CE%97%CE%A4%CE%97%CE%A1%CE%99%CE%9F%3C%2Ftext%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22240%22%20y%3D%22220%22%20font-size%3D%2234%22%3E%F0%9F%90%95%E2%80%8D%F0%9F%A6%BA%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-gamma"
+    ],
+    "payload": {
+      "options": [
+        "Εντοπίζουν με την όσφρησή τους δηλητηριασμένα δολώματα στην ύπαιθρο πριν προλάβουν να τα φάνε οι γύπες",
+        "Φυλάνε τις φωλιές των γυπών από επιθέσεις αλεπούδων",
+        "Κυνηγούν τα κοράκια που κλέβουν την τροφή των γυπών",
+        "Οδηγούν τους γύπες προς τις ασφαλείς ταΐστρες"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "Sniff out and locate illegal poisoned baits and carcasses in the wilderness before vultures consume them",
+        "Guard vulture cliff nests against terrestrial predators",
+        "Chase ravens competing for food carcasses",
+        "Guide vultures towards artificial feeding stations"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Οι Αντιδηλητηριαστικές Ομάδες Σκύλων της Ελληνικής Ορνιθολογικής Εταιρείας και του WWF σώζουν δεκάδες γύπες κάθε χρόνο, απομακρύνοντας έγκαιρα το δηλητήριο από τα βουνά.",
+    "explanation_en": "The Canine Anti-Poison Units of the Hellenic Ornithological Society and WWF Greece save dozens of vultures every year by rapidly neutralizing poison in mountain habitats."
+  },
+  {
+    "id": "vulture-quest-19",
+    "title": "Φωτογραφική Αποστολή: Εντοπισμός Βιοτόπου ή Απειλής",
+    "title_en": "Photo Quest: Habitat Clue or Threat Identification",
+    "description": "Φωτογραφίστε ένα στοιχείο του περιβάλλοντος (π.χ. πυλώνα ρεύματος, απόκρημνο βράχο, δασικό τοπίο, πηγή νερού) και ανεβάστε το με μια σύντομη περιγραφή.",
+    "description_en": "Photograph an environmental feature (e.g. power pylon, rocky cliff, mountain terrain, or water spring) and submit it with a brief commentary.",
+    "type": "photo_upload",
+    "points": 140,
+    "assignedTeamIds": [
+      "team-delta",
+      "team-beta"
+    ],
+    "payload": {
+      "instructions": "Τραβήξτε και ανεβάστε μία καθαρή φωτογραφία που σχετίζεται με τον βιότοπο ή τους κινδύνους των γυπών."
+    },
+    "payload_en": {
+      "instructions": "Take and upload a clear photograph representing either vulture habitat, feeding grounds, or potential hazards."
+    },
+    "explanation": "Η φωτογραφική καταγραφή και η επιτόπια παρατήρηση είναι θεμέλιος λίθος για τη χαρτογράφηση κρίσιμων βιοτόπων.",
+    "explanation_en": "Field photo-documentation is fundamental for mapping critical vulture habitats and power line danger zones."
+  },
+  {
+    "id": "vulture-quest-20",
+    "title": "Σωστό ή Λάθος: Αναπαραγωγικός Ρυθμός και Αυγά",
+    "title_en": "True or False: Reproduction Rate and Eggs",
+    "description": "Εξετάστε τον ακόλουθο ισχυρισμό: «Οι γύπες γεννούν πολλά αυγά (5-8 αυγά) κάθε χρόνο, επομένως οι πληθυσμοί τους μπορούν να ανακάμψουν μέσα σε λίγους μήνες.»",
+    "description_en": "Evaluate the claim: \"Vultures lay large clutches of 5-8 eggs every year, which is why their depleted colonies recover within a few months.\"",
+    "type": "true_false",
+    "points": 90,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22gorge%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23gorge)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sheer%20Rock%20Face%20Cavity%20%2F%20Cave%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C0%20L%20250%2C0%20C%20220%2C120%20180%2C240%20220%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20600%2C0%20L%20380%2C0%20C%20420%2C140%20400%2C260%20450%2C400%20L%20600%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Cave%20Alcove%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22210%22%20rx%3D%2260%22%20ry%3D%2240%22%20fill%3D%22%23020617%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Stick%20Nest%20in%20Cave%20with%201%20White%20Egg%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22225%22%20rx%3D%2245%22%20ry%3D%2215%22%20fill%3D%22%2378350f%22%2F%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22222%22%20rx%3D%2214%22%20ry%3D%2218%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2216%22%20fill%3D%22%2338bdf8%22%3E%CE%A6%CF%89%CE%BB%CE%B9%CE%AC%20%CF%83%CE%B5%20%CE%A3%CF%80%CE%B7%CE%BB%CE%B9%CE%AC%20%CE%91%CF%80%CF%8C%CE%BA%CF%81%CE%B7%CE%BC%CE%BD%CE%BF%CF%85%20%CE%93%CE%BA%CF%81%CE%B5%CE%BC%CE%BF%CF%8D%20(1%20%CE%91%CF%85%CE%B3%CF%8C%2F%CE%AD%CF%84%CE%BF%CF%82)%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-gamma"
+    ],
+    "payload": {
+      "correctValue": false
+    },
+    "payload_en": {
+      "correctValue": false
+    },
+    "explanation": "Λάθος! Οι γύπες έχουν εξαιρετικά αργό αναπαραγωγικό ρυθμό (K-strategy): γεννούν ΜΟΝΟ 1 αυγό το χρόνο (σπανιότατα 2 ο Ασπροπάρης), το κλωσούν για σχεδόν 2 μήνες, το μικρό μένει στη φωλιά 4 μήνες και ωριμάζει σεξουαλικά στα 5-7 έτη! Γι’ αυτό η απώλεια έστω και ενός ενήλικου πουλιού είναι τεράστιο πλήγμα.",
+    "explanation_en": "False! Vultures are classic K-strategists: they lay ONLY 1 egg per year (rarely 2 for Egyptian Vultures), incubate for nearly 2 months, rear the chick for 4 months, and reach maturity at 5-7 years! Losing even one adult bird severely compromises colony viability."
+  }
+];
+
+/**
+ * Μέρος 4: Δράσεις Προστασίας, Τηλεμετρία & Επιστημονική Παρακολούθηση (Αποστολές 21 - 27)
+ */
+export const CONSERVATION_QUESTS: Question[] = [
+  {
+    "id": "vulture-quest-21",
+    "title": "Δορυφορικοί Πομποί GPS & Τηλεμετρία Υψηλής Ακρίβειας",
+    "title_en": "Satellite GPS Transmitters & High-Precision Telemetry",
+    "description": "Πώς έχουν αλλάξει οι σύγχρονοι δορυφορικοί πομποί GPS/GSM στην πλάτη των γυπών την έρευνα και την προστασία τους;",
+    "description_en": "How have modern lightweight solar GPS/GSM satellite transmitters harnessed onto vultures revolutionized research and anti-poison alerts?",
+    "type": "multiple_choice",
+    "points": 120,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22%23020617%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20GPS%20Satellite%20in%20Orbit%20--%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22480%22%20cy%3D%2290%22%20r%3D%2228%22%20fill%3D%22%230284c7%22%20opacity%3D%220.5%22%2F%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22460%22%20y%3D%2275%22%20width%3D%2240%22%20height%3D%2230%22%20rx%3D%224%22%20fill%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Solar%20Panels%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22420%22%20y%3D%2282%22%20width%3D%2235%22%20height%3D%2216%22%20fill%3D%22%230369a1%22%20stroke%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22505%22%20y%3D%2282%22%20width%3D%2235%22%20height%3D%2216%22%20fill%3D%22%230369a1%22%20stroke%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Signal%20Waves%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20450%2C130%20Q%20300%2C200%20200%2C250%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Transmitter%20Box%20on%20Harness%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22150%22%20y%3D%22220%22%20width%3D%2290%22%20height%3D%2260%22%20rx%3D%228%22%20fill%3D%22%231e293b%22%20stroke%3D%22%23f59e0b%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Mini%20Solar%20Panel%20on%20transmitter%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22165%22%20y%3D%22232%22%20width%3D%2260%22%20height%3D%2236%22%20fill%3D%22%230369a1%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Antenna%20--%3E%0A%20%20%20%20%20%20%3Cline%20x1%3D%22230%22%20y1%3D%22220%22%20x2%3D%22280%22%20y2%3D%22150%22%20stroke%3D%22%23f59e0b%22%20stroke-width%3D%223%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Field%20Leg%20Ring%20with%20Code%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22170%22%20y%3D%22310%22%20width%3D%2250%22%20height%3D%2230%22%20rx%3D%224%22%20fill%3D%22%23fbbf24%22%20stroke%3D%22%23d97706%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22180%22%20y%3D%22330%22%20font-family%3D%22monospace%22%20font-weight%3D%22bold%22%20font-size%3D%2214%22%20fill%3D%22%230f172a%22%3EA31%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-beta",
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "options": [
+        "Στέλνουν σε πραγματικό χρόνο τις συντεταγμένες πτήσης, ταχύτητα, ύψος και άμεση ειδοποίηση (alert) αν ένα πουλί ακινητοποιηθεί ύποπτα",
+        "Εκπέμπουν ήχους που τρομάζουν τους λαθροκυνηγούς",
+        "Τροφοδοτούν το πουλί με ηλεκτρική ενέργεια όταν κουράζεται",
+        "Εμποδίζουν τον γύπα να πετάξει εκτός των ορίων του εθνικού πάρκου"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "Transmit real-time GPS coordinates, flight altitude, speed, and immediate immobility alerts if a bird suddenly stops moving",
+        "Emit loud acoustic sirens that scare away poachers",
+        "Supply the vulture with electrical stamina when tired",
+        "Physically constrain the vulture inside national park boundaries"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Η δορυφορική τηλεμετρία επιτρέπει στους επιστήμονες να εντοπίσουν ένα δηλητηριασμένο πουλί μέσα σε λίγες ώρες, σώζοντας τόσο το ίδιο όσο και απομακρύνοντας το δηλητήριο πριν σκοτωθούν κι άλλοι γύπες.",
+    "explanation_en": "Satellite telemetry allows scientists to pinpoint an incapacitated bird within hours, saving the individual and eradicating the bait before it wipes out flock mates."
+  },
+  {
+    "id": "vulture-quest-22",
+    "title": "QR Σταθμός: Ταΐστρα Γυπών (Vulture Restaurant)",
+    "title_en": "QR Station: Vulture Restaurant Feeding Site",
+    "description": "Εντοπίστε και σκανάρετε το QR Code του Σταθμού Τροφοδοσίας Γυπών για να καταγράψετε την παροχή ασφαλούς τροφής.",
+    "description_en": "Locate and scan the QR Code of the Vulture Feeding Station to record secure, toxin-free food provisioning.",
+    "type": "qr_scan",
+    "points": 150,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Fenced%20Vulture%20Restaurant%20Enclosure%20--%3E%0A%20%20%20%20%20%20%3Cline%20x1%3D%2280%22%20y1%3D%22280%22%20x2%3D%22520%22%20y2%3D%22280%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%3Cline%20x1%3D%2280%22%20y1%3D%22240%22%20x2%3D%22520%22%20y2%3D%22240%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Fence%20Posts%20--%3E%0A%20%20%20%20%20%20%3Cline%20x1%3D%22120%22%20y1%3D%22220%22%20x2%3D%22120%22%20y2%3D%22340%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%226%22%2F%3E%0A%20%20%20%20%20%20%3Cline%20x1%3D%22220%22%20y1%3D%22220%22%20x2%3D%22220%22%20y2%3D%22340%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%226%22%2F%3E%0A%20%20%20%20%20%20%3Cline%20x1%3D%22320%22%20y1%3D%22220%22%20x2%3D%22320%22%20y2%3D%22340%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%226%22%2F%3E%0A%20%20%20%20%20%20%3Cline%20x1%3D%22420%22%20y1%3D%22220%22%20x2%3D%22420%22%20y2%3D%22340%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%226%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sign%20Board%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22180%22%20y%3D%2280%22%20width%3D%22240%22%20height%3D%2280%22%20rx%3D%2212%22%20fill%3D%22%231e293b%22%20stroke%3D%22%2310b981%22%20stroke-width%3D%223%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22200%22%20y%3D%22115%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2216%22%20fill%3D%22%2334d399%22%3E%CE%A4%CE%91%CE%AA%CE%A3%CE%A4%CE%A1%CE%91%20%CE%93%CE%A5%CE%A0%CE%A9%CE%9D%3C%2Ftext%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22200%22%20y%3D%22140%22%20font-family%3D%22sans-serif%22%20font-size%3D%2213%22%20fill%3D%22%23cbd5e1%22%3EVulture%20Restaurant%3C%2Ftext%3E%0A%20%20%20%20%20%20%3C!--%20Safe%20Food%20Icon%20--%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22460%22%20cy%3D%22120%22%20r%3D%2230%22%20fill%3D%22%2310b981%22%20opacity%3D%220.2%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22448%22%20y%3D%22130%22%20font-size%3D%2228%22%3E%F0%9F%A5%A9%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta"
+    ],
+    "payload": {
+      "targetCode": "VULTURE-FEEDING-STATION",
+      "locationHint": "Αναζητήστε την κάρτα σταθμού με την ταΐστρα γυπών στην αίθουσα ή στον χάρτη."
+    },
+    "payload_en": {
+      "targetCode": "VULTURE-FEEDING-STATION",
+      "locationHint": "Locate the station card showing the Vulture Restaurant inside the room or field map."
+    },
+    "explanation": "Οι περιφραγμένες ταΐστρες παρέχουν ελεγμένα, ασφαλή κουφάρια χωρίς δηλητήρια και μόλυβδο, ενισχύοντας την επιβίωση των νεαρών πουλιών τον χειμώνα.",
+    "explanation_en": "Enclosed supplementary feeding stations provide strictly inspected, non-toxic carcasses, bolstering juvenile winter survival."
+  },
+  {
+    "id": "vulture-quest-23",
+    "title": "Δακτυλίωση & Οπτικά Δακτυλίδια Πεδίου",
+    "title_en": "Bird Ringing & Visual Field Observation Rings",
+    "description": "Τι αναγράφεται στα μεγάλα χρωματιστά πλαστικά δακτυλίδια που τοποθετούνται στα πόδια των γυπών;",
+    "description_en": "What is encoded on the large coloured plastic leg rings placed on wild and rehabilitated vultures?",
+    "type": "multiple_choice",
+    "points": 100,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22%23020617%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20GPS%20Satellite%20in%20Orbit%20--%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22480%22%20cy%3D%2290%22%20r%3D%2228%22%20fill%3D%22%230284c7%22%20opacity%3D%220.5%22%2F%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22460%22%20y%3D%2275%22%20width%3D%2240%22%20height%3D%2230%22%20rx%3D%224%22%20fill%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Solar%20Panels%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22420%22%20y%3D%2282%22%20width%3D%2235%22%20height%3D%2216%22%20fill%3D%22%230369a1%22%20stroke%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22505%22%20y%3D%2282%22%20width%3D%2235%22%20height%3D%2216%22%20fill%3D%22%230369a1%22%20stroke%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Signal%20Waves%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20450%2C130%20Q%20300%2C200%20200%2C250%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Transmitter%20Box%20on%20Harness%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22150%22%20y%3D%22220%22%20width%3D%2290%22%20height%3D%2260%22%20rx%3D%228%22%20fill%3D%22%231e293b%22%20stroke%3D%22%23f59e0b%22%20stroke-width%3D%224%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Mini%20Solar%20Panel%20on%20transmitter%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22165%22%20y%3D%22232%22%20width%3D%2260%22%20height%3D%2236%22%20fill%3D%22%230369a1%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Antenna%20--%3E%0A%20%20%20%20%20%20%3Cline%20x1%3D%22230%22%20y1%3D%22220%22%20x2%3D%22280%22%20y2%3D%22150%22%20stroke%3D%22%23f59e0b%22%20stroke-width%3D%223%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Field%20Leg%20Ring%20with%20Code%20--%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22170%22%20y%3D%22310%22%20width%3D%2250%22%20height%3D%2230%22%20rx%3D%224%22%20fill%3D%22%23fbbf24%22%20stroke%3D%22%23d97706%22%20stroke-width%3D%222%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22180%22%20y%3D%22330%22%20font-family%3D%22monospace%22%20font-weight%3D%22bold%22%20font-size%3D%2214%22%20fill%3D%22%230f172a%22%3EA31%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-delta",
+      "team-gamma"
+    ],
+    "payload": {
+      "options": [
+        "Ένας μοναδικός σύντομος κωδικός από γράμματα και αριθμούς που διαβάζεται με τηλεσκόπιο από εκατοντάδες μέτρα",
+        "Το όνομα και το τηλέφωνο του κτηνιάτρου",
+        "Το βάρος και η ηλικία του πουλιού σε γραμμάρια",
+        "Η ημερομηνία γέννησης και η ώρα απελευθέρωσης"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "A unique alphanumeric code that can be read through a spotting telescope from hundreds of metres away",
+        "The veterinarian name and mobile phone number",
+        "The exact hatching weight recorded in grams",
+        "The timestamp of fledging and release hour"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Χάρη στα δακτυλίδια αυτά, παρατηρητές πουλιών σε όλη την Ευρώπη καταγράφουν τις μετακινήσεις μεμονωμένων πουλιών χωρίς να χρειάζεται να τα ξαναπιάσουν.",
+    "explanation_en": "Thanks to these rings, birdwatchers across Europe record individual vulture movements across countries without recapture."
+  },
+  {
+    "id": "vulture-quest-24",
+    "title": "Γεωγραφία: Τα Τελευταία Καταφύγια των Γυπών στην Ελλάδα",
+    "title_en": "Geography: The Last Refuges of Vultures in Greece",
+    "description": "Αντιστοιχίστε κάθε περιοχή της Ελλάδας με τον σημαντικό πληθυσμό γυπών που φιλοξενεί.",
+    "description_en": "Match each Greek geographic region with the significant vulture population it shelters.",
+    "type": "text_match",
+    "points": 130,
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta",
+      "team-delta"
+    ],
+    "payload": {
+      "pairs": [
+        {
+          "id": "g1",
+          "left": "Κρήτη (Φαράγγια & Λευκά Όρη)",
+          "right": "Ο μεγαλύτερος πληθυσμός Όρνιων & οι τελευταίοι Γυπαετοί"
+        },
+        {
+          "id": "g2",
+          "left": "Εθνικό Πάρκο Δάσους Δαδιάς (Έβρος)",
+          "right": "Η μοναδική αποικία Μαυρόγυπα στα Βαλκάνια"
+        },
+        {
+          "id": "g3",
+          "left": "Μετέωρα & Ήπειρος (Κλεισούρα)",
+          "right": "Ιστορικές θέσεις φωλιάσματος Ασπροπάρη & Όρνιων"
+        },
+        {
+          "id": "g4",
+          "left": "Στενά & Φαράγγι Νέστου (Θράκη)",
+          "right": "Αποικία Όρνιων στη Βόρεια Ελλάδα"
+        }
+      ]
+    },
+    "payload_en": {
+      "pairs": [
+        {
+          "id": "g1",
+          "left": "Crete (Gorges & White Mountains)",
+          "right": "Largest insular Griffon population & last Balkan Bearded Vultures"
+        },
+        {
+          "id": "g2",
+          "left": "Dadia National Park (Evros)",
+          "right": "The sole Black Vulture breeding colony in the Balkans"
+        },
+        {
+          "id": "g3",
+          "left": "Meteora & Epirus (Kleisoura)",
+          "right": "Historic breeding cliffs for Egyptian and Griffon Vultures"
+        },
+        {
+          "id": "g4",
+          "left": "Nestos Gorge (Thrace)",
+          "right": "Mainland Griffon Vulture colony in Northern Greece"
+        }
+      ]
+    },
+    "explanation": "Η Κρήτη είναι το παγκόσμιο προπύργιο του Όρνιου σε νησιωτικό περιβάλλον (πάνω από 1.000 άτομα) και το μοναδικό μέρος στα Βαλκάνια όπου επιβιώνει ο Γυπαετός!",
+    "explanation_en": "Crete is an international stronghold for island Griffon Vultures (>1,000 birds) and the only refuge in the Balkans where Bearded Vultures survive!"
+  },
+  {
+    "id": "vulture-quest-25",
+    "title": "Αποστολή Δράσης: Οι 4 Πυλώνες Προστασίας",
+    "title_en": "Action Task: The 4 Pillars of Vulture Conservation",
+    "description": "Επιβεβαιώστε την κατανόηση των τεσσάρων βασικών πυλώνων του Ευρωπαϊκού Σχεδίου Δράσης για τους Γύπες (Vulture Multi-Species Action Plan).",
+    "description_en": "Confirm understanding of the four fundamental conservation pillars within the European Vulture Multi-Species Action Plan.",
+    "type": "task",
+    "points": 120,
+    "assignedTeamIds": [
+      "team-gamma",
+      "team-alpha"
+    ],
+    "payload": {
+      "instructions": "Σημειώστε τα σημεία δράσης που πρέπει να εφαρμόζονται σε όλη την επικράτεια:",
+      "checklist": [
+        "Άμεση ποινική δίωξη και μηδενική ανοχή στα δηλητηριασμένα δολώματα",
+        "Ενεργές ταΐστρες και υποστήριξη της παραδοσιακής κτηνοτροφίας",
+        "Μόνωση ηλεκτροφόρων καλωδίων & ασφαλής χωροθέτηση αιολικών πάρκων",
+        "Εκπαίδευση και ενημέρωση μαθητών, αγροτών και κυνηγών"
+      ],
+      "completionPrompt": "Επιβεβαιώστε ότι η ομάδα ολοκλήρωσε τον έλεγχο των πυλώνων προστασίας."
+    },
+    "payload_en": {
+      "instructions": "Check off the conservation action points that must be implemented across ranges:",
+      "checklist": [
+        "Strict legal prosecution and zero tolerance for illegal poison baits",
+        "Safe supplementary feeding stations & support for traditional pastoralists",
+        "Insulation of medium-voltage lines & safe wind farm spatial planning",
+        "Educational outreach for students, farmers, and hunting associations"
+      ],
+      "completionPrompt": "Confirm that your team has reviewed all conservation pillars."
+    },
+    "explanation": "Η επιτυχής διατήρηση των γυπών απαιτεί συνδυασμό νομοθεσίας, τεχνολογίας και στενής συνεργασίας με την τοπική κοινωνία.",
+    "explanation_en": "Successful vulture conservation requires integrating law enforcement, technology, and community stewardship."
+  },
+  {
+    "id": "vulture-quest-26",
+    "title": "Σωστό ή Λάθος: Το Διηπειρωτικό Ταξίδι Μετανάστευσης του Ασπροπάρη",
+    "title_en": "True or False: Intercontinental Migration of Egyptian Vultures",
+    "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με τα μεταναστευτικά ταξίδια του Ασπροπάρη.",
+    "description_en": "Evaluate the claim: \"The Egyptian Vulture is the only European vulture that undertakes a transatlantic-like intercontinental migration each autumn, flying over 5,000 km to the African Sahel.\"",
+    "type": "true_false",
+    "points": 110,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22desertSky%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2338bdf8%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef08a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23desertSky)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22100%22%20cy%3D%2290%22%20r%3D%2240%22%20fill%3D%22%23fef08a%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sand%20Dunes%20%2F%20Mediterranean%20Hills%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C340%20Q%20150%2C290%20300%2C330%20T%20600%2C310%20L%20600%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23d97706%22%20opacity%3D%220.7%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C360%20Q%20200%2C320%20400%2C360%20T%20600%2C340%20L%20600%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Egyptian%20Vulture%20(Neophron%20percnopterus)%20--%3E%0A%20%20%20%20%20%20%3C!--%20Striking%20White%20body%20with%20Jet%20Black%20Flight%20Feathers%20%26%20Yellow%20Face%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2070)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Black%20%26%20White%20Wings%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C80%20Q%2040%2C45%20-30%2C40%20Q%2030%2C85%20105%2C95%20Z%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-30%2C40%20Q%2010%2C75%2070%2C85%20L%2050%2C92%20L%20-25%2C48%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20140%2C80%20Q%20220%2C45%20290%2C40%20Q%20230%2C85%20155%2C95%20Z%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20290%2C40%20Q%20250%2C75%20190%2C85%20L%20210%2C92%20L%20285%2C48%20Z%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Wedge-shaped%20Pure%20White%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C95%20130%2C145%20140%2C95%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22130%22%20cy%3D%2285%22%20rx%3D%2220%22%20ry%3D%2214%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Bare%20Bright%20Yellow%20Facial%20Mask%20%26%20Spiky%20Crest%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22130%22%20cy%3D%2262%22%20r%3D%2212%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22126%2C50%20130%2C42%20134%2C50%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22120%2C54%20125%2C46%20128%2C54%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Slender%20Hooked%20Bill%20with%20Dark%20Tip%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C62%20132%2C62%20130%2C50%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22129%2C52%20131%2C52%20130%2C48%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%2378350f%22%3E%CE%91%CF%83%CF%80%CF%81%CE%BF%CF%80%CE%AC%CF%81%CE%B7%CF%82%20(Neophron%20percnopterus)%20-%20%CE%9F%20%CE%A3%CE%BF%CF%86%CF%8C%CF%82%20%CE%A4%CE%B1%CE%BE%CE%B9%CE%B4%CE%B9%CF%8E%CF%84%CE%B7%CF%82%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-delta",
+      "team-beta"
+    ],
+    "payload": {
+      "correctValue": true
+    },
+    "payload_en": {
+      "correctValue": true
+    },
+    "explanation": "Σωστό! Ενώ τα Όρνια, οι Γυπαετοί και οι Μαυρόγυπες μένουν όλο το χρόνο στην Ελλάδα (επιδημητικά), ο Ασπροπάρης φεύγει κάθε Σεπτέμβριο, διασχίζει τη Μεσόγειο και τη Σαχάρα και διαχειμάζει στο Σαχέλ της Αφρικής (Τσαντ, Νίγηρας, Σουδάν), επιστρέφοντας πίσω την άνοιξη!",
+    "explanation_en": "True! While Griffon, Black, and Bearded Vultures are resident year-round, Egyptian Vultures are long-distance trans-Saharan migrants, flying over 5,000 km each September to the African Sahel and returning in spring!"
+  },
+  {
+    "id": "vulture-quest-27",
+    "title": "QR Σταθμός: Παρακολούθηση Φωλιάς (Nest Watch)",
+    "title_en": "QR Station: Cliff Nest Monitoring Watch",
+    "description": "Σκανάρετε τον QR κωδικό του σταθμού παρακολούθησης φωλιάς για να καταγράψετε την επιτυχή εκκόλαψη του νεοσσού.",
+    "description_en": "Scan the Nest Monitoring Station QR code to record successful chick hatching in the cliff cavity.",
+    "type": "qr_scan",
+    "points": 150,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22gorge%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23gorge)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sheer%20Rock%20Face%20Cavity%20%2F%20Cave%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C0%20L%20250%2C0%20C%20220%2C120%20180%2C240%20220%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20600%2C0%20L%20380%2C0%20C%20420%2C140%20400%2C260%20450%2C400%20L%20600%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Cave%20Alcove%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22210%22%20rx%3D%2260%22%20ry%3D%2240%22%20fill%3D%22%23020617%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Stick%20Nest%20in%20Cave%20with%201%20White%20Egg%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22225%22%20rx%3D%2245%22%20ry%3D%2215%22%20fill%3D%22%2378350f%22%2F%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22222%22%20rx%3D%2214%22%20ry%3D%2218%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2216%22%20fill%3D%22%2338bdf8%22%3E%CE%A6%CF%89%CE%BB%CE%B9%CE%AC%20%CF%83%CE%B5%20%CE%A3%CF%80%CE%B7%CE%BB%CE%B9%CE%AC%20%CE%91%CF%80%CF%8C%CE%BA%CF%81%CE%B7%CE%BC%CE%BD%CE%BF%CF%85%20%CE%93%CE%BA%CF%81%CE%B5%CE%BC%CE%BF%CF%8D%20(1%20%CE%91%CF%85%CE%B3%CF%8C%2F%CE%AD%CF%84%CE%BF%CF%82)%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "targetCode": "VULTURE-NEST-WATCH",
+      "locationHint": "Αναζητήστε την κάρτα σταθμού με τη φωλιά γύπα στον γκρεμό."
+    },
+    "payload_en": {
+      "targetCode": "VULTURE-NEST-WATCH",
+      "locationHint": "Find the station card representing cliff nest monitoring in the venue."
+    },
+    "explanation": "Η παρακολούθηση με τηλεσκόπια και αυτόματες κάμερες φωλιάς επιτρέπει την προστασία του μοναδικού νεοσσού από ενόχληση και λαθροθηρία.",
+    "explanation_en": "Monitoring with high-powered spotting scopes and nest cameras safeguards the single vulnerable chick from human disturbance."
+  }
+];
+
+/**
+ * Μέρος 5: Σύνθεση, Ομαδική Δράση & Έρευνα Πεδίου (Αποστολές 28 - 32)
+ */
+export const SYNTHESIS_QUESTS: Question[] = [
+  {
+    "id": "vulture-quest-28",
+    "title": "Το Εντυπωσιακό Ύψος Πτήσης των Γυπών",
+    "title_en": "Astounding Flight Altitude of Vultures",
+    "description": "Σε τι ύψη μπορούν να πετάξουν οι γύπες εκμεταλλευόμενοι τα θερμά ανοδικά ρεύματα και την εξαιρετική τους αιμοσφαιρίνη;",
+    "description_en": "To what remarkable altitudes can vultures ascend using thermal convection updrafts and specialized high-affinity haemoglobin?",
+    "type": "multiple_choice",
+    "points": 110,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22skyG%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230ea5e9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23fef9c3%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23skyG)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Thermal%20Updraft%20Spirals%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20220%2C380%20C%20180%2C300%20240%2C240%20200%2C160%20C%20170%2C100%20230%2C60%20210%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20380%2C380%20C%20340%2C300%20400%2C240%20360%2C160%20C%20330%2C100%20390%2C60%20370%2C20%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%226%2C6%22%20fill%3D%22none%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Canyon%20Cliffs%20--%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%220%2C400%20140%2C260%20170%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22450%2C400%20480%2C240%20600%2C400%22%20fill%3D%22%2378350f%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%0A%20%20%20%20%20%20%3C!--%20Griffon%20Vulture%20(Gyps%20fulvus)%20Soaring%20--%3E%0A%20%20%20%20%20%20%3Cg%20transform%3D%22translate(170%2C%2090)%22%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Broad%20Rectangular%20Wings%20with%20Splayed%20Finger%20Primary%20Feathers%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20130%2C80%20C%2050%2C50%20-40%2C30%20-50%2C60%20C%20-10%2C95%2080%2C105%20120%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Splayed%20primaries%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20-50%2C60%20L%20-70%2C50%20M%20-50%2C65%20L%20-68%2C62%20M%20-48%2C70%20L%20-64%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20150%2C80%20C%20230%2C50%20320%2C30%20330%2C60%20C%20290%2C95%20200%2C105%20160%2C95%20Z%22%20fill%3D%22%2392400e%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20330%2C60%20L%20350%2C50%20M%20330%2C65%20L%20348%2C62%20M%20328%2C70%20L%20344%2C75%22%20stroke%3D%22%23451a03%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%3C!--%20Short%20Square%20Tail%20--%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22128%2C95%20118%2C140%20162%2C140%20152%2C95%22%20fill%3D%22%23451a03%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Tawny%20Body%20--%3E%0A%20%20%20%20%20%20%20%20%3Cellipse%20cx%3D%22140%22%20cy%3D%2285%22%20rx%3D%2222%22%20ry%3D%2216%22%20fill%3D%22%23b45309%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20White%20Ruff%20Collar%20%26%20Bare%20Pale%20Neck%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2274%22%20r%3D%2210%22%20fill%3D%22%23f8fafc%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpath%20d%3D%22M%20138%2C70%20Q%20140%2C55%20140%2C46%22%20stroke%3D%22%23fed7aa%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C!--%20Small%20Head%20%26%20Hooked%20Beak%20--%3E%0A%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%22140%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%20%20%20%20%3Cpolygon%20points%3D%22137%2C42%20143%2C42%20140%2C34%22%20fill%3D%22%23e2e8f0%22%2F%3E%0A%20%20%20%20%20%20%3C%2Fg%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2216%22%20fill%3D%22%23451a03%22%3E%CE%8C%CF%81%CE%BD%CE%B9%CE%BF%20(Gyps%20fulvus)%20-%20%CE%9F%20%CE%9A%CF%85%CF%81%CE%AF%CE%B1%CF%81%CF%87%CE%BF%CF%82%20%CF%84%CF%89%CE%BD%20%CE%98%CE%B5%CF%81%CE%BC%CF%8E%CE%BD%20%CE%A1%CE%B5%CF%85%CE%BC%CE%AC%CF%84%CF%89%CE%BD%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-delta"
+    ],
+    "payload": {
+      "options": [
+        "Μπορούν να ξεπεράσουν τα 3.000 μέτρα, ενώ έχει καταγραφεί γύπας ακόμη και στα 11.000 μέτρα (ύψος πτήσης τζετ αεροπλάνου!)",
+        "Πετούν το πολύ μέχρι τα 300 μέτρα γιατί ζαλίζονται",
+        "Μέχρι τα 1.000 μέτρα επειδή παγώνουν τα φτερά τους",
+        "Μόνο λίγα μέτρα πάνω από το έδαφος"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "payload_en": {
+      "options": [
+        "They routinely exceed 3,000 metres, with the highest bird strike recorded at an astonishing 11,270 metres (commercial jet cruising altitude!)",
+        "Never above 300 metres due to disorientation",
+        "Strictly capped at 1,000 metres because feathers freeze",
+        "Only a few metres skimming right above ground level"
+      ],
+      "correctOptionIndex": 0,
+      "correctOptionIndices": [
+        0
+      ]
+    },
+    "explanation": "Το 1973 ένα όρνιο Ruppell συγκρούστηκε με επιβατικό αεροπλάνο πάνω από την Ακτή Ελεφαντοστού στα 11.270 μέτρα! Οι γύπες διαθέτουν ειδική τροποποιημένη αιμοσφαιρίνη που δεσμεύει οξυγόνο ακόμη και στη σπάνια ατμόσφαιρα των 10.000 μέτρων.",
+    "explanation_en": "In 1973 a Rüppell vulture collided with a commercial aircraft over West Africa at 11,270 metres! Vulture haemoglobin is genetically optimized to extract oxygen in sub-zero thin stratospheric air."
+  },
+  {
+    "id": "vulture-quest-29",
+    "title": "Ομαδική Φωτογραφία: Η Ομάδα Δράσης για τους Γύπες",
+    "title_en": "Team Photo: The Vulture Conservation Taskforce",
+    "description": "Συγκεντρώστε όλα τα μέλη της ομάδας σας! Βγάλτε μία δημιουργική φωτογραφία που να δείχνει το άνοιγμα των «φτερών» σας ή τα σύμβολα του είδους σας και ανεβάστε τη στον πίνακα!",
+    "description_en": "Gather all team members! Capture a creative team photo showing your vulture \"wingspan\" or conservation emblems and upload it to the board!",
+    "type": "photo_upload",
+    "points": 160,
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta",
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "instructions": "Σταθείτε μαζί όλη η ομάδα, αναπαραστήστε το άνοιγμα φτερών ενός γύπα (2.5 - 3 μέτρα!) και ανεβάστε τη φωτογραφία."
+    },
+    "payload_en": {
+      "instructions": "Assemble your entire team, mimic a 3-metre vulture wingspan pose, and submit your team photo."
+    },
+    "explanation": "Η ομαδικότητα και η συνεργασία είναι απαραίτητες για την επιτυχία κάθε περιβαλλοντικής ομάδας δράσης!",
+    "explanation_en": "Camaraderie and teamwork are essential for any conservation field team protecting endangered wildlife!"
+  },
+  {
+    "id": "vulture-quest-30",
+    "title": "Παζλ: Οικογένεια Γυπαετών στη Φωλιά του Βράχου",
+    "title_en": "Puzzle: Bearded Vulture Family at Cliff Eyrie",
+    "description": "Συναρμολογήστε το παζλ της φωλιάς του Γυπαετού σε δυσπρόσιτη σπηλιά απόκρημνου φαραγγιού.",
+    "description_en": "Solve the puzzle of the Bearded Vulture nesting in an inaccessible cliff cavern in a remote gorge.",
+    "type": "puzzle",
+    "points": 130,
+    "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22gorge%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23gorge)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sheer%20Rock%20Face%20Cavity%20%2F%20Cave%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C0%20L%20250%2C0%20C%20220%2C120%20180%2C240%20220%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20600%2C0%20L%20380%2C0%20C%20420%2C140%20400%2C260%20450%2C400%20L%20600%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Cave%20Alcove%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22210%22%20rx%3D%2260%22%20ry%3D%2240%22%20fill%3D%22%23020617%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Stick%20Nest%20in%20Cave%20with%201%20White%20Egg%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22225%22%20rx%3D%2245%22%20ry%3D%2215%22%20fill%3D%22%2378350f%22%2F%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22222%22%20rx%3D%2214%22%20ry%3D%2218%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2216%22%20fill%3D%22%2338bdf8%22%3E%CE%A6%CF%89%CE%BB%CE%B9%CE%AC%20%CF%83%CE%B5%20%CE%A3%CF%80%CE%B7%CE%BB%CE%B9%CE%AC%20%CE%91%CF%80%CF%8C%CE%BA%CF%81%CE%B7%CE%BC%CE%BD%CE%BF%CF%85%20%CE%93%CE%BA%CF%81%CE%B5%CE%BC%CE%BF%CF%8D%20(1%20%CE%91%CF%85%CE%B3%CF%8C%2F%CE%AD%CF%84%CE%BF%CF%82)%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "gridPieces": 9,
+      "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22gorge%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23gorge)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sheer%20Rock%20Face%20Cavity%20%2F%20Cave%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C0%20L%20250%2C0%20C%20220%2C120%20180%2C240%20220%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20600%2C0%20L%20380%2C0%20C%20420%2C140%20400%2C260%20450%2C400%20L%20600%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Cave%20Alcove%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22210%22%20rx%3D%2260%22%20ry%3D%2240%22%20fill%3D%22%23020617%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Stick%20Nest%20in%20Cave%20with%201%20White%20Egg%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22225%22%20rx%3D%2245%22%20ry%3D%2215%22%20fill%3D%22%2378350f%22%2F%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22222%22%20rx%3D%2214%22%20ry%3D%2218%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2216%22%20fill%3D%22%2338bdf8%22%3E%CE%A6%CF%89%CE%BB%CE%B9%CE%AC%20%CF%83%CE%B5%20%CE%A3%CF%80%CE%B7%CE%BB%CE%B9%CE%AC%20%CE%91%CF%80%CF%8C%CE%BA%CF%81%CE%B7%CE%BC%CE%BD%CE%BF%CF%85%20%CE%93%CE%BA%CF%81%CE%B5%CE%BC%CE%BF%CF%8D%20(1%20%CE%91%CF%85%CE%B3%CF%8C%2F%CE%AD%CF%84%CE%BF%CF%82)%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20"
+    },
+    "payload_en": {
+      "gridPieces": 9,
+      "imageUrl": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20600%20400%22%20width%3D%22600%22%20height%3D%22400%22%3E%0A%20%20%20%20%20%20%3Cdefs%3E%0A%20%20%20%20%20%20%20%20%3ClinearGradient%20id%3D%22gorge%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%231e293b%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%20%20%3C%2Fdefs%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22600%22%20height%3D%22400%22%20fill%3D%22url(%23gorge)%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Sheer%20Rock%20Face%20Cavity%20%2F%20Cave%20--%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%200%2C0%20L%20250%2C0%20C%20220%2C120%20180%2C240%20220%2C400%20L%200%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20600%2C0%20L%20380%2C0%20C%20420%2C140%20400%2C260%20450%2C400%20L%20600%2C400%20Z%22%20fill%3D%22%23334155%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Cave%20Alcove%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22210%22%20rx%3D%2260%22%20ry%3D%2240%22%20fill%3D%22%23020617%22%2F%3E%0A%20%20%20%20%20%20%3C!--%20Stick%20Nest%20in%20Cave%20with%201%20White%20Egg%20--%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22225%22%20rx%3D%2245%22%20ry%3D%2215%22%20fill%3D%22%2378350f%22%2F%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22210%22%20cy%3D%22222%22%20rx%3D%2214%22%20ry%3D%2218%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%221%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%2224%22%20y%3D%22375%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2216%22%20fill%3D%22%2338bdf8%22%3E%CE%A6%CF%89%CE%BB%CE%B9%CE%AC%20%CF%83%CE%B5%20%CE%A3%CF%80%CE%B7%CE%BB%CE%B9%CE%AC%20%CE%91%CF%80%CF%8C%CE%BA%CF%81%CE%B7%CE%BC%CE%BD%CE%BF%CF%85%20%CE%93%CE%BA%CF%81%CE%B5%CE%BC%CE%BF%CF%8D%20(1%20%CE%91%CF%85%CE%B3%CF%8C%2F%CE%AD%CF%84%CE%BF%CF%82)%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20"
+    },
+    "explanation": "Οι γυπαετοί χτίζουν τεράστιες φωλιές από κλαδιά και μαλλί προβάτων μέσα σε σπηλιές απόκρημνων βράχων, προστατευμένοι από τον άνεμο και το χιόνι.",
+    "explanation_en": "Bearded vultures construct bulky nests lined with sheep wool in sheltered cavern alcoves, immune to howling alpine blizzards."
+  },
+  {
+    "id": "vulture-quest-31",
+    "title": "Τελικό Σύμφωνο Προστασίας: Δέσμευση της Ομάδας",
+    "title_en": "Final Conservation Pledge: Team Commitment",
+    "description": "Ολοκληρώστε το παιχνίδι επικυρώνοντας το επίσημο Σύμφωνο Προστασίας για τους Γύπες της Ελλάδας.",
+    "description_en": "Complete the arena by verifying your official team conservation pledge for the Vultures of Greece.",
+    "type": "task",
+    "points": 150,
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta",
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "instructions": "Επιβεβαιώστε τις 4 δεσμεύσεις της ομάδας σας για την προστασία της βιοποικιλότητας:",
+      "checklist": [
+        "Διάδοση της αλήθειας: Οι γύπες είναι ωφέλιμοι καθαριστές και δεν σκοτώνουν ζωντανά ζώα",
+        "Ενημέρωση των κατοίκων για το έγκλημα των δηλητηριασμένων δολωμάτων (φόλες)",
+        "Υποστήριξη των τοπικών κτηνοτρόφων και των ορνιθολογικών ομάδων προστασίας",
+        "Διατήρηση των άγριων φαραγγιών και των παρθένων δασών ελεύθερων από όχληση"
+      ],
+      "completionPrompt": "Υπογράψτε νοερά το Σύμφωνο Προστασίας και πατήστε Ολοκλήρωση!"
+    },
+    "payload_en": {
+      "instructions": "Confirm your team 4 pledges for biodiversity stewardship:",
+      "checklist": [
+        "Spread the truth: Vultures are beneficial sanitary scavengers and do not attack live livestock",
+        "Educate community members that poison baits are an illegal ecological crime",
+        "Champion local pastoralists and wildlife conservation organizations",
+        "Keep wild mountain canyons and old-growth forests undisturbed"
+      ],
+      "completionPrompt": "Ratify the Conservation Pledge and finalize the quest!"
+    },
+    "explanation": "Συγχαρητήρια! Η ομάδα σας ολοκλήρωσε τις 31 αποστολές για τους γύπες! Τώρα προχωρήστε στον πίνακα σύνθεσης για να καταγράψετε τα τελικά συμπεράσματά σας.",
+    "explanation_en": "Congratulations! Your team has mastered the 31 vulture quests! Now proceed to the synthesis board to share your insights with the class."
+  },
+  {
+    "id": "vulture-quest-32",
+    "title": "Επιστημονική Έρευνα Πεδίου: Σχέδιο Δράσης για τους 4 Γύπες",
+    "title_en": "Field Scientific Research: Action Plan for Greece 4 Vultures",
+    "description": "Ερευνήστε τις πηγές, απαντήστε στα καίρια ορνιθολογικά ερωτήματα και συντάξτε την έκθεση συμπερασμάτων της ομάδας σας.",
+    "description_en": "Investigate the scientific sources, answer key ornithological questions, and formulate your team research findings.",
+    "type": "research",
+    "points": 200,
+    "assignedTeamIds": [
+      "team-alpha",
+      "team-beta",
+      "team-gamma",
+      "team-delta"
+    ],
+    "payload": {
+      "researchTopic": "Μέτρα προστασίας, απειλές δηλητηρίασης και επιβίωση των 4 ειδών γυπών στον ελληνικό χώρο",
+      "instructions": "Μελετήστε τις προτεινόμενες επιστημονικές πηγές και ιστοσελίδες περιβαλλοντικών οργανώσεων. Συζητήστε με την ομάδα σας, απαντήστε στα ερευνητικά ερωτήματα και καταγράψτε τα τελικά σας ευρήματα.",
+      "guidingQuestions": [
+        "Ποιο είναι το κύριο αίτιο μείωσης του πληθυσμού του Ασπροπάρη στα Βαλκάνια και ποια μέτρα λαμβάνονται;",
+        "Πώς συμβάλλουν οι ειδικά εκπαιδευμένοι σκύλοι ανίχνευσης δηλητηριασμένων δολωμάτων;",
+        "Ποιος είναι ο ρόλος των ταϊστρών (τεχνητών σημείων σίτισης) για τη διατήρηση του Όρνεου και του Μαυρόγυπα;",
+        "Τι προτείνει η ομάδα σας για τη συνύπαρξη της κτηνοτροφίας και των αρπακτικών πουλιών;"
+      ],
+      "suggestedSources": [
+        {
+          "title": "Ελληνική Ορνιθολογική Εταιρεία - Πρόγραμμα Life για τους Γύπες",
+          "url": "https://www.ornithologiki.gr",
+          "description": "Επίσημα επιστημονικά δεδομένα, χάρτες κατανομής και δράσεις προστασίας."
+        },
+        {
+          "title": "WWF Ελλάς - Ομάδες Ανίχνευσης Δηλητηριασμένων Δολωμάτων",
+          "url": "https://www.wwf.gr",
+          "description": "Έκθεση για τη δράση των ειδικών σκύλων εντοπισμού παράνομων δηλητηρίων."
+        }
+      ],
+      "minWords": 30,
+      "requiresSourceLinks": true,
+      "requiresEvidencePhoto": false
+    },
+    "payload_en": {
+      "researchTopic": "Conservation measures, poison threats, and survival of the 4 vulture species in Greece",
+      "instructions": "Investigate scientific sources and environmental NGO initiatives. Discuss with your team, answer the guiding questions, and formulate your findings and proposed solutions.",
+      "guidingQuestions": [
+        "What is the primary cause of Egyptian Vulture population decline in the Balkans and what interventions are implemented?",
+        "How do specially trained canine detection teams combat illegal poison baits?",
+        "What role do supplementary feeding stations (vulture restaurants) play for Griffon and Cinereous vultures?",
+        "What collaborative practices does your team recommend for livestock farmers and vulture coexistence?"
+      ],
+      "suggestedSources": [
+        {
+          "title": "Hellenic Ornithological Society - Vulture Conservation Projects",
+          "url": "https://www.ornithologiki.gr",
+          "description": "Scientific data, distribution mapping, and active conservation protocols."
+        },
+        {
+          "title": "WWF Greece - Anti-Poison Canine Units",
+          "url": "https://www.wwf.gr",
+          "description": "Field reports and documentation of detection dog units combating illegal poisoning."
+        }
+      ],
+      "minWords": 30,
+      "requiresSourceLinks": true,
+      "requiresEvidencePhoto": false
+    },
+    "explanation": "Η επιστημονική τεκμηρίωση και η έρευνα πηγών είναι θεμέλιος λίθος για τη διατήρηση της άγριας πανίδας!",
+    "explanation_en": "Rigorous scientific documentation and source investigation are fundamental to wildlife conservation!"
+  }
+];
+
+/**
+ * Συνολικές 32 Αποστολές των Γυπών
+ */
+export const VULTURES_QUESTS: Question[] = [
+  ...BIOLOGY_QUESTS,
+  ...ECOLOGY_QUESTS,
+  ...THREATS_QUESTS,
+  ...CONSERVATION_QUESTS,
+  ...SYNTHESIS_QUESTS
+];
+
+/**
+ * Βοηθητική συνάρτηση Pagination / Lazy Loading αποστολών
+ */
+export function getPaginatedVultureQuests(page: number = 1, pageSize: number = 10): {
+  quests: Question[];
+  total: number;
+  hasMore: boolean;
+  totalPages: number;
+} {
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const quests = VULTURES_QUESTS.slice(start, end);
+  return {
+    quests,
+    total: VULTURES_QUESTS.length,
+    hasMore: end < VULTURES_QUESTS.length,
+    totalPages: Math.ceil(VULTURES_QUESTS.length / pageSize)
+  };
+}
+
+/**
+ * Ολοκληρωμένη κατάσταση παιχνιδιού για την Αρένα των Γυπών
+ */
+export const VULTURES_GAME_STATE: GameState = {
+  id: 'vultures-arena-31',
+  title: 'Αποστολή: Οι 4 Γύπες της Ελλάδας - BoundPad Vulture Arena',
+  description: 'Διαδραστικό εκπαιδευτικό παιχνίδι 31 αποστολών για τα Όρνια, τους Γυπαετούς, τους Μαυρόγυπες και τους Ασπροπάρηδες. Ανακαλύψτε τη βιολογία, τις απειλές και τη διατήρησή τους.',
+  title_en: 'Mission: The 4 Vultures of Greece - BoundPad Vulture Arena',
+  description_en: 'Interactive 31-quest educational arena exploring Griffon, Bearded, Black, and Egyptian Vultures. Discover their biology, threats, and conservation.',
+  phase: 'waiting_lobby',
+  synthesisPrompt: 'Συνθέστε τα στοιχεία που συλλέξατε για τα Όρνια, τους Γυπαετούς, τους Μαυρόγυπες και τους Ασπροπάρηδες. Ποιες είναι οι 3 πιο κρίσιμες δράσεις για να σωθούν οι γύπες της Ελλάδας;',
+  synthesisPrompt_en: 'Synthesize the clues and discoveries gathered about the 4 vulture species. What are the 3 most critical actions needed to save the vultures of Greece?',
+  synthesisNotes: [],
+  activeRound: 1,
+  updatedAt: Date.now(),
+  timer: {
+    totalSeconds: 1500,
+    remainingSeconds: 1500,
+    isRunning: false,
+    updatedAt: Date.now()
+  },
+  teams: VULTURE_TEAMS,
+  questions: VULTURES_QUESTS,
+  submissions: {}
+};

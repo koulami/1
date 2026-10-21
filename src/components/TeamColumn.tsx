@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2, Clock, Award, HelpCircle, Camera, Puzzle, QrCode, SplitSquareVertical, Lock, Target, Edit3, Film, Search } from 'lucide-react';
 import { Team, Question, Submission, Language } from '../types/game';
 import { translations } from '../locales/translations';
@@ -50,6 +50,18 @@ export const TeamColumn: React.FC<Props> = ({
   const firstUnfinishedIndex = isSequential
     ? activeQuestions.findIndex((q) => !safeSubmissions[`${team.id}_${q.id}`])
     : -1;
+
+  // Progressive rendering / pagination: render initial batch of 8 quests for optimal memory & FPS
+  const PAGE_SIZE = 8;
+  const [displayLimit, setDisplayLimit] = useState<number>(() => {
+    if (firstUnfinishedIndex >= PAGE_SIZE) {
+      return firstUnfinishedIndex + 4;
+    }
+    return PAGE_SIZE;
+  });
+
+  const displayedActiveQuestions = activeQuestions.slice(0, displayLimit);
+  const remainingCount = Math.max(0, activeQuestions.length - displayLimit);
 
   // Calculate team score & progress based on active questions
   const teamSubmissions = activeQuestions.map(q => safeSubmissions[`${team.id}_${q.id}`]).filter(Boolean);
@@ -147,7 +159,7 @@ export const TeamColumn: React.FC<Props> = ({
         )}
 
         {/* 1. ACTIVE QUESTIONS ON TOP */}
-        {activeQuestions.map((quest, index) => {
+        {displayedActiveQuestions.map((quest, index) => {
           const submission = safeSubmissions[`${team.id}_${quest.id}`];
           const isDone = !!submission;
           const isCorrect = submission?.status === 'correct' || submission?.status === 'completed';
@@ -292,6 +304,38 @@ export const TeamColumn: React.FC<Props> = ({
             </div>
           );
         })}
+
+        {/* Pagination / Progressive Loading Controls */}
+        {remainingCount > 0 && (
+          <div className="pt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDisplayLimit((prev) => prev + PAGE_SIZE)}
+              className="flex-1 py-2 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/80 text-amber-300 hover:text-amber-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98"
+            >
+              <span>{lang === 'el' ? `+ Προβολή επόμενων ${Math.min(PAGE_SIZE, remainingCount)} (${remainingCount} απομένουν)` : `+ Show next ${Math.min(PAGE_SIZE, remainingCount)} (${remainingCount} left)`}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisplayLimit(activeQuestions.length)}
+              className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 text-[11px] font-medium transition-all cursor-pointer"
+              title={lang === 'el' ? 'Προβολή όλων των αποστολών' : 'Show all quests'}
+            >
+              <span>{lang === 'el' ? 'Όλες' : 'All'}</span>
+            </button>
+          </div>
+        )}
+        {displayLimit > PAGE_SIZE && activeQuestions.length > PAGE_SIZE && remainingCount === 0 && (
+          <div className="pt-1 text-center">
+            <button
+              type="button"
+              onClick={() => setDisplayLimit(PAGE_SIZE)}
+              className="text-[11px] text-slate-500 hover:text-slate-400 underline cursor-pointer"
+            >
+              {lang === 'el' ? 'Σύμπτυξη σε 8 αποστολές' : 'Collapse to 8 quests'}
+            </button>
+          </div>
+        )}
 
         {/* 2. INACTIVE QUESTIONS GROUPED AT THE BOTTOM */}
         {inactiveQuestions.length > 0 && (

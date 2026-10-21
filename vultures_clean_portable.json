@@ -1,0 +1,1231 @@
+{
+  "teams": [
+    {
+      "id": "team-alpha",
+      "name": "Ομάδα 1: Οι Γυπαετοί (Κοκκαλάδες)",
+      "name_en": "Team 1: The Bearded Vultures (Lammergeiers)",
+      "color": "#f97316",
+      "avatar": "🦅",
+      "slogan": "Κυρίαρχοι των ψηλών κορυφών & των φαραγγιών!",
+      "slogan_en": "Lords of the high peaks and alpine gorges!"
+    },
+    {
+      "id": "team-beta",
+      "name": "Ομάδα 2: Τα Όρνια (Όρνια Κρήτης & Πίνδου)",
+      "name_en": "Team 2: The Griffon Vultures",
+      "color": "#10b981",
+      "avatar": "🪶",
+      "slogan": "Αετομάτηδες στα θερμά ανοδικά ρεύματα!",
+      "slogan_en": "Eagle-eyed navigators of thermal updrafts!"
+    },
+    {
+      "id": "team-gamma",
+      "name": "Ομάδα 3: Οι Μαυρόγυπες (Γίγαντες της Δαδιάς)",
+      "name_en": "Team 3: The Black Vultures (Giants of Dadia)",
+      "color": "#06b6d4",
+      "avatar": "🌲",
+      "slogan": "Φύλακες του αρχέγονου δάσους!",
+      "slogan_en": "Guardians of the ancient forest!"
+    },
+    {
+      "id": "team-delta",
+      "name": "Ομάδα 4: Οι Ασπροπάρηδες (Ταξιδιώτες του Νείλου)",
+      "name_en": "Team 4: The Egyptian Vultures (Nile Voyagers)",
+      "color": "#8b5cf6",
+      "avatar": "🌍",
+      "slogan": "Ευφυΐα και διηπειρωτικά ταξίδια!",
+      "slogan_en": "Intelligence and intercontinental journeys!"
+    }
+  ],
+  "questions": [
+    {
+      "id": "vulture-quest-1",
+      "title": "Τα 4 Είδη Γυπών της Ελλάδας & της Ευρώπης",
+      "title_en": "The 4 Vulture Species of Greece & Europe",
+      "description": "Ποια είναι τα 4 μοναδικά είδη γυπών που ζουν και αναπαράγονται στην Ελλάδα και την υπόλοιπη Ευρώπη;",
+      "description_en": "What are the 4 unique vulture species that live and breed in Greece and the rest of Europe?",
+      "type": "multiple_choice",
+      "points": 100,
+      "imageUrl": "SVG_IMAGES.griffonVulture",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta",
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "options": [
+          "Όρνιο, Γυπαετός, Μαυρόγυπας, Ασπροπάρης",
+          "Χρυσαετός, Σπιζαετός, Θαλασσαετός, Φιδαετός",
+          "Κοράκι, Κίσσα, Καλιακούδα, Κορακοειδές",
+          "Πελαργός, Ερωδιός, Κορμοράνος, Πελεκάνος"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "Griffon Vulture, Bearded Vulture, Black Vulture, Egyptian Vulture",
+          "Golden Eagle, Bonelli Eagle, White-tailed Eagle, Short-toed Snake Eagle",
+          "Raven, Jay, Chough, Magpie",
+          "White Stork, Heron, Cormorant, Pelican"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Στην Ελλάδα και την Ευρώπη επιβιώνουν μόνο 4 είδη γυπών: το Όρνιο (Gyps fulvus), ο Γυπαετός (Gypaetus barbatus), ο Μαυρόγυπας (Aegypius monachus) και ο Ασπροπάρης (Neophron percnopterus).",
+      "explanation_en": "In Greece and Europe only 4 vulture species survive: the Griffon Vulture (Gyps fulvus), Bearded Vulture (Gypaetus barbatus), Black Vulture (Aegypius monachus), and Egyptian Vulture (Neophron percnopterus)."
+    },
+    {
+      "id": "vulture-quest-2",
+      "title": "Σωστό ή Λάθος: Ο Κοκκαλάς και η Διατροφή με Οστά",
+      "title_en": "True or False: The Bone-Eating Lammergeier",
+      "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με τη διατροφή του Γυπαετού (Gypaetus barbatus).",
+      "description_en": "Evaluate the following statement regarding the diet of the Bearded Vulture (Gypaetus barbatus): \"It is the only bird in the world whose diet consists of 70-90% bones.\"",
+      "type": "true_false",
+      "points": 90,
+      "imageUrl": "SVG_IMAGES.default",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-delta"
+      ],
+      "payload": {
+        "correctValue": true
+      },
+      "payload_en": {
+        "correctValue": true
+      },
+      "explanation": "Σωστό! Ο Γυπαετός (γνωστός στην Κρήτη ως «Κοκκαλάς») είναι το μοναδικό σπονδυλωτό ζώο του οποίου η διατροφή αποτελείται κατά 70-90% από κόκαλα, τα οποία σπάει ρίχνοντάς τα από 50-80 μέτρα ύψος πάνω σε απόκρημνες βραχώδεις σάρες (σπαστήρες).",
+      "explanation_en": "True! The Bearded Vulture (known in Crete as \"Kokkalas\") is the only vertebrate animal whose diet consists of 70-90% bones, which it breaks by dropping them from 50-80 metres onto rocky ossuaries (choppers)."
+    },
+    {
+      "id": "vulture-quest-3",
+      "title": "Αντιστοίχιση: Επιστημονική Ονομασία των 4 Γυπών",
+      "title_en": "Matching: Scientific Names of the 4 Vultures",
+      "description": "Αντιστοιχίστε το κοινό ελληνικό όνομα κάθε γύπα με την επίσημη λατινική επιστημονική ονομασία του.",
+      "description_en": "Match the common name of each vulture with its official Latin scientific binomial name.",
+      "type": "text_match",
+      "points": 120,
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta"
+      ],
+      "payload": {
+        "pairs": [
+          {
+            "id": "p1",
+            "left": "Όρνιο",
+            "right": "Gyps fulvus"
+          },
+          {
+            "id": "p2",
+            "left": "Γυπαετός",
+            "right": "Gypaetus barbatus"
+          },
+          {
+            "id": "p3",
+            "left": "Μαυρόγυπας",
+            "right": "Aegypius monachus"
+          },
+          {
+            "id": "p4",
+            "left": "Ασπροπάρης",
+            "right": "Neophron percnopterus"
+          }
+        ]
+      },
+      "payload_en": {
+        "pairs": [
+          {
+            "id": "p1",
+            "left": "Griffon Vulture",
+            "right": "Gyps fulvus"
+          },
+          {
+            "id": "p2",
+            "left": "Bearded Vulture",
+            "right": "Gypaetus barbatus"
+          },
+          {
+            "id": "p3",
+            "left": "Black / Cinereous Vulture",
+            "right": "Aegypius monachus"
+          },
+          {
+            "id": "p4",
+            "left": "Egyptian Vulture",
+            "right": "Neophron percnopterus"
+          }
+        ]
+      },
+      "explanation": "Η ταξινομική διάκριση δείχνει ότι κάθε γύπας ανήκει σε διαφορετικό γένος, έχοντας εξειδικευτεί σε ξεχωριστό οικολογικό ρόλο.",
+      "explanation_en": "The taxonomic classification shows that each species belongs to a distinct genus, adapted to a specialized ecological niche."
+    },
+    {
+      "id": "vulture-quest-4",
+      "title": "Αναγνώριση Σιλουέτας & Χαρακτηριστικών Πτήσης",
+      "title_en": "Flight Silhouette & Identification Characteristics",
+      "description": "Συνδέστε κάθε είδος γύπα με το διακριτικό σχήμα της ουράς και των φτερών του στον ουρανό.",
+      "description_en": "Match each vulture species with its distinctive tail shape and wing silhouette in the sky.",
+      "type": "image_match",
+      "points": 130,
+      "imageUrl": "SVG_IMAGES.griffonVulture",
+      "assignedTeamIds": [
+        "team-beta",
+        "team-gamma"
+      ],
+      "payload": {
+        "pairs": [
+          {
+            "id": "sm1",
+            "image": "SVG_IMAGES.default",
+            "text": "Γυπαετός: Μακριά φτερά και ρομβοειδής σφηνοειδής ουρά σαν διαμάντι"
+          },
+          {
+            "id": "sm2",
+            "image": "SVG_IMAGES.griffonVulture",
+            "text": "Όρνιο: Πολύ φαρδιά φτερά με βαθιά «δάχτυλα» και πολύ κοντή ουρά"
+          },
+          {
+            "id": "sm3",
+            "image": "SVG_IMAGES.nestWatch",
+            "text": "Μαυρόγυπας: Τεράστια μονοκόμματα ορθογώνια φτερά (άνοιγμα ~3 μέτρα)"
+          },
+          {
+            "id": "sm4",
+            "image": "SVG_IMAGES.default",
+            "text": "Ασπροπάρης: Λευκό σώμα, μαύρες άκρες φτερών και λευκή τριγωνική ουρά"
+          }
+        ]
+      },
+      "payload_en": {
+        "pairs": [
+          {
+            "id": "sm1",
+            "image": "SVG_IMAGES.default",
+            "text": "Bearded Vulture: Long wings and diamond wedge-shaped tail"
+          },
+          {
+            "id": "sm2",
+            "image": "SVG_IMAGES.griffonVulture",
+            "text": "Griffon Vulture: Broad wings with deep splayed fingers and very short tail"
+          },
+          {
+            "id": "sm3",
+            "image": "SVG_IMAGES.nestWatch",
+            "text": "Black Vulture: Massive rectangular dark wings (wingspan ~3 metres)"
+          },
+          {
+            "id": "sm4",
+            "image": "SVG_IMAGES.default",
+            "text": "Egyptian Vulture: White body, black wingtips, and triangular white tail"
+          }
+        ]
+      },
+      "explanation": "Η σιλουέτα πτήσης επιτρέπει στους ορνιθολόγους να αναγνωρίζουν τους γύπες από χιλιόμετρα μακριά.",
+      "explanation_en": "Flight silhouettes allow ornithologists to identify vulture species from kilometres away."
+    },
+    {
+      "id": "vulture-quest-5",
+      "title": "Ο Γίγαντας του Δάσους της Δαδιάς",
+      "title_en": "The Giant of Dadia Forest",
+      "description": "Ποιο είδος γύπα έχει άνοιγμα φτερών σχεδόν 3 μέτρα και φωλιάζει αποκλειστικά στις κορυφές των πανύψηλων μαύρων πεύκων στο Εθνικό Πάρκο Δάσους Δαδιάς στον Έβρο;",
+      "description_en": "Which vulture species has a wingspan of nearly 3 metres and nests exclusively on top of massive black pine trees in Dadia National Park, Evros?",
+      "type": "multiple_choice",
+      "points": 110,
+      "imageUrl": "SVG_IMAGES.nestWatch",
+      "assignedTeamIds": [
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "options": [
+          "Ο Μαυρόγυπας (Aegypius monachus)",
+          "Ο Γυπαετός (Gypaetus barbatus)",
+          "Το Όρνιο (Gyps fulvus)",
+          "Ο Χρυσαετός (Aquila chrysaetos)"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "The Black Vulture / Cinereous Vulture (Aegypius monachus)",
+          "The Bearded Vulture (Gypaetus barbatus)",
+          "The Griffon Vulture (Gyps fulvus)",
+          "The Golden Eagle (Aquila chrysaetos)"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Το Δάσος της Δαδιάς φιλοξενεί τη μοναδική αναπαραγόμενη αποικία Μαυρόγυπα στα Βαλκάνια. Οι φωλιές τους στις κορυφές των μαύρων και τραχειών πεύκων φτάνουν σε διάμετρο έως και τα 2 μέτρα!",
+      "explanation_en": "Dadia Forest hosts the only breeding colony of Black Vultures in the Balkans. Their nests atop black pines can reach up to 2 metres in diameter!"
+    },
+    {
+      "id": "vulture-quest-6",
+      "title": "Σωστό ή Λάθος: Ο Ασπροπάρης και η Χρήση Εργαλείων",
+      "title_en": "True or False: Egyptian Vulture Tool Use",
+      "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με την ευφυΐα του Ασπροπάρη (Neophron percnopterus).",
+      "description_en": "Evaluate the claim: \"The Egyptian Vulture is one of the very few birds known to use tools, picking up stones in its beak to smash thick eggs.\"",
+      "type": "true_false",
+      "points": 100,
+      "imageUrl": "SVG_IMAGES.default",
+      "assignedTeamIds": [
+        "team-delta",
+        "team-beta"
+      ],
+      "payload": {
+        "correctValue": true
+      },
+      "payload_en": {
+        "correctValue": true
+      },
+      "explanation": "Σωστό! Ο Ασπροπάρης είναι παγκοσμίως διάσημος ως ένα από τα σπάνια είδη πουλιών που χρησιμοποιεί εργαλεία: μαζεύει πέτρες με το ράμφος του και τις εκσφενδονίζει με δύναμη για να σπάσει χοντρά αυγά άλλων πουλιών (όπως στρουθοκαμήλων στην Αφρική).",
+      "explanation_en": "True! The Egyptian Vulture is world-renowned as one of the few bird species that uses tools: it holds stones in its beak and hurls them repeatedly to crack open thick bird eggs."
+    },
+    {
+      "id": "vulture-quest-7",
+      "title": "Το Μυστικό του Πορτοκαλί Φτερώματος του Γυπαετού",
+      "title_en": "Secret of the Bearded Vulture Rusty Plumage",
+      "description": "Από πού προέρχεται το εντυπωσιακό πορτοκαλί-κοκκινωπό χρώμα στο στήθος και την κοιλιά του ενήλικου Γυπαετού;",
+      "description_en": "Where does the striking orange-rusty coloration on the breast and underbelly of adult Bearded Vultures come from?",
+      "type": "multiple_choice",
+      "points": 110,
+      "imageUrl": "SVG_IMAGES.default",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-gamma"
+      ],
+      "payload": {
+        "options": [
+          "Κάνει ενεργητικά «λουτρά» σε λάσπη και νερό πλούσιο σε οξείδια σιδήρου (ώχρα)",
+          "Από το αίμα των ζώων που τρέφεται",
+          "Είναι το φυσικό γενετικό χρώμα των φτερών του χωρίς καμία εξωτερική επίδραση",
+          "Από την έκθεση στις υπεριώδεις ακτίνες του ηλίου στις κορυφές"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "It deliberately bathes in mud and spring water rich in iron oxides (ochre)",
+          "From the blood of the animals it feeds on",
+          "It is the natural genetic feather pigmentation without external influence",
+          "From high-altitude ultraviolet sun radiation on alpine peaks"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Τα φτερά του γυπαετού είναι φυσικά λευκά! Τα πουλιά κάνουν επίτηδες καλλωπιστικά λουτρά σε πηγές πλούσιες σε οξείδια σιδήρου, βάφοντας τα φτερά τους πορτοκαλί. Όσο πιο πορτοκαλί είναι ένα πουλί, τόσο υψηλότερο κοινωνικό status εκπέμπει.",
+      "explanation_en": "The feathers are naturally white! The birds deliberately bathe in iron oxide-rich mud springs, dyeing their plumage orange. Deeper orange indicates higher social dominance and territorial experience."
+    },
+    {
+      "id": "vulture-quest-8",
+      "title": "Παζλ: Το Όρνιο σε Ανοδικά Θερμά Ρεύματα",
+      "title_en": "Puzzle: Griffon Vulture in Thermal Updrafts",
+      "description": "Συναρμολογήστε το παζλ που αναπαριστά το Όρνιο να γλιστρά αβίαστα πάνω από τα απόκρημνα φαράγγια χωρίς να χτυπά τα φτερά του.",
+      "description_en": "Assemble the puzzle depicting the Griffon Vulture effortlessly soaring over rugged gorges without flapping its wings.",
+      "type": "puzzle",
+      "points": 120,
+      "imageUrl": "SVG_IMAGES.griffonVulture",
+      "assignedTeamIds": [
+        "team-beta",
+        "team-alpha"
+      ],
+      "payload": {
+        "gridPieces": 9,
+        "imageUrl": "SVG_IMAGES.griffonVulture"
+      },
+      "payload_en": {
+        "gridPieces": 9,
+        "imageUrl": "SVG_IMAGES.griffonVulture"
+      },
+      "explanation": "Τα όρνια χρησιμοποιούν τα θερμά ανοδικά ρεύματα αέρα (thermals) για να ανυψώνονται κυκλικά έως και 3.000 μέτρα, εξοικονομώντας ενέργεια καθώς μπορούν να διανύσουν 200+ χιλιόμετρα ημερησίως για αναζήτηση τροφής!",
+      "explanation_en": "Griffons utilize rising thermal air currents to spiral up to 3,000 metres, conserving energy and covering over 200 km per day in search of food!"
+    },
+    {
+      "id": "vulture-quest-9",
+      "title": "Οι Καθαριστές της Φύσης: Δημόσια Υγεία & Οικοσύστημα",
+      "title_en": "Nature Sanitizers: Public Health & Ecosystem Services",
+      "description": "Ποια είναι η πιο ανεκτίμητη οικολογική υπηρεσία που προσφέρουν οι γύπες στον άνθρωπο και στο φυσικό περιβάλλον;",
+      "description_en": "What is the most invaluable ecological service that vultures provide to humanity and the natural environment?",
+      "type": "multiple_choice",
+      "points": 120,
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta",
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "options": [
+          "Καθαρίζουν ταχύτατα τη φύση από ψοφίμια, εμποδίζοντας τη διάδοση άνθρακα, λύσσας και χολέρας",
+          "Επικονιάζουν τα φυτά των ορεινών όγκων",
+          "Φτιάχνουν φωλιές που χρησιμοποιούνται από άλλα είδη πουλιών",
+          "Μειώνουν τον πληθυσμό των επιβλαβών εντόμων στα δάση"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "Rapidly sanitize nature by consuming carcasses, preventing deadly anthrax, rabies, and cholera outbreaks",
+          "Pollinate high-altitude mountain vegetation",
+          "Build nests subsequently reused by songbirds",
+          "Control agricultural pest insects in mountain forests"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Οι γύπες είναι οι απόλυτοι υγειονομικοί καθαριστές της φύσης. Χωρίς αυτούς, τα νεκρά ζώα αποσυντίθενται αργά, μολύνοντας τον υδροφόρο ορίζοντα και πολλαπλασιάζοντας επικίνδυνα παθογόνα βακτήρια και αδέσποτα ζώα με λύσσα.",
+      "explanation_en": "Vultures are nature sanitation officers. Without them, carcasses rot slowly, contaminating water sources and multiplying lethal bacteria and rabid feral animals."
+    },
+    {
+      "id": "vulture-quest-10",
+      "title": "Σωστό ή Λάθος: Το Πανίσχυρο Όξινο Στομάχι των Γυπών",
+      "title_en": "True or False: The Super-Acidic Vulture Stomach",
+      "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με το πεπτικό σύστημα των γυπών.",
+      "description_en": "Evaluate the claim: \"Vulture gastric stomach acid is so acidic (pH close to 1, similar to battery acid) that it can neutralize deadly bacteria like anthrax and botulism.\"",
+      "type": "true_false",
+      "points": 90,
+      "assignedTeamIds": [
+        "team-beta",
+        "team-gamma"
+      ],
+      "payload": {
+        "correctValue": true
+      },
+      "payload_en": {
+        "correctValue": true
+      },
+      "explanation": "Σωστό! Το στομάχι των γυπών έχει pH κοντά στο 1 (τόσο όξινο όσο το οξύ μπαταρίας αυτοκινήτου). Μπορεί να διαλύσει ακόμη και πυκνά οστά και εξολοθρεύει τα περισσότερα θανατηφόρα βακτήρια, καθιστώντας τους γύπες άτρωτους σε ασθένειες που θα σκότωναν άλλα ζώα.",
+      "explanation_en": "True! Vulture gastric acid has a pH near 1 (comparable to car battery acid). It digests dense bones and destroys nearly all lethal microorganisms, rendering vultures immune to pathogens."
+    },
+    {
+      "id": "vulture-quest-11",
+      "title": "Η «Ιεραρχία στο Τραπέζι»: Ποιος τρώει τι;",
+      "title_en": "Carcass Dining Hierarchy: Who Eats What?",
+      "description": "Αντιστοιχίστε το κάθε είδος γύπα με το συγκεκριμένο μέρος του κουφαριού που καταναλώνει χάρη στην εξειδίκευση του ράμφους του.",
+      "description_en": "Match each vulture species with the specific part of the carcass it consumes due to its specialized bill morphology.",
+      "type": "text_match",
+      "points": 130,
+      "assignedTeamIds": [
+        "team-gamma",
+        "team-alpha"
+      ],
+      "payload": {
+        "pairs": [
+          {
+            "id": "h1",
+            "left": "Μαυρόγυπας (Ισχυρό ράμφος)",
+            "right": "Σκληρό δέρμα, χόνδροι και τένοντες (ανοίγει το κουφάρι)"
+          },
+          {
+            "id": "h2",
+            "left": "Όρνιο (Μακρύς γυμνός λαιμός)",
+            "right": "Μαλακό κρέας και εσωτερικά σπλάχνα"
+          },
+          {
+            "id": "h3",
+            "left": "Γυπαετός (Εξειδικευμένο στομάχι)",
+            "right": "Οστά που καταπίνει ολόκληρα ή σπάει στα βράχια"
+          },
+          {
+            "id": "h4",
+            "left": "Ασπροπάρης (Λεπτό ράμφος)",
+            "right": "Μικρά υπολείμματα, έντομα και μικρά κομμάτια"
+          }
+        ]
+      },
+      "payload_en": {
+        "pairs": [
+          {
+            "id": "h1",
+            "left": "Black Vulture (Powerful heavy bill)",
+            "right": "Tough hide, skin, cartilage, and tendons (opens the carcass)"
+          },
+          {
+            "id": "h2",
+            "left": "Griffon Vulture (Long bare neck)",
+            "right": "Soft muscle meat and internal viscera"
+          },
+          {
+            "id": "h3",
+            "left": "Bearded Vulture (Specialized stomach)",
+            "right": "Bones swallowed whole or dropped on rocks"
+          },
+          {
+            "id": "h4",
+            "left": "Egyptian Vulture (Slender forceps bill)",
+            "right": "Scraps, small meat fragments, and insects"
+          }
+        ]
+      },
+      "explanation": "Η τέλεια οικολογική συνεργασία! Κανένα είδος δεν ανταγωνίζεται ευθέως το άλλο: ο Μαυρόγυπας ανοίγει το σκληρό τομάρι, τα Όρνια τρώνε το κρέας, ο Γυπαετός καθαρίζει τα κόκαλα και ο Ασπροπάρης μαζεύει τα τελευταία ψίχουλα.",
+      "explanation_en": "Flawless ecological synergy! They do not compete directly: Black Vultures tear the tough hide, Griffons strip the flesh, Bearded Vultures consume the bones, and Egyptian Vultures glean the remaining crumbs."
+    },
+    {
+      "id": "vulture-quest-12",
+      "title": "Αποστολή Πεδίου: Τροφικό Πλέγμα & Παραδοσιακή Κτηνοτροφία",
+      "title_en": "Field Task: Food Web & Pastoral Livestock Farming",
+      "description": "Επιβεβαιώστε τα 4 κρίσιμα στοιχεία που συνδέουν την παραδοσιακή εκτατική κτηνοτροφία με την επιβίωση των γυπών στην ελληνική ύπαιθρο.",
+      "description_en": "Confirm the 4 critical elements linking traditional extensive pastoralism with the survival of vultures in the Greek countryside.",
+      "type": "task",
+      "points": 120,
+      "assignedTeamIds": [
+        "team-delta",
+        "team-alpha"
+      ],
+      "payload": {
+        "instructions": "Ελέγξτε προσεκτικά κάθε σημείο και σημειώστε τα ως ολοκληρωμένα:",
+        "checklist": [
+          "Κοπάδια αιγοπροβάτων που βόσκουν ελεύθερα στα βουνά (φυσική πηγή τροφής)",
+          "Απουσία δηλητηριασμένων δολωμάτων και φολών στους βοσκότοπους",
+          "Μη χρήση τοξικών κτηνιατρικών φαρμάκων (δικλοφενάκη) στα ζώα",
+          "Συνεργασία κτηνοτρόφων με τις δασικές υπηρεσίες και ορνιθολογικές οργανώσεις"
+        ],
+        "completionPrompt": "Επιβεβαιώστε ότι η ομάδα σας κατανόησε τη σημασία της εκτατικής κτηνοτροφίας για τους γύπες."
+      },
+      "payload_en": {
+        "instructions": "Carefully review each point and mark them completed:",
+        "checklist": [
+          "Free-ranging flocks of sheep and goats grazing in mountains (natural food source)",
+          "Complete absence of illegal poison baits in pastoral pastures",
+          "Non-use of toxic veterinary drugs (diclofenac) in livestock",
+          "Active collaboration between pastoralists, forest services, and conservation NGOs"
+        ],
+        "completionPrompt": "Confirm that your team understands the synergy between extensive pastoralism and vultures."
+      },
+      "explanation": "Οι γύπες της Ευρώπης συνδέονται άρρηκτα εδώ και χιλιετίες με την παραδοσιακή κτηνοτροφία. Η εγκατάλειψη της ορεινής υπαίθρου στερεί από τους γύπες τη βασική τους πηγή τροφής.",
+      "explanation_en": "European vultures have been inextricably linked with traditional extensive pastoralism for millennia. Rural abandonment deprives them of essential foraging opportunities."
+    },
+    {
+      "id": "vulture-quest-13",
+      "title": "Η Εξελικτική Προσαρμογή του Γυμνού Λαιμού στο Όρνιο",
+      "title_en": "Evolutionary Adaptation of the Bare Neck in Griffons",
+      "description": "Για ποιο λόγο το Όρνιο έχει μακρύ λαιμό χωρίς πυκνά φτερά, καλυμμένο μόνο με λεπτό χνούδι;",
+      "description_en": "Why does the Griffon Vulture have a long neck devoid of dense contour feathers, covered only in fine down?",
+      "type": "multiple_choice",
+      "points": 100,
+      "imageUrl": "SVG_IMAGES.griffonVulture",
+      "assignedTeamIds": [
+        "team-beta",
+        "team-alpha"
+      ],
+      "payload": {
+        "options": [
+          "Για να διατηρείται καθαρός όταν βυθίζει το κεφάλι του βαθιά μέσα στο κουφάρι χωρίς να λερώνει φτερά",
+          "Για να πετάει με μεγαλύτερη ταχύτητα στον αέρα",
+          "Γιατί έχασε τα φτερά του από επιθέσεις αρπακτικών",
+          "Για να τρομάζει τους ανταγωνιστές του στο έδαφος"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "To maintain hygiene when probing deep inside carcasses without blood clotting on feathers",
+          "To achieve higher aerodynamic airspeed in flight",
+          "Because feathers were lost during battles with ground predators",
+          "To intimidate rival scavengers on the ground"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Εάν ο λαιμός είχε κανονικά φτερά, το αίμα και τα υπολείμματα τροφής θα κολλούσαν, προκαλώντας βακτηριακές λοιμώξεις. Το γυμνό δέρμα καθαρίζεται πανεύκολα και απολυμαίνεται από την ηλιακή ακτινοβολία όταν το πουλί λιάζεται!",
+      "explanation_en": "If feathered, blood and viscera would coagulate, inducing lethal bacterial infections. Bare skin is easily cleaned and sterilized by solar UV radiation as the bird sunbathes."
+    },
+    {
+      "id": "vulture-quest-14",
+      "title": "Σωστό ή Λάθος: Θηρευτές ή Αυστηρά Πτωματοφάγοι;",
+      "title_en": "True or False: Predators or Obligate Scavengers?",
+      "description": "Εξετάστε τον μύθο: «Οι γύπες συχνά επιτίθενται και σκοτώνουν υγιή ζωντανά πρόβατα και μοσχάρια.»",
+      "description_en": "Evaluate the myth: \"Vultures frequently attack and kill healthy living sheep and calves in the mountains.\"",
+      "type": "true_false",
+      "points": 90,
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-gamma"
+      ],
+      "payload": {
+        "correctValue": false
+      },
+      "payload_en": {
+        "correctValue": false
+      },
+      "explanation": "Λάθος! Είναι ένας επιβλαβής μύθος. Οι γύπες είναι «υποχρεωτικοί πτωματοφάγοι» (obligate scavengers). Τα νύχια των ποδιών τους είναι κοντά, αμβλέα και αδύναμα (σαν της κότας) — δεν μπορούν να πιάσουν ή να σκοτώσουν ζωντανό υγιές ζώο, παρά μόνο να τραφούν από ήδη νεκρά κουφάρια.",
+      "explanation_en": "False! This is a harmful rural myth. Vultures are obligate scavengers. Their talons are flat, blunt, and weak like a chicken — physically incapable of grasping or killing healthy livestock."
+    },
+    {
+      "id": "vulture-quest-15",
+      "title": "Η Υπ’ Αριθμόν 1 Απειλή: Δηλητηριασμένα Δολώματα (Φόλες)",
+      "title_en": "Threat Number One: Illegal Poison Baits",
+      "description": "Ποια είναι η κυριότερη αιτία που οδήγησε τους γύπες στα πρόθυρα της εξαφάνισης στην ηπειρωτική Ελλάδα και τα Βαλκάνια;",
+      "description_en": "What is the primary factor that drove vultures to the verge of regional extinction across mainland Greece and the Balkans?",
+      "type": "multiple_choice",
+      "points": 130,
+      "imageUrl": "SVG_IMAGES.default",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta",
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "options": [
+          "Η παράνομη διασπορά δηλητηριασμένων δολωμάτων (φόλες) στην ύπαιθρο",
+          "Η φυσική γήρανση των πουλιών",
+          "Ο ανταγωνισμός από τα κοράκια",
+          "Η έλλειψη νερού στα βουνά"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "The illegal placement of poisoned baits in the countryside targeting carnivores",
+          "Natural senescence and aging of birds",
+          "Competition from common ravens",
+          "Lack of drinking water in mountain streams"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Τα δηλητηριασμένα δολώματα που τοποθετούνται παράνομα στην ύπαιθρο (συχνά για λύκους, αλεπούδες ή αδέσποτα) είναι καταστροφικά. Επειδή τα Όρνια τρέφονται ομαδικά, ένα και μόνο δηλητηριασμένο ζώο μπορεί να σκοτώσει σε μία ώρα 10, 20 ή και ολόκληρη την τοπική αποικία!",
+      "explanation_en": "Poison baits illegally placed for wolves or foxes are catastrophic. Because Griffon Vultures feed communally, a single poisoned carcass can annihilate 10, 20, or an entire regional breeding colony within hours!"
+    },
+    {
+      "id": "vulture-quest-16",
+      "title": "Σωστό ή Λάθος: Το Κτηνιατρικό Φάρμακο Δικλοφενάκη",
+      "title_en": "True or False: The Veterinary Drug Diclofenac",
+      "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με τις επιπτώσεις φαρμάκων στους γύπες.",
+      "description_en": "Evaluate the claim: \"The veterinary use of the anti-inflammatory drug diclofenac in livestock wiped out 99% of Asian vultures due to kidney failure within a single decade.\"",
+      "type": "true_false",
+      "points": 100,
+      "assignedTeamIds": [
+        "team-beta",
+        "team-delta"
+      ],
+      "payload": {
+        "correctValue": true
+      },
+      "payload_en": {
+        "correctValue": true
+      },
+      "explanation": "Σωστό! Η χρήση δικλοφενάκης σε αγελάδες στην Ινδία οδήγησε στη μεγαλύτερη κατάρρευση πληθυσμού πτηνών στην ιστορία (εξαφανίστηκαν πάνω από 40 εκατομμύρια γύπες!). Στην Ευρώπη δίνεται μεγάλος αγώνας για την πλήρη απαγόρευση επικίνδυνων κτηνιατρικών φαρμάκων.",
+      "explanation_en": "True! Veterinary diclofenac administered to cattle caused the fastest avian population crash in human history (over 40 million vultures died from visceral gout). Strict European regulations now fight to ban harmful veterinary NSAIDs."
+    },
+    {
+      "id": "vulture-quest-17",
+      "title": "Αντιστοίχιση Ανθρωπογενών Απειλών & Επιπτώσεων",
+      "title_en": "Matching Anthropogenic Threats & Conservation Impacts",
+      "description": "Συνδέστε κάθε απειλή με τον συγκεκριμένο τρόπο που πλήττει τους γύπες.",
+      "description_en": "Match each anthropogenic threat with the exact mechanism by which it harms vultures.",
+      "type": "text_match",
+      "points": 120,
+      "assignedTeamIds": [
+        "team-gamma",
+        "team-beta"
+      ],
+      "payload": {
+        "pairs": [
+          {
+            "id": "t1",
+            "left": "Δηλητηριασμένα δολώματα (φόλες)",
+            "right": "Μαζική θανάτωση δεκάδων ατόμων σε ένα μόνο γεύμα"
+          },
+          {
+            "id": "t2",
+            "left": "Μη μονωμένοι πυλώνες ρεύματος",
+            "right": "Ηλεκτροπληξία κατά την προσγείωση μεγάλων πουλιών"
+          },
+          {
+            "id": "t3",
+            "left": "Αιολικά πάρκα σε διάδρομους πτήσης",
+            "right": "Θανάσιμη πρόσκρουση στις περιστρεφόμενες πτέρυγες"
+          },
+          {
+            "id": "t4",
+            "left": "Σκάγια μολύβδου (κυνήγι)",
+            "right": "Χρόνια δηλητηρίαση (μολυβδίαση) από κατάποση μολύβδου"
+          }
+        ]
+      },
+      "payload_en": {
+        "pairs": [
+          {
+            "id": "t1",
+            "left": "Illegal poison baits",
+            "right": "Mass mortality of dozens of birds at a single meal"
+          },
+          {
+            "id": "t2",
+            "left": "Uninsulated medium-voltage pylons",
+            "right": "Electrocution when large wings bridge live wires"
+          },
+          {
+            "id": "t3",
+            "left": "Wind turbines in flight corridors",
+            "right": "Fatal collision with rapidly rotating turbine blades"
+          },
+          {
+            "id": "t4",
+            "left": "Lead ammunition (hunting)",
+            "right": "Chronic lead intoxication (plumbism) from bullet fragments"
+          }
+        ]
+      },
+      "explanation": "Η αντιμετώπιση των απειλών απαιτεί μόνωση πυλώνων, αυστηρό έλεγχο χωροθέτησης αιολικών και απαγόρευση μολύβδινων σκαγιών.",
+      "explanation_en": "Mitigating threats requires pylon insulation retrofitting, micro-siting of wind parks, and banning toxic lead ammunition."
+    },
+    {
+      "id": "vulture-quest-18",
+      "title": "Οι Ειδικές Αντιδηλητηριαστικές Ομάδες Σκύλων (K9 Units)",
+      "title_en": "Specialized Anti-Poison Dog Units (K9 Units)",
+      "description": "Ποιος είναι ο ρόλος των ειδικά εκπαιδευμένων σκύλων ανίχνευσης που δραστηριοποιούνται στη Θράκη, την Κρήτη και την Ήπειρο;",
+      "description_en": "What is the vital role of the specialized conservation detection dogs operating in Thrace, Crete, and Epirus?",
+      "type": "multiple_choice",
+      "points": 110,
+      "imageUrl": "SVG_IMAGES.default",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-gamma"
+      ],
+      "payload": {
+        "options": [
+          "Εντοπίζουν με την όσφρησή τους δηλητηριασμένα δολώματα στην ύπαιθρο πριν προλάβουν να τα φάνε οι γύπες",
+          "Φυλάνε τις φωλιές των γυπών από επιθέσεις αλεπούδων",
+          "Κυνηγούν τα κοράκια που κλέβουν την τροφή των γυπών",
+          "Οδηγούν τους γύπες προς τις ασφαλείς ταΐστρες"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "Sniff out and locate illegal poisoned baits and carcasses in the wilderness before vultures consume them",
+          "Guard vulture cliff nests against terrestrial predators",
+          "Chase ravens competing for food carcasses",
+          "Guide vultures towards artificial feeding stations"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Οι Αντιδηλητηριαστικές Ομάδες Σκύλων της Ελληνικής Ορνιθολογικής Εταιρείας και του WWF σώζουν δεκάδες γύπες κάθε χρόνο, απομακρύνοντας έγκαιρα το δηλητήριο από τα βουνά.",
+      "explanation_en": "The Canine Anti-Poison Units of the Hellenic Ornithological Society and WWF Greece save dozens of vultures every year by rapidly neutralizing poison in mountain habitats."
+    },
+    {
+      "id": "vulture-quest-19",
+      "title": "Φωτογραφική Αποστολή: Εντοπισμός Βιοτόπου ή Απειλής",
+      "title_en": "Photo Quest: Habitat Clue or Threat Identification",
+      "description": "Φωτογραφίστε ένα στοιχείο του περιβάλλοντος (π.χ. πυλώνα ρεύματος, απόκρημνο βράχο, δασικό τοπίο, πηγή νερού) και ανεβάστε το με μια σύντομη περιγραφή.",
+      "description_en": "Photograph an environmental feature (e.g. power pylon, rocky cliff, mountain terrain, or water spring) and submit it with a brief commentary.",
+      "type": "photo_upload",
+      "points": 140,
+      "assignedTeamIds": [
+        "team-delta",
+        "team-beta"
+      ],
+      "payload": {
+        "instructions": "Τραβήξτε και ανεβάστε μία καθαρή φωτογραφία που σχετίζεται με τον βιότοπο ή τους κινδύνους των γυπών."
+      },
+      "payload_en": {
+        "instructions": "Take and upload a clear photograph representing either vulture habitat, feeding grounds, or potential hazards."
+      },
+      "explanation": "Η φωτογραφική καταγραφή και η επιτόπια παρατήρηση είναι θεμέλιος λίθος για τη χαρτογράφηση κρίσιμων βιοτόπων.",
+      "explanation_en": "Field photo-documentation is fundamental for mapping critical vulture habitats and power line danger zones."
+    },
+    {
+      "id": "vulture-quest-20",
+      "title": "Σωστό ή Λάθος: Αναπαραγωγικός Ρυθμός και Αυγά",
+      "title_en": "True or False: Reproduction Rate and Eggs",
+      "description": "Εξετάστε τον ακόλουθο ισχυρισμό: «Οι γύπες γεννούν πολλά αυγά (5-8 αυγά) κάθε χρόνο, επομένως οι πληθυσμοί τους μπορούν να ανακάμψουν μέσα σε λίγους μήνες.»",
+      "description_en": "Evaluate the claim: \"Vultures lay large clutches of 5-8 eggs every year, which is why their depleted colonies recover within a few months.\"",
+      "type": "true_false",
+      "points": 90,
+      "imageUrl": "SVG_IMAGES.nestWatch",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-gamma"
+      ],
+      "payload": {
+        "correctValue": false
+      },
+      "payload_en": {
+        "correctValue": false
+      },
+      "explanation": "Λάθος! Οι γύπες έχουν εξαιρετικά αργό αναπαραγωγικό ρυθμό (K-strategy): γεννούν ΜΟΝΟ 1 αυγό το χρόνο (σπανιότατα 2 ο Ασπροπάρης), το κλωσούν για σχεδόν 2 μήνες, το μικρό μένει στη φωλιά 4 μήνες και ωριμάζει σεξουαλικά στα 5-7 έτη! Γι’ αυτό η απώλεια έστω και ενός ενήλικου πουλιού είναι τεράστιο πλήγμα.",
+      "explanation_en": "False! Vultures are classic K-strategists: they lay ONLY 1 egg per year (rarely 2 for Egyptian Vultures), incubate for nearly 2 months, rear the chick for 4 months, and reach maturity at 5-7 years! Losing even one adult bird severely compromises colony viability."
+    },
+    {
+      "id": "vulture-quest-21",
+      "title": "Δορυφορικοί Πομποί GPS & Τηλεμετρία Υψηλής Ακρίβειας",
+      "title_en": "Satellite GPS Transmitters & High-Precision Telemetry",
+      "description": "Πώς έχουν αλλάξει οι σύγχρονοι δορυφορικοί πομποί GPS/GSM στην πλάτη των γυπών την έρευνα και την προστασία τους;",
+      "description_en": "How have modern lightweight solar GPS/GSM satellite transmitters harnessed onto vultures revolutionized research and anti-poison alerts?",
+      "type": "multiple_choice",
+      "points": 120,
+      "imageUrl": "SVG_IMAGES.default",
+      "assignedTeamIds": [
+        "team-beta",
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "options": [
+          "Στέλνουν σε πραγματικό χρόνο τις συντεταγμένες πτήσης, ταχύτητα, ύψος και άμεση ειδοποίηση (alert) αν ένα πουλί ακινητοποιηθεί ύποπτα",
+          "Εκπέμπουν ήχους που τρομάζουν τους λαθροκυνηγούς",
+          "Τροφοδοτούν το πουλί με ηλεκτρική ενέργεια όταν κουράζεται",
+          "Εμποδίζουν τον γύπα να πετάξει εκτός των ορίων του εθνικού πάρκου"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "Transmit real-time GPS coordinates, flight altitude, speed, and immediate immobility alerts if a bird suddenly stops moving",
+          "Emit loud acoustic sirens that scare away poachers",
+          "Supply the vulture with electrical stamina when tired",
+          "Physically constrain the vulture inside national park boundaries"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Η δορυφορική τηλεμετρία επιτρέπει στους επιστήμονες να εντοπίσουν ένα δηλητηριασμένο πουλί μέσα σε λίγες ώρες, σώζοντας τόσο το ίδιο όσο και απομακρύνοντας το δηλητήριο πριν σκοτωθούν κι άλλοι γύπες.",
+      "explanation_en": "Satellite telemetry allows scientists to pinpoint an incapacitated bird within hours, saving the individual and eradicating the bait before it wipes out flock mates."
+    },
+    {
+      "id": "vulture-quest-22",
+      "title": "QR Σταθμός: Ταΐστρα Γυπών (Vulture Restaurant)",
+      "title_en": "QR Station: Vulture Restaurant Feeding Site",
+      "description": "Εντοπίστε και σκανάρετε το QR Code του Σταθμού Τροφοδοσίας Γυπών για να καταγράψετε την παροχή ασφαλούς τροφής.",
+      "description_en": "Locate and scan the QR Code of the Vulture Feeding Station to record secure, toxin-free food provisioning.",
+      "type": "qr_scan",
+      "points": 150,
+      "imageUrl": "SVG_IMAGES.vultureRestaurant",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta"
+      ],
+      "payload": {
+        "targetCode": "VULTURE-FEEDING-STATION",
+        "locationHint": "Αναζητήστε την κάρτα σταθμού με την ταΐστρα γυπών στην αίθουσα ή στον χάρτη."
+      },
+      "payload_en": {
+        "targetCode": "VULTURE-FEEDING-STATION",
+        "locationHint": "Locate the station card showing the Vulture Restaurant inside the room or field map."
+      },
+      "explanation": "Οι περιφραγμένες ταΐστρες παρέχουν ελεγμένα, ασφαλή κουφάρια χωρίς δηλητήρια και μόλυβδο, ενισχύοντας την επιβίωση των νεαρών πουλιών τον χειμώνα.",
+      "explanation_en": "Enclosed supplementary feeding stations provide strictly inspected, non-toxic carcasses, bolstering juvenile winter survival."
+    },
+    {
+      "id": "vulture-quest-23",
+      "title": "Δακτυλίωση & Οπτικά Δακτυλίδια Πεδίου",
+      "title_en": "Bird Ringing & Visual Field Observation Rings",
+      "description": "Τι αναγράφεται στα μεγάλα χρωματιστά πλαστικά δακτυλίδια που τοποθετούνται στα πόδια των γυπών;",
+      "description_en": "What is encoded on the large coloured plastic leg rings placed on wild and rehabilitated vultures?",
+      "type": "multiple_choice",
+      "points": 100,
+      "imageUrl": "SVG_IMAGES.default",
+      "assignedTeamIds": [
+        "team-delta",
+        "team-gamma"
+      ],
+      "payload": {
+        "options": [
+          "Ένας μοναδικός σύντομος κωδικός από γράμματα και αριθμούς που διαβάζεται με τηλεσκόπιο από εκατοντάδες μέτρα",
+          "Το όνομα και το τηλέφωνο του κτηνιάτρου",
+          "Το βάρος και η ηλικία του πουλιού σε γραμμάρια",
+          "Η ημερομηνία γέννησης και η ώρα απελευθέρωσης"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "A unique alphanumeric code that can be read through a spotting telescope from hundreds of metres away",
+          "The veterinarian name and mobile phone number",
+          "The exact hatching weight recorded in grams",
+          "The timestamp of fledging and release hour"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Χάρη στα δακτυλίδια αυτά, παρατηρητές πουλιών σε όλη την Ευρώπη καταγράφουν τις μετακινήσεις μεμονωμένων πουλιών χωρίς να χρειάζεται να τα ξαναπιάσουν.",
+      "explanation_en": "Thanks to these rings, birdwatchers across Europe record individual vulture movements across countries without recapture."
+    },
+    {
+      "id": "vulture-quest-24",
+      "title": "Γεωγραφία: Τα Τελευταία Καταφύγια των Γυπών στην Ελλάδα",
+      "title_en": "Geography: The Last Refuges of Vultures in Greece",
+      "description": "Αντιστοιχίστε κάθε περιοχή της Ελλάδας με τον σημαντικό πληθυσμό γυπών που φιλοξενεί.",
+      "description_en": "Match each Greek geographic region with the significant vulture population it shelters.",
+      "type": "text_match",
+      "points": 130,
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta",
+        "team-delta"
+      ],
+      "payload": {
+        "pairs": [
+          {
+            "id": "g1",
+            "left": "Κρήτη (Φαράγγια & Λευκά Όρη)",
+            "right": "Ο μεγαλύτερος πληθυσμός Όρνιων & οι τελευταίοι Γυπαετοί"
+          },
+          {
+            "id": "g2",
+            "left": "Εθνικό Πάρκο Δάσους Δαδιάς (Έβρος)",
+            "right": "Η μοναδική αποικία Μαυρόγυπα στα Βαλκάνια"
+          },
+          {
+            "id": "g3",
+            "left": "Μετέωρα & Ήπειρος (Κλεισούρα)",
+            "right": "Ιστορικές θέσεις φωλιάσματος Ασπροπάρη & Όρνιων"
+          },
+          {
+            "id": "g4",
+            "left": "Στενά & Φαράγγι Νέστου (Θράκη)",
+            "right": "Αποικία Όρνιων στη Βόρεια Ελλάδα"
+          }
+        ]
+      },
+      "payload_en": {
+        "pairs": [
+          {
+            "id": "g1",
+            "left": "Crete (Gorges & White Mountains)",
+            "right": "Largest insular Griffon population & last Balkan Bearded Vultures"
+          },
+          {
+            "id": "g2",
+            "left": "Dadia National Park (Evros)",
+            "right": "The sole Black Vulture breeding colony in the Balkans"
+          },
+          {
+            "id": "g3",
+            "left": "Meteora & Epirus (Kleisoura)",
+            "right": "Historic breeding cliffs for Egyptian and Griffon Vultures"
+          },
+          {
+            "id": "g4",
+            "left": "Nestos Gorge (Thrace)",
+            "right": "Mainland Griffon Vulture colony in Northern Greece"
+          }
+        ]
+      },
+      "explanation": "Η Κρήτη είναι το παγκόσμιο προπύργιο του Όρνιου σε νησιωτικό περιβάλλον (πάνω από 1.000 άτομα) και το μοναδικό μέρος στα Βαλκάνια όπου επιβιώνει ο Γυπαετός!",
+      "explanation_en": "Crete is an international stronghold for island Griffon Vultures (>1,000 birds) and the only refuge in the Balkans where Bearded Vultures survive!"
+    },
+    {
+      "id": "vulture-quest-25",
+      "title": "Αποστολή Δράσης: Οι 4 Πυλώνες Προστασίας",
+      "title_en": "Action Task: The 4 Pillars of Vulture Conservation",
+      "description": "Επιβεβαιώστε την κατανόηση των τεσσάρων βασικών πυλώνων του Ευρωπαϊκού Σχεδίου Δράσης για τους Γύπες (Vulture Multi-Species Action Plan).",
+      "description_en": "Confirm understanding of the four fundamental conservation pillars within the European Vulture Multi-Species Action Plan.",
+      "type": "task",
+      "points": 120,
+      "assignedTeamIds": [
+        "team-gamma",
+        "team-alpha"
+      ],
+      "payload": {
+        "instructions": "Σημειώστε τα σημεία δράσης που πρέπει να εφαρμόζονται σε όλη την επικράτεια:",
+        "checklist": [
+          "Άμεση ποινική δίωξη και μηδενική ανοχή στα δηλητηριασμένα δολώματα",
+          "Ενεργές ταΐστρες και υποστήριξη της παραδοσιακής κτηνοτροφίας",
+          "Μόνωση ηλεκτροφόρων καλωδίων & ασφαλής χωροθέτηση αιολικών πάρκων",
+          "Εκπαίδευση και ενημέρωση μαθητών, αγροτών και κυνηγών"
+        ],
+        "completionPrompt": "Επιβεβαιώστε ότι η ομάδα ολοκλήρωσε τον έλεγχο των πυλώνων προστασίας."
+      },
+      "payload_en": {
+        "instructions": "Check off the conservation action points that must be implemented across ranges:",
+        "checklist": [
+          "Strict legal prosecution and zero tolerance for illegal poison baits",
+          "Safe supplementary feeding stations & support for traditional pastoralists",
+          "Insulation of medium-voltage lines & safe wind farm spatial planning",
+          "Educational outreach for students, farmers, and hunting associations"
+        ],
+        "completionPrompt": "Confirm that your team has reviewed all conservation pillars."
+      },
+      "explanation": "Η επιτυχής διατήρηση των γυπών απαιτεί συνδυασμό νομοθεσίας, τεχνολογίας και στενής συνεργασίας με την τοπική κοινωνία.",
+      "explanation_en": "Successful vulture conservation requires integrating law enforcement, technology, and community stewardship."
+    },
+    {
+      "id": "vulture-quest-26",
+      "title": "Σωστό ή Λάθος: Το Διηπειρωτικό Ταξίδι Μετανάστευσης του Ασπροπάρη",
+      "title_en": "True or False: Intercontinental Migration of Egyptian Vultures",
+      "description": "Εξετάστε τον ακόλουθο ισχυρισμό σχετικά με τα μεταναστευτικά ταξίδια του Ασπροπάρη.",
+      "description_en": "Evaluate the claim: \"The Egyptian Vulture is the only European vulture that undertakes a transatlantic-like intercontinental migration each autumn, flying over 5,000 km to the African Sahel.\"",
+      "type": "true_false",
+      "points": 110,
+      "imageUrl": "SVG_IMAGES.default",
+      "assignedTeamIds": [
+        "team-delta",
+        "team-beta"
+      ],
+      "payload": {
+        "correctValue": true
+      },
+      "payload_en": {
+        "correctValue": true
+      },
+      "explanation": "Σωστό! Ενώ τα Όρνια, οι Γυπαετοί και οι Μαυρόγυπες μένουν όλο το χρόνο στην Ελλάδα (επιδημητικά), ο Ασπροπάρης φεύγει κάθε Σεπτέμβριο, διασχίζει τη Μεσόγειο και τη Σαχάρα και διαχειμάζει στο Σαχέλ της Αφρικής (Τσαντ, Νίγηρας, Σουδάν), επιστρέφοντας πίσω την άνοιξη!",
+      "explanation_en": "True! While Griffon, Black, and Bearded Vultures are resident year-round, Egyptian Vultures are long-distance trans-Saharan migrants, flying over 5,000 km each September to the African Sahel and returning in spring!"
+    },
+    {
+      "id": "vulture-quest-27",
+      "title": "QR Σταθμός: Παρακολούθηση Φωλιάς (Nest Watch)",
+      "title_en": "QR Station: Cliff Nest Monitoring Watch",
+      "description": "Σκανάρετε τον QR κωδικό του σταθμού παρακολούθησης φωλιάς για να καταγράψετε την επιτυχή εκκόλαψη του νεοσσού.",
+      "description_en": "Scan the Nest Monitoring Station QR code to record successful chick hatching in the cliff cavity.",
+      "type": "qr_scan",
+      "points": 150,
+      "imageUrl": "SVG_IMAGES.nestWatch",
+      "assignedTeamIds": [
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "targetCode": "VULTURE-NEST-WATCH",
+        "locationHint": "Αναζητήστε την κάρτα σταθμού με τη φωλιά γύπα στον γκρεμό."
+      },
+      "payload_en": {
+        "targetCode": "VULTURE-NEST-WATCH",
+        "locationHint": "Find the station card representing cliff nest monitoring in the venue."
+      },
+      "explanation": "Η παρακολούθηση με τηλεσκόπια και αυτόματες κάμερες φωλιάς επιτρέπει την προστασία του μοναδικού νεοσσού από ενόχληση και λαθροθηρία.",
+      "explanation_en": "Monitoring with high-powered spotting scopes and nest cameras safeguards the single vulnerable chick from human disturbance."
+    },
+    {
+      "id": "vulture-quest-28",
+      "title": "Το Εντυπωσιακό Ύψος Πτήσης των Γυπών",
+      "title_en": "Astounding Flight Altitude of Vultures",
+      "description": "Σε τι ύψη μπορούν να πετάξουν οι γύπες εκμεταλλευόμενοι τα θερμά ανοδικά ρεύματα και την εξαιρετική τους αιμοσφαιρίνη;",
+      "description_en": "To what remarkable altitudes can vultures ascend using thermal convection updrafts and specialized high-affinity haemoglobin?",
+      "type": "multiple_choice",
+      "points": 110,
+      "imageUrl": "SVG_IMAGES.griffonVulture",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-delta"
+      ],
+      "payload": {
+        "options": [
+          "Μπορούν να ξεπεράσουν τα 3.000 μέτρα, ενώ έχει καταγραφεί γύπας ακόμη και στα 11.000 μέτρα (ύψος πτήσης τζετ αεροπλάνου!)",
+          "Πετούν το πολύ μέχρι τα 300 μέτρα γιατί ζαλίζονται",
+          "Μέχρι τα 1.000 μέτρα επειδή παγώνουν τα φτερά τους",
+          "Μόνο λίγα μέτρα πάνω από το έδαφος"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "payload_en": {
+        "options": [
+          "They routinely exceed 3,000 metres, with the highest bird strike recorded at an astonishing 11,270 metres (commercial jet cruising altitude!)",
+          "Never above 300 metres due to disorientation",
+          "Strictly capped at 1,000 metres because feathers freeze",
+          "Only a few metres skimming right above ground level"
+        ],
+        "correctOptionIndex": 0,
+        "correctOptionIndices": [
+          0
+        ]
+      },
+      "explanation": "Το 1973 ένα όρνιο Ruppell συγκρούστηκε με επιβατικό αεροπλάνο πάνω από την Ακτή Ελεφαντοστού στα 11.270 μέτρα! Οι γύπες διαθέτουν ειδική τροποποιημένη αιμοσφαιρίνη που δεσμεύει οξυγόνο ακόμη και στη σπάνια ατμόσφαιρα των 10.000 μέτρων.",
+      "explanation_en": "In 1973 a Rüppell vulture collided with a commercial aircraft over West Africa at 11,270 metres! Vulture haemoglobin is genetically optimized to extract oxygen in sub-zero thin stratospheric air."
+    },
+    {
+      "id": "vulture-quest-29",
+      "title": "Ομαδική Φωτογραφία: Η Ομάδα Δράσης για τους Γύπες",
+      "title_en": "Team Photo: The Vulture Conservation Taskforce",
+      "description": "Συγκεντρώστε όλα τα μέλη της ομάδας σας! Βγάλτε μία δημιουργική φωτογραφία που να δείχνει το άνοιγμα των «φτερών» σας ή τα σύμβολα του είδους σας και ανεβάστε τη στον πίνακα!",
+      "description_en": "Gather all team members! Capture a creative team photo showing your vulture \"wingspan\" or conservation emblems and upload it to the board!",
+      "type": "photo_upload",
+      "points": 160,
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta",
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "instructions": "Σταθείτε μαζί όλη η ομάδα, αναπαραστήστε το άνοιγμα φτερών ενός γύπα (2.5 - 3 μέτρα!) και ανεβάστε τη φωτογραφία."
+      },
+      "payload_en": {
+        "instructions": "Assemble your entire team, mimic a 3-metre vulture wingspan pose, and submit your team photo."
+      },
+      "explanation": "Η ομαδικότητα και η συνεργασία είναι απαραίτητες για την επιτυχία κάθε περιβαλλοντικής ομάδας δράσης!",
+      "explanation_en": "Camaraderie and teamwork are essential for any conservation field team protecting endangered wildlife!"
+    },
+    {
+      "id": "vulture-quest-30",
+      "title": "Παζλ: Οικογένεια Γυπαετών στη Φωλιά του Βράχου",
+      "title_en": "Puzzle: Bearded Vulture Family at Cliff Eyrie",
+      "description": "Συναρμολογήστε το παζλ της φωλιάς του Γυπαετού σε δυσπρόσιτη σπηλιά απόκρημνου φαραγγιού.",
+      "description_en": "Solve the puzzle of the Bearded Vulture nesting in an inaccessible cliff cavern in a remote gorge.",
+      "type": "puzzle",
+      "points": 130,
+      "imageUrl": "SVG_IMAGES.nestWatch",
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "gridPieces": 9,
+        "imageUrl": "SVG_IMAGES.nestWatch"
+      },
+      "payload_en": {
+        "gridPieces": 9,
+        "imageUrl": "SVG_IMAGES.nestWatch"
+      },
+      "explanation": "Οι γυπαετοί χτίζουν τεράστιες φωλιές από κλαδιά και μαλλί προβάτων μέσα σε σπηλιές απόκρημνων βράχων, προστατευμένοι από τον άνεμο και το χιόνι.",
+      "explanation_en": "Bearded vultures construct bulky nests lined with sheep wool in sheltered cavern alcoves, immune to howling alpine blizzards."
+    },
+    {
+      "id": "vulture-quest-31",
+      "title": "Τελικό Σύμφωνο Προστασίας: Δέσμευση της Ομάδας",
+      "title_en": "Final Conservation Pledge: Team Commitment",
+      "description": "Ολοκληρώστε το παιχνίδι επικυρώνοντας το επίσημο Σύμφωνο Προστασίας για τους Γύπες της Ελλάδας.",
+      "description_en": "Complete the arena by verifying your official team conservation pledge for the Vultures of Greece.",
+      "type": "task",
+      "points": 150,
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta",
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "instructions": "Επιβεβαιώστε τις 4 δεσμεύσεις της ομάδας σας για την προστασία της βιοποικιλότητας:",
+        "checklist": [
+          "Διάδοση της αλήθειας: Οι γύπες είναι ωφέλιμοι καθαριστές και δεν σκοτώνουν ζωντανά ζώα",
+          "Ενημέρωση των κατοίκων για το έγκλημα των δηλητηριασμένων δολωμάτων (φόλες)",
+          "Υποστήριξη των τοπικών κτηνοτρόφων και των ορνιθολογικών ομάδων προστασίας",
+          "Διατήρηση των άγριων φαραγγιών και των παρθένων δασών ελεύθερων από όχληση"
+        ],
+        "completionPrompt": "Υπογράψτε νοερά το Σύμφωνο Προστασίας και πατήστε Ολοκλήρωση!"
+      },
+      "payload_en": {
+        "instructions": "Confirm your team 4 pledges for biodiversity stewardship:",
+        "checklist": [
+          "Spread the truth: Vultures are beneficial sanitary scavengers and do not attack live livestock",
+          "Educate community members that poison baits are an illegal ecological crime",
+          "Champion local pastoralists and wildlife conservation organizations",
+          "Keep wild mountain canyons and old-growth forests undisturbed"
+        ],
+        "completionPrompt": "Ratify the Conservation Pledge and finalize the quest!"
+      },
+      "explanation": "Συγχαρητήρια! Η ομάδα σας ολοκλήρωσε τις 31 αποστολές για τους γύπες! Τώρα προχωρήστε στον πίνακα σύνθεσης για να καταγράψετε τα τελικά συμπεράσματά σας.",
+      "explanation_en": "Congratulations! Your team has mastered the 31 vulture quests! Now proceed to the synthesis board to share your insights with the class."
+    },
+    {
+      "id": "vulture-quest-32",
+      "title": "Επιστημονική Έρευνα Πεδίου: Σχέδιο Δράσης για τους 4 Γύπες",
+      "title_en": "Field Scientific Research: Action Plan for Greece 4 Vultures",
+      "description": "Ερευνήστε τις πηγές, απαντήστε στα καίρια ορνιθολογικά ερωτήματα και συντάξτε την έκθεση συμπερασμάτων της ομάδας σας.",
+      "description_en": "Investigate the scientific sources, answer key ornithological questions, and formulate your team research findings.",
+      "type": "research",
+      "points": 200,
+      "assignedTeamIds": [
+        "team-alpha",
+        "team-beta",
+        "team-gamma",
+        "team-delta"
+      ],
+      "payload": {
+        "researchTopic": "Μέτρα προστασίας, απειλές δηλητηρίασης και επιβίωση των 4 ειδών γυπών στον ελληνικό χώρο",
+        "instructions": "Μελετήστε τις προτεινόμενες επιστημονικές πηγές και ιστοσελίδες περιβαλλοντικών οργανώσεων. Συζητήστε με την ομάδα σας, απαντήστε στα ερευνητικά ερωτήματα και καταγράψτε τα τελικά σας ευρήματα.",
+        "guidingQuestions": [
+          "Ποιο είναι το κύριο αίτιο μείωσης του πληθυσμού του Ασπροπάρη στα Βαλκάνια και ποια μέτρα λαμβάνονται;",
+          "Πώς συμβάλλουν οι ειδικά εκπαιδευμένοι σκύλοι ανίχνευσης δηλητηριασμένων δολωμάτων;",
+          "Ποιος είναι ο ρόλος των ταϊστρών (τεχνητών σημείων σίτισης) για τη διατήρηση του Όρνεου και του Μαυρόγυπα;",
+          "Τι προτείνει η ομάδα σας για τη συνύπαρξη της κτηνοτροφίας και των αρπακτικών πουλιών;"
+        ],
+        "suggestedSources": [
+          {
+            "title": "Ελληνική Ορνιθολογική Εταιρεία - Πρόγραμμα Life για τους Γύπες",
+            "url": "https://www.ornithologiki.gr",
+            "description": "Επίσημα επιστημονικά δεδομένα, χάρτες κατανομής και δράσεις προστασίας."
+          },
+          {
+            "title": "WWF Ελλάς - Ομάδες Ανίχνευσης Δηλητηριασμένων Δολωμάτων",
+            "url": "https://www.wwf.gr",
+            "description": "Έκθεση για τη δράση των ειδικών σκύλων εντοπισμού παράνομων δηλητηρίων."
+          }
+        ],
+        "minWords": 30,
+        "requiresSourceLinks": true,
+        "requiresEvidencePhoto": false
+      },
+      "payload_en": {
+        "researchTopic": "Conservation measures, poison threats, and survival of the 4 vulture species in Greece",
+        "instructions": "Investigate scientific sources and environmental NGO initiatives. Discuss with your team, answer the guiding questions, and formulate your findings and proposed solutions.",
+        "guidingQuestions": [
+          "What is the primary cause of Egyptian Vulture population decline in the Balkans and what interventions are implemented?",
+          "How do specially trained canine detection teams combat illegal poison baits?",
+          "What role do supplementary feeding stations (vulture restaurants) play for Griffon and Cinereous vultures?",
+          "What collaborative practices does your team recommend for livestock farmers and vulture coexistence?"
+        ],
+        "suggestedSources": [
+          {
+            "title": "Hellenic Ornithological Society - Vulture Conservation Projects",
+            "url": "https://www.ornithologiki.gr",
+            "description": "Scientific data, distribution mapping, and active conservation protocols."
+          },
+          {
+            "title": "WWF Greece - Anti-Poison Canine Units",
+            "url": "https://www.wwf.gr",
+            "description": "Field reports and documentation of detection dog units combating illegal poisoning."
+          }
+        ],
+        "minWords": 30,
+        "requiresSourceLinks": true,
+        "requiresEvidencePhoto": false
+      },
+      "explanation": "Η επιστημονική τεκμηρίωση και η έρευνα πηγών είναι θεμέλιος λίθος για τη διατήρηση της άγριας πανίδας!",
+      "explanation_en": "Rigorous scientific documentation and source investigation are fundamental to wildlife conservation!"
+    }
+  ]
+}

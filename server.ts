@@ -529,6 +529,21 @@ async function startServer() {
     }
   });
 
+  // Download clean JSON containing all 32 vulture quests and 4 teams
+  app.get('/api/export-vultures-json', (_req, res) => {
+    try {
+      const filePath = path.join(__dirname, 'vultures_clean_portable.json');
+      if (fs.existsSync(filePath)) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="vultures-quests-and-teams.json"');
+        return res.sendFile(filePath);
+      }
+      return res.status(404).send('Not found');
+    } catch (err: any) {
+      return res.status(500).send('Failed to export vultures JSON');
+    }
+  });
+
   // Direct restore endpoint (allows writing to src/data/defaultGame.ts)
   app.post('/api/github/direct-restore', async (req, res) => {
     try {
