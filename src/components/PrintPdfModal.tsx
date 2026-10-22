@@ -67,8 +67,8 @@ export const PrintPdfModal: React.FC<Props> = ({
 
     const dateStr = new Date().toISOString().slice(0, 10);
     const fileName = includeAnswers
-      ? `BoundPad-Vulture-Arena-31-Apostoles-Lyseis-${dateStr}.pdf`
-      : `BoundPad-Vulture-Arena-31-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
+      ? `BoundPad-Vulture-Arena-61-Apostoles-Lyseis-${dateStr}.pdf`
+      : `BoundPad-Vulture-Arena-61-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
 
     try {
       // 1. Send filtered questions and preferences to high-speed PDF generator
@@ -240,58 +240,59 @@ export const PrintPdfModal: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Direct PDF Download Button */}
+            {/* Primary Action: Direct Pixel-Perfect PDF Export (opens exact HTML preview with automatic Print-to-PDF) */}
+            <a
+              href={`/api/print-view?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}&autoprint=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer transition-all active:scale-95"
+              title={lang === 'el' ? 'Ανοίγει σε νέα καρτέλα ακριβώς όπως φαίνεται στην προεπισκόπηση και ενεργοποιεί αυτόματα την αποθήκευση σε PDF' : 'Opens exactly as shown in preview and prompts Save to PDF'}
+            >
+              <Printer className="w-4 h-4 text-slate-950" />
+              <span>{lang === 'el' ? '🖨️ Αποθήκευση ως PDF (Όπως η Προεπισκόπηση)' : '🖨️ Save as PDF (Exact Preview)'}</span>
+            </a>
+
+            {/* Direct Vector PDF Download File Button */}
             <button
               type="button"
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
-              title={lang === 'el' ? 'Άμεση λήψη αρχείου PDF' : 'Direct PDF download'}
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+              title={lang === 'el' ? 'Άμεση λήψη αρχείου PDF (.pdf) με όλες τις 61 αποστολές' : 'Download direct PDF file (.pdf) with all 61 quests'}
             >
               {isGeneratingPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
               ) : (
-                <Download className="w-4 h-4 text-slate-950" />
+                <Download className="w-4 h-4 text-emerald-400" />
               )}
               <span>
                 {isGeneratingPdf
                   ? (pdfProgress || (lang === 'el' ? 'Δημιουργία PDF...' : 'Generating PDF...'))
-                  : (lang === 'el' ? '📥 Λήψη Αρχείου PDF (.pdf)' : '📥 Download PDF (.pdf)')}
+                  : (lang === 'el' ? '📥 Λήψη .pdf (61)' : '📥 Download .pdf (61)')}
               </span>
             </button>
 
-            {/* Open PDF in New Tab (Direct Vector Preview & Save) */}
+            {/* Open Full Preview in New Tab */}
             <a
-              href={`/api/generate-pdf?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}&view=1`}
+              href={`/api/print-view?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3.5 py-2.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/40 hover:border-teal-500/70 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
-              title={lang === 'el' ? 'Άνοιγμα του αρχείου PDF σε νέα καρτέλα για άμεση προβολή & αποθήκευση' : 'Open PDF in new tab for direct viewing and saving'}
+              className="px-3 py-2.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/40 hover:border-teal-500/70 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs"
+              title={lang === 'el' ? 'Άνοιγμα της πλήρους σελίδας εκτύπωσης σε νέα καρτέλα' : 'Open full print page in new tab'}
             >
               <Eye className="w-3.5 h-3.5 text-teal-300" />
-              <span>{lang === 'el' ? '👁️ Άνοιγμα PDF' : '👁️ View PDF'}</span>
+              <span>{lang === 'el' ? '👁️ Πλήρης Προβολή' : '👁️ Full View'}</span>
             </a>
 
-            {/* Direct fallback download link */}
-            <a
-              href={`/api/generate-pdf?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}`}
-              download={includeAnswers ? 'BoundPad-Vulture-Arena-31-Lyseis.pdf' : 'BoundPad-Vulture-Arena-31-Fyllo.pdf'}
-              className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 font-bold text-xs flex items-center gap-1.5 transition-all"
-              title={lang === 'el' ? 'Απευθείας σύνδεσμος λήψης (.pdf)' : 'Direct download link (.pdf)'}
-            >
-              <Download className="w-3.5 h-3.5 text-slate-300" />
-              <span>{lang === 'el' ? 'Άμεσο Link' : 'Direct Link'}</span>
-            </a>
-
-            {/* Native Browser Print to PDF Button */}
+            {/* Native Screen Print Button */}
             <button
               type="button"
               onClick={handleTriggerPrint}
               className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
-              title={lang === 'el' ? 'Εκτύπωση ή Αποθήκευση ως PDF μέσω περιηγητή' : 'Print or Save as PDF via browser'}
+              title={lang === 'el' ? 'Εκτύπωση στην οθόνη' : 'Print on screen'}
             >
               <Printer className="w-3.5 h-3.5 text-slate-300" />
-              <span>{lang === 'el' ? '🖨️ Εκτύπωση' : '🖨️ Print'}</span>
+              <span>{lang === 'el' ? 'Εκτύπωση' : 'Print'}</span>
             </button>
 
             {/* Standalone HTML File Button */}
@@ -353,7 +354,7 @@ export const PrintPdfModal: React.FC<Props> = ({
             <span>{errorMessage}</span>
             <a
               href={`/api/generate-pdf?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}`}
-              download={includeAnswers ? 'BoundPad-Vulture-Arena-31-Lyseis.pdf' : 'BoundPad-Vulture-Arena-31-Fyllo.pdf'}
+              download={includeAnswers ? 'BoundPad-Vulture-Arena-61-Lyseis.pdf' : 'BoundPad-Vulture-Arena-61-Fyllo.pdf'}
               className="px-3 py-1 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs"
             >
               {lang === 'el' ? 'Κλικ για Άμεση Λήψη' : 'Click for Direct Download'}
@@ -425,7 +426,7 @@ export const PrintPdfModal: React.FC<Props> = ({
                 onChange={(e) => setTeamFilter(e.target.value)}
                 className="bg-transparent text-slate-200 font-bold focus:outline-none cursor-pointer text-xs"
               >
-                <option value="all" className="bg-slate-900">Όλες οι Ομάδες (31)</option>
+                <option value="all" className="bg-slate-900">Όλες οι Ομάδες ({filteredQuestions.length})</option>
                 {gameState.teams.map((t) => (
                   <option key={t.id} value={t.id} className="bg-slate-900">
                     {t.name}
@@ -865,28 +866,29 @@ export const PrintPdfModal: React.FC<Props> = ({
             <span className="text-emerald-400 font-bold">💡 Tip:</span>
             <span>
               {lang === 'el'
-                ? 'Μπορείτε είτε να πατήσετε «Λήψη Αρχείου PDF» για άμεσο αρχείο .pdf, είτε «Εκτύπωση / Save as PDF» για τον εκτυπωτή σας.'
-                : 'You can either click "Download PDF" for an immediate .pdf file, or "Print / Save as PDF" for your printer.'}
+                ? 'Επιλέξτε «🖨️ Αποθήκευση ως PDF» για να αποθηκεύσετε το έγγραφο ακριβώς όπως φαίνεται στην προεπισκόπηση με όλα τα χρώματα και τις κάρτες.'
+                : 'Select "🖨️ Save as PDF" to save the document exactly as shown in preview with full styling and colors.'}
             </span>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <a
+              href={`/api/print-view?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}&autoprint=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <Printer className="w-3.5 h-3.5 text-slate-950" />
+              <span>{lang === 'el' ? '🖨️ Αποθήκευση ως PDF' : '🖨️ Save as PDF'}</span>
+            </a>
             <button
               type="button"
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {isGeneratingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              <span>{isGeneratingPdf ? 'Δημιουργία...' : (lang === 'el' ? 'Λήψη PDF' : 'Download PDF')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleTriggerPrint}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>{lang === 'el' ? 'Εκτύπωση' : 'Print'}</span>
+              <span>{isGeneratingPdf ? 'Δημιουργία...' : (lang === 'el' ? 'Λήψη .pdf (61)' : 'Download .pdf (61)')}</span>
             </button>
             <button
               type="button"

@@ -8,8 +8,12 @@ import {
   TextMatchPayload,
   ImageMatchPayload,
   QrScanPayload,
+  TaskPayload,
+  PuzzlePayload,
+  PhotoUploadPayload,
+  ResearchPayload,
   getMultipleChoiceCorrectIndices
-} from '../src/types/game';
+} from '../src/types/game.ts';
 
 // Read Liberation Sans TTF fonts (supports full Greek, Cyrillic, Latin-1, Latin-A, Latin-B)
 const fontDir = '/usr/share/fonts/truetype/liberation';
@@ -43,8 +47,8 @@ export interface PdfOptions {
 
 export function generateVultureQuestsPdf(questions: Question[], options: PdfOptions = {}): Buffer {
   const {
-    title = 'BoundPad Vulture Arena - 31 Αποστολές των Γυπών',
-    title_en,
+    title = 'Αποστολή: Οι 4 Γύπες της Ελλάδας & Κύπρου - Vulture Arena 61',
+    title_en = 'Mission: The 4 Vultures of Greece & Cyprus - Vulture Arena 61',
     includeAnswers = true,
     printLang = 'el',
     includeExplanations = true,
@@ -90,7 +94,7 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
     doc.setFont(fontName, 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(140, 140, 140);
-    doc.text('BoundPad Arena · 31 Αποστολές των Γυπών · Εθνικό Πρόγραμμα Προστασίας', margin, 9);
+    doc.text('Vulture Arena · 61 Αποστολές των Γυπών · Εθνικό Πρόγραμμα Προστασίας', margin, 9);
     doc.setDrawColor(220, 225, 230);
     doc.line(margin, 11, pageWidth - margin, 11);
 
@@ -108,28 +112,28 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
 
   doc.setTextColor(255, 255, 255);
   doc.setFont(fontName, 'bold');
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   const docTitle = printLang === 'en' && title_en ? title_en : title;
   doc.text(docTitle, margin + 5, y + 8);
 
   doc.setFont(fontName, 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(226, 232, 240);
   doc.text('Οι 4 Γύπες της Ελλάδας: Όρνιο, Γυπαετός, Μαυρόγυπας, Ασπροπάρης', margin + 5, y + 14);
 
   // Badge: Teacher vs Student
   const badgeText = includeAnswers
     ? printLang === 'en'
-      ? 'TEACHER GUIDE & COMPLETE SOLUTIONS'
-      : 'ΟΔΗΓΟΣ ΕΚΠΑΙΔΕΥΤΙΚΟΥ & ΠΛΗΡΕΙΣ ΛΥΣΕΙΣ'
+      ? 'TEACHER GUIDE & COMPLETE SOLUTIONS (61 QUESTS)'
+      : 'ΟΔΗΓΟΣ ΕΚΠΑΙΔΕΥΤΙΚΟΥ & ΠΛΗΡΕΙΣ ΛΥΣΕΙΣ (61 ΑΠΟΣΤΟΛΕΣ)'
     : printLang === 'en'
-      ? 'STUDENT ACTIVITY SHEET'
-      : 'ΦΥΛΛΟ ΕΡΓΑΣΙΑΣ ΜΑΘΗΤΗ';
+      ? 'STUDENT ACTIVITY SHEET (61 QUESTS)'
+      : 'ΦΥΛΛΟ ΕΡΓΑΣΙΑΣ ΜΑΘΗΤΗ (61 ΑΠΟΣΤΟΛΕΣ)';
 
   doc.setFillColor(includeAnswers ? 5 : 30, includeAnswers ? 150 : 41, includeAnswers ? 105 : 59);
-  doc.rect(margin + 5, y + 17.5, 76, 5, 'F');
+  doc.rect(margin + 5, y + 17.5, 90, 5, 'F');
   doc.setFont(fontName, 'bold');
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
   doc.text(badgeText, margin + 7, y + 21);
 
@@ -138,7 +142,7 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
   doc.setFontSize(7.5);
   doc.setTextColor(203, 213, 225);
   const totalPoints = questions.reduce((acc, q) => acc + (q.points || 0), 0);
-  doc.text(`${questions.length} Αποστολές · ${totalPoints} Πόντοι · 4 Ομάδες Πεδίου`, pageWidth - margin - 5, y + 21, {
+  doc.text(`${questions.length} Αποστολές · ${totalPoints} Πόντοι · 4 Ομάδες`, pageWidth - margin - 5, y + 21, {
     align: 'right'
   });
 
@@ -152,38 +156,42 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
   });
 
   listToRender.forEach((q, index) => {
-    checkPageBreak(32);
+    checkPageBreak(30);
 
     const questionTitle = (printLang === 'en' && q.title_en ? q.title_en : q.title) || q.title;
     const questionDesc = (printLang === 'en' && q.description_en ? q.description_en : q.description) || q.description;
     const explanationText = (printLang === 'en' && q.explanation_en ? q.explanation_en : q.explanation) || q.explanation;
 
     // Question Header Box
+    const titleLines = doc.splitTextToSize(`${index + 1}. ${questionTitle}`, contentWidth - 28);
+    const boxHeight = Math.max(8, titleLines.length * 4.5 + 3);
+    checkPageBreak(boxHeight + 5);
+
     doc.setFillColor(248, 250, 252); // slate-50
     doc.setDrawColor(226, 232, 240); // slate-200
-    doc.roundedRect(margin, y, contentWidth, 8, 1.5, 1.5, 'FD');
+    doc.roundedRect(margin, y, contentWidth, boxHeight, 1.5, 1.5, 'FD');
 
     doc.setFont(fontName, 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setTextColor(15, 23, 42);
-    doc.text(`${index + 1}. ${questionTitle}`, margin + 3, y + 5.5);
+    doc.text(titleLines, margin + 3, y + 5);
 
     doc.setFont(fontName, 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(100, 116, 139);
-    doc.text(`${q.points || 100} pts`, pageWidth - margin - 3, y + 5.5, { align: 'right' });
+    doc.text(`${q.points || 100} pts`, pageWidth - margin - 3, y + 5, { align: 'right' });
 
-    y += 11;
+    y += boxHeight + 3;
 
     // Question Description
     if (questionDesc) {
       doc.setFont(fontName, 'normal');
-      doc.setFontSize(8.5);
+      doc.setFontSize(8);
       doc.setTextColor(51, 65, 85);
       const descLines = doc.splitTextToSize(questionDesc, contentWidth - 4);
-      checkPageBreak(descLines.length * 4.2);
+      checkPageBreak(descLines.length * 4);
       doc.text(descLines, margin + 2, y);
-      y += descLines.length * 4.2 + 2;
+      y += descLines.length * 4 + 2;
     }
 
     // 1. Multiple Choice
@@ -200,23 +208,23 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
             doc.setFillColor(220, 252, 231); // emerald-100
             doc.rect(margin + 2, y - 3, contentWidth - 4, 6, 'F');
             doc.setFont(fontName, 'bold');
-            doc.setFontSize(8.5);
+            doc.setFontSize(8);
             doc.setTextColor(6, 78, 59); // emerald-900
             const mark = '[✓] ';
             const optLines = doc.splitTextToSize(
-              `${mark}${String.fromCharCode(65 + optIdx)}. ${opt}  (ΟΡΘΗ ΑΠΑΝΤΗΣΗ)`,
+              `${mark}${String.fromCharCode(65 + optIdx)}. ${opt}  (✓ ΟΡΘΗ ΑΠΑΝΤΗΣΗ)`,
               contentWidth - 8
             );
             doc.text(optLines, margin + 4, y + 1);
-            y += optLines.length * 4.5 + 1.5;
+            y += optLines.length * 4.2 + 1.5;
           } else {
             doc.setFont(fontName, 'normal');
-            doc.setFontSize(8.5);
+            doc.setFontSize(8);
             doc.setTextColor(71, 85, 105);
             const mark = '[  ] ';
             const optLines = doc.splitTextToSize(`${mark}${String.fromCharCode(65 + optIdx)}. ${opt}`, contentWidth - 8);
             doc.text(optLines, margin + 4, y + 1);
-            y += optLines.length * 4.5 + 1;
+            y += optLines.length * 4.2 + 1;
           }
         });
       }
@@ -229,14 +237,14 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
         doc.setFillColor(220, 252, 231);
         doc.rect(margin + 2, y - 3, contentWidth - 4, 6, 'F');
         doc.setFont(fontName, 'bold');
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setTextColor(6, 78, 59);
         const ans = payload?.correctValue ? 'ΣΩΣΤΟ (True)' : 'ΛΑΘΟΣ (False)';
         doc.text(`[✓] ΟΡΘΗ ΑΠΑΝΤΗΣΗ: ${ans}`, margin + 4, y + 1.2);
         y += 7.5;
       } else {
         doc.setFont(fontName, 'normal');
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setTextColor(71, 85, 105);
         doc.text('[  ] ΣΩΣΤΟ (True)          [  ] ΛΑΘΟΣ (False)', margin + 4, y + 1);
         y += 6.5;
@@ -255,19 +263,19 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
         payload.pairs.forEach((pair) => {
           checkPageBreak(5);
           doc.setFont(fontName, 'normal');
-          doc.setFontSize(8);
+          doc.setFontSize(7.5);
           doc.setTextColor(51, 65, 85);
           doc.text(`• ${pair.left}`, margin + 4, y);
 
           if (includeAnswers) {
             doc.setFont(fontName, 'bold');
             doc.setTextColor(5, 150, 105);
-            doc.text(`➔  ${pair.right}`, margin + 85, y);
+            doc.text(`➔  ✓ ${pair.right}`, margin + 85, y);
           } else {
             doc.setTextColor(150, 150, 150);
             doc.text('➔  __________________________', margin + 85, y);
           }
-          y += 4.5;
+          y += 4.2;
         });
       }
     }
@@ -284,11 +292,11 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
         payload.pairs.forEach((p) => {
           checkPageBreak(5);
           doc.setFont(fontName, 'normal');
-          doc.setFontSize(8);
+          doc.setFontSize(7.5);
           doc.setTextColor(51, 65, 85);
           const lines = doc.splitTextToSize(`• ${p.text}`, contentWidth - 8);
           doc.text(lines, margin + 4, y);
-          y += lines.length * 4 + 1.5;
+          y += lines.length * 3.8 + 1;
         });
       }
     }
@@ -299,33 +307,94 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
       doc.setFillColor(243, 232, 255); // purple-100
       doc.rect(margin + 2, y - 3, contentWidth - 4, 10, 'F');
       doc.setFont(fontName, 'bold');
-      doc.setFontSize(8.5);
+      doc.setFontSize(8);
       doc.setTextColor(88, 28, 135);
       doc.text(`QR Σταθμός - Κωδικός Επικύρωσης: ${payload?.targetCode || 'VULTURE-STATION'}`, margin + 4, y + 1);
       if (payload?.locationHint) {
         doc.setFont(fontName, 'normal');
-        doc.setFontSize(7.5);
+        doc.setFontSize(7);
         doc.setTextColor(107, 33, 168);
         doc.text(`Υπόδειξη Τοποθεσίας Πεδίου: ${payload.locationHint}`, margin + 4, y + 5);
       }
       y += 12;
     }
-    // 6. Photo upload / Puzzle / Task / Research
-    else if (q.type === 'photo_upload' || q.type === 'task' || q.type === 'puzzle' || q.type === 'research') {
+    // 6. Field Task
+    else if (q.type === 'task') {
+      const payload = (printLang === 'en' && q.payload_en ? q.payload_en : q.payload) as TaskPayload;
+      if (payload?.instructions) {
+        checkPageBreak(6);
+        doc.setFont(fontName, 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(180, 83, 9);
+        const instLines = doc.splitTextToSize(`📋 Οδηγίες: ${payload.instructions}`, contentWidth - 8);
+        doc.text(instLines, margin + 4, y);
+        y += instLines.length * 3.8 + 1;
+      }
+      if (Array.isArray(payload?.checklist)) {
+        payload.checklist.forEach((item) => {
+          checkPageBreak(5);
+          doc.setFont(fontName, 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(51, 65, 85);
+          const cLines = doc.splitTextToSize(`[  ] ${item}`, contentWidth - 8);
+          doc.text(cLines, margin + 4, y);
+          y += cLines.length * 3.8 + 1;
+        });
+      }
+    }
+    // 7. Research
+    else if (q.type === 'research') {
+      const payload = (printLang === 'en' && q.payload_en ? q.payload_en : q.payload) as ResearchPayload;
+      if (payload?.researchTopic) {
+        checkPageBreak(6);
+        doc.setFont(fontName, 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(13, 148, 136);
+        const tLines = doc.splitTextToSize(`🔬 Θέμα Έρευνας: ${payload.researchTopic}`, contentWidth - 8);
+        doc.text(tLines, margin + 4, y);
+        y += tLines.length * 4 + 1;
+      }
+      if (payload?.instructions) {
+        checkPageBreak(5);
+        doc.setFont(fontName, 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        const iLines = doc.splitTextToSize(`📋 ${payload.instructions}`, contentWidth - 8);
+        doc.text(iLines, margin + 4, y);
+        y += iLines.length * 3.8 + 1;
+      }
+      if (Array.isArray(payload?.guidingQuestions)) {
+        payload.guidingQuestions.forEach((gq) => {
+          checkPageBreak(5);
+          doc.setFont(fontName, 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(51, 65, 85);
+          const gLines = doc.splitTextToSize(`• ${gq}`, contentWidth - 8);
+          doc.text(gLines, margin + 6, y);
+          y += gLines.length * 3.8 + 1;
+        });
+      }
+    }
+    // 8. Photo Upload
+    else if (q.type === 'photo_upload') {
+      const payload = (printLang === 'en' && q.payload_en ? q.payload_en : q.payload) as PhotoUploadPayload;
       checkPageBreak(6);
       doc.setFont(fontName, 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      const label =
-        q.type === 'photo_upload'
-          ? '[Φωτογραφική Αποστολή Πεδίου: Απαιτείται τεκμηρίωση με φωτογραφία]'
-          : q.type === 'puzzle'
-            ? '[Διαδραστικό Παζλ: Συναρμολόγηση εικόνας πεδίου]'
-            : q.type === 'research'
-              ? '[Δραστηριότητα Έρευνας & Διερεύνησης Πηγών / Βιβλιογραφίας]'
-              : '[Αποστολή Δράσης Πεδίου / Τροφικό Πλέγμα]';
-      doc.text(label, margin + 4, y);
-      y += 5.5;
+      doc.setFontSize(7.5);
+      doc.setTextColor(180, 83, 9);
+      const pLines = doc.splitTextToSize(`📷 Οδηγίες Φωτογράφισης: ${payload?.instructions || 'Απαιτείται τεκμήριο φωτογραφίας'}`, contentWidth - 8);
+      doc.text(pLines, margin + 4, y);
+      y += pLines.length * 3.8 + 1;
+    }
+    // 9. Puzzle
+    else if (q.type === 'puzzle') {
+      const payload = q.payload as PuzzlePayload;
+      checkPageBreak(5);
+      doc.setFont(fontName, 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(2, 132, 199);
+      doc.text(`🧩 Διαδραστικό Παζλ: Συναρμολόγηση εικόνας πεδίου (${payload?.gridPieces || 9} κομμάτια)`, margin + 4, y);
+      y += 5;
     }
 
     // Explanation / Teacher Note
@@ -333,7 +402,7 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
       checkPageBreak(12);
       doc.setFillColor(254, 243, 199); // amber-100
       const expLines = doc.splitTextToSize(`💡 Επιστημονική Επεξήγηση: ${explanationText}`, contentWidth - 8);
-      const boxH = expLines.length * 4 + 3;
+      const boxH = expLines.length * 3.8 + 3;
       doc.rect(margin + 2, y - 2, contentWidth - 4, boxH, 'F');
       doc.setFont(fontName, 'normal');
       doc.setFontSize(7.5);
@@ -346,7 +415,7 @@ export function generateVultureQuestsPdf(questions: Question[], options: PdfOpti
     y += 2;
     doc.setDrawColor(226, 232, 240);
     doc.line(margin + 2, y, pageWidth - margin - 2, y);
-    y += 5;
+    y += 4;
   });
 
   return Buffer.from(doc.output('arraybuffer'));

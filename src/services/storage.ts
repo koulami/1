@@ -8,11 +8,12 @@ import {
 import { translateGreekToEnglish, translateQuestionAsync, containsGreekCharacters } from '../utils/translator';
 import { sanitizeGameState } from '../utils/sanitizeGame';
 
-const STORAGE_KEY = 'boundpad_gamestate_v6';
-const BACKUP_KEY = 'boundpad_gamestate_backup_v6';
-const CUSTOM_QUESTIONS_KEY = 'boundpad_custom_questions_v6';
-const UNDO_HISTORY_KEY = 'boundpad_undo_history_v6';
-const CHANNEL_NAME = 'boundpad_realtime_channel_v6';
+const STORAGE_KEY = 'boundpad_gamestate_v8';
+const PREV_STORAGE_KEY = 'boundpad_gamestate_v7';
+const BACKUP_KEY = 'boundpad_gamestate_backup_v8';
+const CUSTOM_QUESTIONS_KEY = 'boundpad_custom_questions_v8';
+const UNDO_HISTORY_KEY = 'boundpad_undo_history_v8';
+const CHANNEL_NAME = 'boundpad_realtime_channel_v8';
 
 export interface GameSnapshot {
   timestamp: number;
@@ -399,7 +400,10 @@ class GameSyncService {
           ? mergeStatesPreservingMedia(this.activeState, bestState)
           : bestState;
 
-        const sanitized = sanitizeGameState(resolvedState);
+        const sanitized = sanitizeGameState({
+          ...resolvedState,
+          teams: INITIAL_GAME_STATE.teams
+        });
         this.activeState = sanitized;
         this.notifyListeners(sanitized);
         return sanitized;
@@ -420,30 +424,30 @@ class GameSyncService {
 
     try {
       let saved = localStorage.getItem(STORAGE_KEY);
+      let prevSaved = null;
       if (!saved) {
-        saved = localStorage.getItem(BACKUP_KEY);
+        prevSaved = localStorage.getItem(PREV_STORAGE_KEY) || localStorage.getItem(BACKUP_KEY);
       }
 
-      if (!saved) {
+      if (!saved && !prevSaved) {
         this.saveState(INITIAL_GAME_STATE);
         return INITIAL_GAME_STATE;
       }
 
-      const parsed = JSON.parse(saved);
+      const parsed = JSON.parse(saved || prevSaved || '{}');
 
-      // If the saved state is the legacy 14-quest challenge, load the full Vultures game arena
-      const isLegacyEpicChallenge = parsed.id === 'epic-challenge-14' || (Array.isArray(parsed.questions) && parsed.questions.length <= 14);
-      if (isLegacyEpicChallenge) {
-        this.saveState(INITIAL_GAME_STATE);
-        this.activeState = INITIAL_GAME_STATE;
-        return INITIAL_GAME_STATE;
-      }
-
-      const finalState = sanitizeGameState({
+      const upgradedState: GameState = {
         ...INITIAL_GAME_STATE,
-        ...parsed
-      });
+        ...parsed,
+        teams: INITIAL_GAME_STATE.teams, // Enforce restored team names from before 9am
+        questions: (parsed.questions && parsed.questions.length >= 61) ? parsed.questions : INITIAL_GAME_STATE.questions,
+        submissions: parsed.submissions || {},
+        timer: parsed.timer || INITIAL_GAME_STATE.timer,
+        updatedAt: Date.now()
+      };
 
+      const finalState = sanitizeGameState(upgradedState);
+      this.saveState(finalState);
       this.activeState = finalState;
       return finalState;
     } catch {

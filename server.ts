@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { generateVultureQuestsPdf } from './server/pdfService.ts';
+import { generatePrintableQuestsHtml } from './server/printHtmlService.ts';
 import { INITIAL_GAME_STATE } from './src/data/defaultGame.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -530,6 +531,20 @@ async function startServer() {
   });
 
   // Download clean JSON containing all 32 vulture quests and 4 teams
+  app.get('/api/export-vultures-ts', (_req, res) => {
+    try {
+      const filePath = path.join(__dirname, 'src/data/vulturesData.ts');
+      if (fs.existsSync(filePath)) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="vulturesData.ts"');
+        return res.sendFile(filePath);
+      }
+      return res.status(404).send('Not found');
+    } catch (err: any) {
+      return res.status(500).send('Failed to export vultures TypeScript');
+    }
+  });
+
   app.get('/api/export-vultures-json', (_req, res) => {
     try {
       const filePath = path.join(__dirname, 'vultures_clean_portable.json');
@@ -563,6 +578,72 @@ async function startServer() {
     }
   });
 
+  // Dedicated Pixel-Perfect HTML Print & PDF Export endpoint (renders exact preview layout for all 61 quests)
+  app.get('/api/print-view', async (req, res) => {
+    try {
+      const includeAnswers = req.query.answers !== 'false';
+      const printLang = (req.query.lang as 'el' | 'en' | 'both') || 'el';
+      const teamFilter = (req.query.team as string) || 'all';
+      const autoprint = req.query.autoprint === '1';
+
+      const html = await generatePrintableQuestsHtml(INITIAL_GAME_STATE.questions, {
+        title: INITIAL_GAME_STATE.title,
+        title_en: INITIAL_GAME_STATE.title_en,
+        description: INITIAL_GAME_STATE.description,
+        description_en: INITIAL_GAME_STATE.description_en,
+        includeAnswers,
+        printLang,
+        includeExplanations: true,
+        teamFilter,
+        teams: INITIAL_GAME_STATE.teams,
+        autoprint
+      });
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    } catch (err: any) {
+      console.error('Error in /api/print-view GET:', err);
+      return res.status(500).send('Failed to generate print view');
+    }
+  });
+
+  app.post('/api/print-view', async (req, res) => {
+    try {
+      const {
+        questions = INITIAL_GAME_STATE.questions,
+        title = INITIAL_GAME_STATE.title,
+        title_en = INITIAL_GAME_STATE.title_en,
+        description = INITIAL_GAME_STATE.description,
+        description_en = INITIAL_GAME_STATE.description_en,
+        includeAnswers = true,
+        printLang = 'el',
+        includeExplanations = true,
+        teamFilter = 'all',
+        teams = INITIAL_GAME_STATE.teams,
+        autoprint = false
+      } = req.body || {};
+
+      const html = await generatePrintableQuestsHtml(questions, {
+        title,
+        title_en,
+        description,
+        description_en,
+        includeAnswers,
+        printLang,
+        includeExplanations,
+        teamFilter,
+        teams,
+        autoprint
+      });
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    } catch (err: any) {
+      console.error('Error in /api/print-view POST:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // Direct PDF generation endpoint (POST: customizable options & custom questions; GET: quick download)
   app.post('/api/generate-pdf', (req, res) => {
     try {
@@ -589,8 +670,8 @@ async function startServer() {
 
       const dateStr = new Date().toISOString().slice(0, 10);
       const fileName = includeAnswers
-        ? `BoundPad-Vulture-Arena-31-Apostoles-Lyseis-${dateStr}.pdf`
-        : `BoundPad-Vulture-Arena-31-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
+        ? `BoundPad-Vulture-Arena-61-Apostoles-Lyseis-${dateStr}.pdf`
+        : `BoundPad-Vulture-Arena-61-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -620,8 +701,8 @@ async function startServer() {
 
       const dateStr = new Date().toISOString().slice(0, 10);
       const fileName = includeAnswers
-        ? `BoundPad-Vulture-Arena-31-Apostoles-Lyseis-${dateStr}.pdf`
-        : `BoundPad-Vulture-Arena-31-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
+        ? `BoundPad-Vulture-Arena-61-Apostoles-Lyseis-${dateStr}.pdf`
+        : `BoundPad-Vulture-Arena-61-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
 
       const isInline = req.query.view === '1' || req.query.inline === '1';
       const disposition = isInline ? 'inline' : 'attachment';

@@ -241,12 +241,7 @@ export const TeamColumn: React.FC<Props> = ({
               {/* Photo preview if photo mission submitted */}
               {submission?.photoUrl && (
                 <div className="mb-2.5 rounded-lg overflow-hidden border border-slate-800 max-h-32 bg-slate-900 flex items-center justify-center">
-                  <img
-                    src={submission.photoUrl}
-                    alt="Team mission photo"
-                    className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300"
-                    referrerPolicy="no-referrer"
-                  />
+                  <img src={submission.photoUrl} alt="Team mission photo" className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                 </div>
               )}
 

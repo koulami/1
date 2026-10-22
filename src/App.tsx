@@ -169,7 +169,7 @@ export default function App() {
   const updateAndSyncState = (updater: (prev: GameState) => GameState, recordHistory = true) => {
     setGameState((prev) => {
       if (recordHistory) {
-        setHistory((h) => [...h.slice(-20), prev]);
+        setHistory((h) => [...h.slice(-2), prev]);
       }
       const next = sanitizeGameState(updater(prev));
       setTimeout(() => {
@@ -190,14 +190,14 @@ export default function App() {
 
   // Full backup restore
   const handleRestoreBackup = (restored: GameState) => {
-    setHistory((h) => [...h.slice(-20), gameState]);
+    setHistory((h) => [...h.slice(-2), gameState]);
     setGameState(restored);
     syncService.saveState(restored);
   };
 
   // Apply recovered questions from GitHub or direct paste (e.g. 31 vulture quests)
   const handleApplyRecoveredQuestions = (recoveredQuestions: Question[]) => {
-    setHistory((h) => [...h.slice(-20), gameState]);
+    setHistory((h) => [...h.slice(-2), gameState]);
     const updatedState: GameState = {
       ...gameState,
       questions: recoveredQuestions,
@@ -210,7 +210,7 @@ export default function App() {
 
   // Switch or reload game preset ('epic_challenge' | 'vultures' | 'combined')
   const handleLoadPreset = (preset: 'epic_challenge' | 'vultures' | 'combined') => {
-    setHistory((h) => [...h.slice(-20), gameState]);
+    setHistory((h) => [...h.slice(-2), gameState]);
     const nextState = syncService.loadPreset(preset);
     setGameState(nextState);
     if (nextState.teams[0]) {
@@ -226,7 +226,7 @@ export default function App() {
 
   // Bulk auto-translate all questions and game text into English
   const handleBulkAutoTranslate = async () => {
-    setHistory((h) => [...h.slice(-20), gameState]);
+    setHistory((h) => [...h.slice(-2), gameState]);
 
     const updatedQuestions = await Promise.all(
       gameState.questions.map(async (q) => {

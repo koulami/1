@@ -214,12 +214,7 @@ export const ProjectorView: React.FC<Props> = ({ gameState, lang }) => {
               {allUploadedPhotos.map((item, idx) => (
                 <div key={idx} className="rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex flex-col">
                   <div className="h-48 overflow-hidden bg-black flex items-center justify-center">
-                    <img
-                      src={item.submission.photoUrl}
-                      alt="Uploaded proof"
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
+                    <img src={item.submission.photoUrl} alt="Uploaded proof" className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                   </div>
                   <div className="p-3">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">

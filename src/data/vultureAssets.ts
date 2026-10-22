@@ -15,4 +15,68 @@ export const SVG_IMAGES = {
   "microscope": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20300%22%20width%3D%22300%22%20height%3D%22300%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22300%22%20height%3D%22300%22%20rx%3D%2216%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%2270%22%20y%3D%22240%22%20width%3D%22160%22%20height%3D%2230%22%20rx%3D%228%22%20fill%3D%22%23475569%22%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M%20120%2C240%20C%20110%2C180%20140%2C110%20200%2C90%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%2218%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22140%2C70%20190%2C40%20205%2C65%20155%2C95%22%20fill%3D%22%2310b981%22%2F%3E%0A%20%20%20%20%20%20%3Crect%20x%3D%22110%22%20y%3D%22150%22%20width%3D%2280%22%20height%3D%2212%22%20rx%3D%224%22%20fill%3D%22%23cbd5e1%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22150%22%20cy%3D%22156%22%20r%3D%2214%22%20fill%3D%22%2338bdf8%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
   "compass": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20300%22%20width%3D%22300%22%20height%3D%22300%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22300%22%20height%3D%22300%22%20rx%3D%2216%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22150%22%20cy%3D%22150%22%20r%3D%22100%22%20fill%3D%22%231e293b%22%20stroke%3D%22%23f59e0b%22%20stroke-width%3D%2210%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22150%22%20cy%3D%22150%22%20r%3D%2285%22%20fill%3D%22%230f172a%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22150%2C65%20165%2C150%20135%2C150%22%20fill%3D%22%23ef4444%22%2F%3E%0A%20%20%20%20%20%20%3Cpolygon%20points%3D%22150%2C235%20165%2C150%20135%2C150%22%20fill%3D%22%2394a3b8%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22150%22%20cy%3D%22150%22%20r%3D%2210%22%20fill%3D%22%23f59e0b%22%2F%3E%0A%20%20%20%20%20%20%3Ctext%20x%3D%22144%22%20y%3D%2290%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%20font-size%3D%2218%22%20fill%3D%22%23ef4444%22%3EN%3C%2Ftext%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20",
   "atom": "data:image/svg+xml;utf8,%0A%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20300%22%20width%3D%22300%22%20height%3D%22300%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%22300%22%20height%3D%22300%22%20rx%3D%2216%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22150%22%20cy%3D%22150%22%20r%3D%2222%22%20fill%3D%22%238b5cf6%22%2F%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22150%22%20cy%3D%22150%22%20rx%3D%22100%22%20ry%3D%2238%22%20fill%3D%22none%22%20stroke%3D%22%2306b6d4%22%20stroke-width%3D%225%22%20transform%3D%22rotate(0%20150%20150)%22%2F%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22150%22%20cy%3D%22150%22%20rx%3D%22100%22%20ry%3D%2238%22%20fill%3D%22none%22%20stroke%3D%22%2306b6d4%22%20stroke-width%3D%225%22%20transform%3D%22rotate(60%20150%20150)%22%2F%3E%0A%20%20%20%20%20%20%3Cellipse%20cx%3D%22150%22%20cy%3D%22150%22%20rx%3D%22100%22%20ry%3D%2238%22%20fill%3D%22none%22%20stroke%3D%22%2306b6d4%22%20stroke-width%3D%225%22%20transform%3D%22rotate(120%20150%20150)%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22250%22%20cy%3D%22150%22%20r%3D%228%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22100%22%20cy%3D%2264%22%20r%3D%228%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%22100%22%20cy%3D%22236%22%20r%3D%228%22%20fill%3D%22%23facc15%22%2F%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20"
+
+  ,
+  windTurbine: `data:image/svg+xml;utf8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+      <defs>
+        <linearGradient id="skyTurb" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#38bdf8"/>
+          <stop offset="100%" stop-color="#bae6fd"/>
+        </linearGradient>
+      </defs>
+      <rect width="600" height="400" fill="url(#skyTurb)"/>
+      <polygon points="0,400 120,320 280,400" fill="#15803d" opacity="0.8"/>
+      <polygon points="200,400 420,300 600,400" fill="#166534" opacity="0.9"/>
+      <!-- Wind turbine tower -->
+      <line x1="300" y1="360" x2="300" y2="140" stroke="#f8fafc" stroke-width="12" stroke-linecap="round"/>
+      <circle cx="300" cy="140" r="14" fill="#cbd5e1"/>
+      <!-- Blades -->
+      <line x1="300" y1="140" x2="300" y2="30" stroke="#f8fafc" stroke-width="8" stroke-linecap="round"/>
+      <line x1="300" y1="140" x2="200" y2="195" stroke="#f8fafc" stroke-width="8" stroke-linecap="round"/>
+      <line x1="300" y1="140" x2="400" y2="195" stroke="#f8fafc" stroke-width="8" stroke-linecap="round"/>
+      <!-- Danger radar zone -->
+      <circle cx="300" cy="140" r="80" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,6" fill="none" opacity="0.7"/>
+      <text x="24" y="375" font-family="sans-serif" font-weight="bold" font-size="16" fill="#0f172a">Αιολικά Πάρκα &amp; Συστήματα Προστασίας Γυπών</text>
+    </svg>
+  `)}`,
+  powerPylon: `data:image/svg+xml;utf8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+      <defs>
+        <linearGradient id="sunsetP" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f97316"/>
+          <stop offset="100%" stop-color="#475569"/>
+        </linearGradient>
+      </defs>
+      <rect width="600" height="400" fill="url(#sunsetP)"/>
+      <!-- Electric Pylon Structure -->
+      <line x1="280" y1="380" x2="295" y2="100" stroke="#334155" stroke-width="4"/>
+      <line x1="320" y1="380" x2="305" y2="100" stroke="#334155" stroke-width="4"/>
+      <line x1="250" y1="130" x2="350" y2="130" stroke="#334155" stroke-width="4"/>
+      <line x1="230" y1="180" x2="370" y2="180" stroke="#334155" stroke-width="4"/>
+      <!-- Insulators -->
+      <rect x="246" y="130" width="8" height="24" fill="#fbbf24"/>
+      <rect x="346" y="130" width="8" height="24" fill="#fbbf24"/>
+      <!-- Power lines -->
+      <path d="M 0,150 Q 250,165 600,150" stroke="#1e293b" stroke-width="3" fill="none"/>
+      <path d="M 0,200 Q 250,215 600,200" stroke="#1e293b" stroke-width="3" fill="none"/>
+      <text x="24" y="375" font-family="sans-serif" font-weight="bold" font-size="16" fill="#f8fafc">Μόνωση Πυλώνων Μέσης Τάσης κατά της Ηλεκτροπληξίας</text>
+    </svg>
+  `)}`,
+  migrationMap: `data:image/svg+xml;utf8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+      <rect width="600" height="400" fill="#0f172a"/>
+      <!-- Continents outline -->
+      <path d="M 80,40 L 480,40 L 450,180 L 320,180 L 250,220 L 120,160 Z" fill="#1e293b" stroke="#334155"/>
+      <path d="M 160,220 L 380,220 L 360,380 L 200,380 Z" fill="#1e293b" stroke="#334155"/>
+      <!-- Migration Path (Balkans to Africa) -->
+      <path d="M 310,140 Q 300,200 270,300" stroke="#f59e0b" stroke-width="4" stroke-dasharray="8,6" fill="none"/>
+      <!-- Stopover Points -->
+      <circle cx="310" cy="140" r="7" fill="#ef4444"/>
+      <circle cx="295" cy="210" r="5" fill="#f59e0b"/>
+      <circle cx="270" cy="300" r="7" fill="#10b981"/>
+      <text x="24" y="375" font-family="sans-serif" font-weight="bold" font-size="16" fill="#f59e0b">Διηπειρωτική Μετανάστευση Ασπροπάρη (Βαλκάνια - Σαχέλ/Αφρική)</text>
+    </svg>
+  `)}`,
+
 };

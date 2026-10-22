@@ -21,38 +21,79 @@
 
 @media print {
   html, body {
+    overflow: visible !important;
+    height: auto !important;
     background: #ffffff !important;
     color: #000000 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* When printing the quest document, show only the document cleanly */
-  body.printing-quest-document * {
-    visibility: hidden;
+  /* When printing the quest document from the modal, prevent clipping and hide UI chrome */
+  body.printing-quest-document {
+    background: #ffffff !important;
   }
 
-  body.printing-quest-document #printable-quest-document,
-  body.printing-quest-document #printable-quest-document * {
-    visibility: visible;
+  body.printing-quest-document #root > *:not(.fixed) {
+    display: none !important;
+  }
+
+  body.printing-quest-document .fixed {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  body.printing-quest-document .fixed > div {
+    border: none !important;
+    box-shadow: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
+    background: #ffffff !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  /* Hide modal buttons, header controls, footer bars, and filter strips during print */
+  body.printing-quest-document button,
+  body.printing-quest-document select,
+  body.printing-quest-document label,
+  body.printing-quest-document .border-b,
+  body.printing-quest-document .border-t {
+    display: none !important;
   }
 
   body.printing-quest-document #printable-quest-document {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 10mm 12mm;
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: #ffffff !important;
     color: #0f172a !important;
-    font-size: 10.5pt;
-    line-height: 1.4;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  body.printing-quest-document #printable-quest-document .border-b {
+    display: flex !important;
+  }
+
+  body.printing-quest-document #printable-quest-document .border-t {
+    display: flex !important;
   }
 
   .page-break-avoid {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
 
