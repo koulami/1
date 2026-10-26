@@ -283,9 +283,19 @@ export const QrScanQuest: React.FC<Props> = ({
             <button
               type="submit"
               disabled={!manualCode.trim()}
-              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shadow-md"
+              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shadow-md cursor-pointer"
             >
               {t.verifyCodeBtn}
+            </button>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2">
+            <span>{lang === 'el' ? 'Δοκιμή εντός αίθουσας;' : 'Indoor classroom testing?'}</span>
+            <button
+              type="button"
+              onClick={() => handleSuccessfulCode(payload.targetCode)}
+              className="text-cyan-400 hover:text-cyan-300 font-semibold underline cursor-pointer"
+            >
+              ⚡ {lang === 'el' ? 'Προσομοίωση Σάρωσης Σταθμού' : 'Simulate Station Scan'} ({payload.targetCode})
             </button>
           </div>
         </form>

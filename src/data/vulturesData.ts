@@ -2135,25 +2135,52 @@ export const CONSERVATION_QUESTS: Question[] = VULTURES_QUESTS.slice(40, 52);
 export const SYNTHESIS_QUESTS: Question[] = VULTURES_QUESTS.slice(52, 61);
 
 /**
- * Helper συνάρτηση για σταδιακή φόρτωση (pagination) αποστολών
+ * Helper συνάρτηση για αυστηρή σελιδοποίηση (pagination) αποστολών
+ * Αποτρέπει υπερφόρτωση μνήμης και κρασαρίσματα
  */
-export function getPaginatedVultureQuests(page: number = 1, pageSize: number = 8): {
+export function getPaginatedVultureQuests(
+  page: number = 1,
+  pageSize: number = 8,
+  options?: {
+    questions?: Question[];
+    teamId?: string;
+    statusFilter?: 'all' | 'active_only' | 'inactive_only';
+  }
+): {
   quests: Question[];
   totalQuests: number;
   totalPages: number;
   currentPage: number;
+  startIndex: number;
+  endIndex: number;
 } {
-  const totalQuests = VULTURES_QUESTS.length;
-  const totalPages = Math.ceil(totalQuests / pageSize);
+  const source = options?.questions || VULTURES_QUESTS;
+  const filtered = source.filter((q) => {
+    if (!q || !q.id) return false;
+    if (options?.statusFilter === 'active_only' && q.isActive === false) return false;
+    if (options?.statusFilter === 'inactive_only' && q.isActive !== false) return false;
+    if (options?.teamId && options.teamId !== 'all') {
+      const inTeam = Array.isArray(q.assignedTeamIds) && q.assignedTeamIds.length > 0
+        ? q.assignedTeamIds.includes(options.teamId)
+        : ((q as any).teamId ? (q as any).teamId === options.teamId : true);
+      if (!inTeam) return false;
+    }
+    return true;
+  });
+
+  const totalQuests = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalQuests / pageSize));
   const currentPage = Math.max(1, Math.min(page, totalPages));
   const startIndex = (currentPage - 1) * pageSize;
-  const quests = VULTURES_QUESTS.slice(startIndex, startIndex + pageSize);
+  const quests = filtered.slice(startIndex, startIndex + pageSize);
 
   return {
     quests,
     totalQuests,
     totalPages,
     currentPage,
+    startIndex,
+    endIndex: Math.min(startIndex + pageSize, totalQuests)
   };
 }
 

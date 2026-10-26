@@ -16,6 +16,7 @@ import { Question, TaskPayload, Submission } from '../../types/game';
 import { translations } from '../../locales/translations';
 import { sound } from '../../services/sound';
 import { getEmbedVideoUrl } from '../UnlockedMediaViewer';
+import { useDebouncedCallback } from '../../hooks/useDebounce';
 
 interface Props {
   question: Question;
@@ -38,10 +39,13 @@ export const TaskQuest: React.FC<Props> = ({
   readOnly = false
 }) => {
   const t = translations[lang];
-  const payload = (question.payload || {}) as TaskPayload;
+  const isEn = lang === 'en';
+  const payload = (isEn && question.payload_en)
+    ? (question.payload_en as TaskPayload)
+    : ((question.payload || {}) as TaskPayload);
 
-  const checklistItems = payload.checklist || [];
-  const requiresEvidence = payload.requiresEvidence || 'text';
+  const checklistItems = payload.checklist || (question.payload as TaskPayload)?.checklist || [];
+  const requiresEvidence = payload.requiresEvidence || (question.payload as TaskPayload)?.requiresEvidence || 'text';
 
   // State for checklist
   const initialChecked = checklistItems.map((_, idx) => {
@@ -53,10 +57,31 @@ export const TaskQuest: React.FC<Props> = ({
 
   const [checkedState, setCheckedState] = useState<boolean[]>(initialChecked);
 
-  // State for text report
-  const [reportText, setReportText] = useState<string>(
-    existingSubmission?.answerData?.reportText || existingSubmission?.answerData?.caption || ''
-  );
+  const DRAFT_KEY = `boundpad_draft_task_${question.id}`;
+
+  // State for text report with draft recovery
+  const [reportText, setReportText] = useState<string>(() => {
+    if (existingSubmission?.answerData?.reportText || existingSubmission?.answerData?.caption) {
+      return existingSubmission?.answerData?.reportText || existingSubmission?.answerData?.caption;
+    }
+    try {
+      return localStorage.getItem(DRAFT_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [saveDraftToStorage, cancelDraftSave] = useDebouncedCallback((text: string) => {
+    try {
+      if (typeof window !== 'undefined') {
+        if (text && text.trim()) {
+          localStorage.setItem(DRAFT_KEY, text);
+        } else {
+          localStorage.removeItem(DRAFT_KEY);
+        }
+      }
+    } catch {}
+  }, 400);
 
   // State for photo
   const [photoUrl, setPhotoUrl] = useState<string | null>(
@@ -179,6 +204,13 @@ export const TaskQuest: React.FC<Props> = ({
     }
 
     sound.success();
+    cancelDraftSave();
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    } catch {}
+
     onSubmit({
       points: question.points,
       checklistCompleted: checkedState,
@@ -198,7 +230,7 @@ export const TaskQuest: React.FC<Props> = ({
           <span>{t.taskInstructions}</span>
         </div>
         <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-line">
-          {question.description}
+          {isEn ? (question.description_en || question.description) : question.description}
         </p>
         {payload.instructions && payload.instructions !== question.description && (
           <p className="text-xs text-slate-300 leading-relaxed pt-1.5 border-t border-slate-800/80">
@@ -333,7 +365,11 @@ export const TaskQuest: React.FC<Props> = ({
             <textarea
               rows={3}
               value={reportText}
-              onChange={(e) => setReportText(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setReportText(val);
+                saveDraftToStorage(val);
+              }}
               placeholder={t.taskReportPlaceholder}
               className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
             />

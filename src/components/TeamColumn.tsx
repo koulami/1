@@ -53,6 +53,7 @@ export const TeamColumn: React.FC<Props> = ({
 
   // Progressive rendering / pagination: render initial batch of 8 quests for optimal memory & FPS
   const PAGE_SIZE = 8;
+  const [showInactive, setShowInactive] = useState<boolean>(false);
   const [displayLimit, setDisplayLimit] = useState<number>(() => {
     if (firstUnfinishedIndex >= PAGE_SIZE) {
       return firstUnfinishedIndex + 4;
@@ -262,6 +263,9 @@ export const TeamColumn: React.FC<Props> = ({
                     alt="Quest asset"
                     className="w-full h-20 object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                     referrerPolicy="no-referrer"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                 </div>
               )}
@@ -332,20 +336,27 @@ export const TeamColumn: React.FC<Props> = ({
           </div>
         )}
 
-        {/* 2. INACTIVE QUESTIONS GROUPED AT THE BOTTOM */}
+        {/* 2. INACTIVE QUESTIONS GROUPED AT THE BOTTOM (Conditional Rendering) */}
         {inactiveQuestions.length > 0 && (
           <div className="pt-3 mt-4 border-t-2 border-dashed border-slate-800/80 space-y-2.5">
-            <div className="flex items-center justify-between px-1.5 py-1 rounded-lg bg-slate-950/60 border border-slate-800/80 text-[11px] font-semibold text-slate-400">
+            <button
+              type="button"
+              onClick={() => setShowInactive(!showInactive)}
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-900 border border-slate-800/80 text-[11px] font-semibold text-slate-400 cursor-pointer transition-colors"
+            >
               <span className="flex items-center gap-1.5">
                 <span>💤</span>
-                <span>{lang === 'el' ? 'Ανενεργές Ερωτήσεις (Στο κάτω μέρος)' : 'Inactive Quests (At bottom)'}</span>
+                <span>{lang === 'el' ? 'Ανενεργές Ερωτήσεις' : 'Inactive Quests'}</span>
               </span>
-              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 font-bold">
-                {inactiveQuestions.length}
-              </span>
-            </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 font-bold">
+                  {inactiveQuestions.length}
+                </span>
+                <span className="text-[10px] text-slate-500">{showInactive ? '▲' : '▼'}</span>
+              </div>
+            </button>
 
-            {inactiveQuestions.map((quest) => {
+            {showInactive && inactiveQuestions.map((quest) => {
               const submission = safeSubmissions[`${team.id}_${quest.id}`];
 
               return (

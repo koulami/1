@@ -1,6 +1,7 @@
 import {
   Question,
   QuestionType,
+  Team,
   MultipleChoicePayload,
   TrueFalsePayload,
   TextMatchPayload,
@@ -23,8 +24,10 @@ export interface PrintHtmlOptions {
   printLang?: 'el' | 'en' | 'both';
   includeExplanations?: boolean;
   teamFilter?: string;
-  teams?: Array<{ id: string; name: string; name_en?: string; color?: string; avatar?: string }>;
+  statusFilter?: 'all' | 'active_only' | 'inactive_only';
+  teams?: Array<{ id: string; name: string; name_en?: string; color?: string; avatar?: string; slogan?: string; slogan_en?: string }>;
   autoprint?: boolean;
+  sessionId?: string;
 }
 
 function escapeHtml(str: string = ''): string {
@@ -41,26 +44,26 @@ export async function generatePrintableQuestsHtml(
   options: PrintHtmlOptions = {}
 ): Promise<string> {
   const {
-    title = 'Αποστολή: Οι 4 Γύπες της Ελλάδας & Κύπρου - Vulture Arena 61',
-    title_en = 'Mission: The 4 Vultures of Greece & Cyprus - Vulture Arena 61',
-    description = 'Διαδραστική εκπαιδευτική αρένα 61 αποστολών αφιερωμένη στη διάσωση του Όρνιου, του Γυπαετού, του Μαυρόγυπα και του Ασπροπάρη.',
-    description_en = 'Interactive educational arena of 61 quests dedicated to saving the Griffon, Bearded, Cinereous, and Egyptian Vultures.',
+    title = 'Αποστολή: Οι 4 Γύπες της Ελλάδας & Κύπρου - Vulture Arena',
+    title_en = 'Mission: The 4 Vultures of Greece & Cyprus - Vulture Arena',
+    description = 'Διαδραστική εκπαιδευτική αρένα αποστολών αφιερωμένη στη διάσωση του Όρνιου, του Γυπαετού, του Μαυρόγυπα και του Ασπροπάρη.',
+    description_en = 'Interactive educational arena of quests dedicated to saving the Griffon, Bearded, Cinereous, and Egyptian Vultures.',
     includeAnswers = true,
     printLang = 'el',
     includeExplanations = true,
     teamFilter = 'all',
+    statusFilter = 'all',
     teams = [],
-    autoprint = false
+    autoprint = false,
+    sessionId = ''
   } = options;
 
-  // Filter questions according to team filter
-  const filteredQuestions = questions.filter((q) => {
-    if (teamFilter === 'all') return true;
-    if (!q.assignedTeamIds || q.assignedTeamIds.length === 0) return true;
-    return q.assignedTeamIds.includes(teamFilter);
-  });
+  const validQuestions = Array.isArray(questions) ? questions.filter(q => q && q.id) : [];
 
-  const totalPoints = filteredQuestions.reduce((sum, q) => sum + (q.points || 0), 0);
+  // Determine active & inactive counts across all questions
+  const totalCount = validQuestions.length;
+  const totalActiveCount = validQuestions.filter(q => q.isActive !== false).length;
+  const totalInactiveCount = validQuestions.filter(q => q.isActive === false).length;
 
   const getTypeName = (type: QuestionType, language: 'el' | 'en') => {
     const mapEl: Record<QuestionType, string> = {
@@ -102,7 +105,7 @@ export async function generatePrintableQuestsHtml(
 
   // Pre-generate QR code data URLs asynchronously
   const qrDataUrls: Record<string, string> = {};
-  for (const q of filteredQuestions) {
+  for (const q of validQuestions) {
     if (q.type === 'qr_scan') {
       const payload = q.payload as QrScanPayload;
       const code = payload?.targetCode || 'VULTURE-STATION';
@@ -112,14 +115,14 @@ export async function generatePrintableQuestsHtml(
           margin: 1,
           color: { dark: '#4c1d95', light: '#ffffff' }
         });
-      } catch (err) {
-        // Fallback placeholder
+      } catch {
+        // fallback
       }
     }
   }
 
-  // Render question cards HTML
-  const questionsCardsHtml = filteredQuestions.map((quest, index) => {
+  // Render a single question card
+  const renderQuestionCard = (quest: Question, index: number, isQuestActive: boolean) => {
     const questNum = index + 1;
     const assignedTeamsText = getTeamNames(quest.assignedTeamIds);
 
@@ -191,7 +194,7 @@ export async function generatePrintableQuestsHtml(
     // 3. Text Match
     else if (quest.type === 'text_match') {
       const payload = (printLang === 'en' && quest.payload_en ? quest.payload_en : quest.payload) as TextMatchPayload;
-      const pairsHtml = (payload.pairs || []).map((pair, pIdx) => {
+      const pairsHtml = (payload.pairs || []).map((pair) => {
         return `
           <div class="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900">
             <span class="font-semibold text-slate-800">${escapeHtml(pair.left)}</span>
@@ -215,7 +218,7 @@ export async function generatePrintableQuestsHtml(
     // 4. Image Match
     else if (quest.type === 'image_match') {
       const payload = (printLang === 'en' && quest.payload_en ? quest.payload_en : quest.payload) as ImageMatchPayload;
-      const pairsHtml = (payload.pairs || []).map((p, pIdx) => {
+      const pairsHtml = (payload.pairs || []).map((p) => {
         return `
           <div class="flex items-center gap-3 p-2.5 rounded-lg bg-white border border-slate-300 text-xs">
             ${p.image ? `<img src="${p.image}" alt="Silhouette" class="w-12 h-12 object-cover rounded bg-slate-100 border border-slate-300 shrink-0" />` : ''}
@@ -353,16 +356,16 @@ export async function generatePrintableQuestsHtml(
     }
 
     return `
-      <div class="p-4 sm:p-5 rounded-xl border border-slate-300 bg-slate-50/80 page-break-avoid space-y-3">
+      <div class="p-4 sm:p-5 rounded-xl border ${isQuestActive ? 'border-slate-300 bg-slate-50/90' : 'border-slate-200 bg-slate-100/70 opacity-90'} page-break-avoid space-y-3">
         <!-- Quest Item Header -->
         <div class="flex flex-row items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
           <div class="flex items-center gap-2.5 flex-wrap">
-            <span class="w-7 h-7 rounded-lg bg-slate-900 text-white font-mono font-black text-xs flex items-center justify-center shrink-0">
+            <span class="w-7 h-7 rounded-lg ${isQuestActive ? 'bg-slate-900 text-white' : 'bg-slate-400 text-white'} font-mono font-black text-xs flex items-center justify-center shrink-0">
               #${questNum}
             </span>
-            <h3 class="font-bold text-sm text-slate-900">
+            <h4 class="font-bold text-sm text-slate-900">
               ${escapeHtml(titleText)}
-            </h3>
+            </h4>
             ${titleSecondary ? `<span class="text-xs text-slate-500 italic block sm:inline">(${escapeHtml(titleSecondary)})</span>` : ''}
           </div>
 
@@ -370,9 +373,18 @@ export async function generatePrintableQuestsHtml(
             <span class="font-semibold text-slate-700 px-2 py-0.5 rounded bg-slate-200 text-[11px]">
               ${escapeHtml(getTypeName(quest.type, printLang === 'en' ? 'en' : 'el'))}
             </span>
-            <span class="font-mono font-bold text-emerald-800 text-[11px] bg-emerald-100 px-2 py-0.5 rounded">
+            <span class="font-mono font-bold ${isQuestActive ? 'text-emerald-800 bg-emerald-100' : 'text-slate-600 bg-slate-200'} text-[11px] px-2 py-0.5 rounded">
               ${quest.points || 100} pts
             </span>
+            ${isQuestActive ? `
+              <span class="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                🟢 ΕΝΕΡΓΗ
+              </span>
+            ` : `
+              <span class="px-2 py-0.5 rounded font-bold text-[10px] bg-slate-200 text-slate-700 border border-slate-300">
+                💤 ΑΝΕΝΕΡΓΗ
+              </span>
+            `}
             <span class="text-[11px] text-slate-600 bg-slate-200/80 px-2 py-0.5 rounded" title="${escapeHtml(assignedTeamsText)}">
               ${escapeHtml(assignedTeamsText)}
             </span>
@@ -409,7 +421,138 @@ export async function generatePrintableQuestsHtml(
         ` : ''}
       </div>
     `;
+  };
+
+  // Grouping logic:
+  // We produce sections grouped by Team!
+  // For each team:
+  //   1) Active questions
+  //   2) Inactive questions
+  const teamsToProcess = teamFilter === 'all'
+    ? teams
+    : teams.filter(t => t.id === teamFilter);
+
+  const teamSectionsHtml = teamsToProcess.map((team) => {
+    // Questions belonging to this team or shared
+    const teamQuests = validQuestions.filter((q) => {
+      if (!q.assignedTeamIds || q.assignedTeamIds.length === 0) return true;
+      return q.assignedTeamIds.includes(team.id);
+    });
+
+    const activeQuests = teamQuests.filter(q => q.isActive !== false);
+    const inactiveQuests = teamQuests.filter(q => q.isActive === false);
+
+    // Apply status filter if requested
+    const showActive = statusFilter !== 'inactive_only' && activeQuests.length > 0;
+    const showInactive = statusFilter !== 'active_only' && inactiveQuests.length > 0;
+
+    if (!showActive && !showInactive) {
+      return '';
+    }
+
+    const teamTitle = printLang === 'en' && team.name_en ? team.name_en : team.name;
+    const teamSlogan = printLang === 'en' && team.slogan_en ? team.slogan_en : team.slogan;
+    const teamColor = team.color || '#10b981';
+
+    return `
+      <section class="team-section mb-12 page-break-avoid">
+        <!-- Team Banner Header -->
+        <div class="p-4 sm:p-5 rounded-2xl border-2 mb-6 shadow-sm" style="border-color: ${teamColor}; background: linear-gradient(to right, ${teamColor}15, #f8fafc)">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl p-2 rounded-xl bg-white shadow-xs border border-slate-200 shrink-0">
+                ${team.avatar || '🦅'}
+              </span>
+              <div>
+                <h2 class="text-base sm:text-xl font-black text-slate-900 tracking-tight">
+                  ${escapeHtml(teamTitle)}
+                </h2>
+                ${teamSlogan ? `
+                  <p class="text-xs text-slate-600 font-medium italic mt-0.5">
+                    «${escapeHtml(teamSlogan)}»
+                  </p>
+                ` : ''}
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap text-xs font-mono shrink-0">
+              <span class="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold border border-emerald-300">
+                🟢 ${activeQuests.length} Ενεργές
+              </span>
+              ${inactiveQuests.length > 0 ? `
+                <span class="px-3 py-1 rounded-lg bg-slate-200 text-slate-800 font-bold border border-slate-300">
+                  💤 ${inactiveQuests.length} Ανενεργές
+                </span>
+              ` : ''}
+              <span class="px-2.5 py-1 rounded-lg bg-white text-slate-700 font-semibold border border-slate-200">
+                Σύνολο: ${teamQuests.length}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 1: Active Questions -->
+        ${showActive ? `
+          <div class="mb-8">
+            <div class="flex items-center gap-2 mb-4 pb-2 border-b-2 border-emerald-500">
+              <span class="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-xs"></span>
+              <h3 class="text-sm font-black text-emerald-950 uppercase tracking-wider flex items-center gap-2">
+                <span>🟢 Ενεργές Αποστολές</span>
+                <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  ${activeQuests.length}
+                </span>
+              </h3>
+            </div>
+            <div class="space-y-6">
+              ${activeQuests.map((q, idx) => renderQuestionCard(q, idx, true)).join('\n')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Section 2: Inactive Questions (Archived / Disabled) -->
+        ${showInactive ? `
+          <div class="mb-8 pt-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b-2 border-slate-400">
+              <div class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 rounded-full bg-slate-400"></span>
+                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <span>💤 Ανενεργές Αποστολές / Αρχείο</span>
+                  <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
+                    ${inactiveQuests.length}
+                  </span>
+                </h3>
+              </div>
+              <span class="text-[11px] text-slate-500 italic bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+                ℹ️ Αυτές οι αποστολές είναι προσωρινά ανενεργές στην εφαρμογή
+              </span>
+            </div>
+            <div class="space-y-6">
+              ${inactiveQuests.map((q, idx) => renderQuestionCard(q, idx, false)).join('\n')}
+            </div>
+          </div>
+        ` : ''}
+      </section>
+    `;
   }).join('\n');
+
+  // Also check if any question is not covered by the teams loop (e.g. general questions)
+  const allTeamIds = new Set(teams.map(t => t.id));
+  const generalQuestions = validQuestions.filter(q => q.assignedTeamIds && q.assignedTeamIds.length > 0 && !q.assignedTeamIds.some(id => allTeamIds.has(id)));
+  let generalSectionHtml = '';
+  if (generalQuestions.length > 0 && teamFilter === 'all') {
+    const generalActive = generalQuestions.filter(q => q.isActive !== false);
+    const generalInactive = generalQuestions.filter(q => q.isActive === false);
+    generalSectionHtml = `
+      <section class="team-section mb-12 page-break-avoid">
+        <div class="p-4 rounded-2xl border-2 border-slate-400 bg-slate-100 mb-6">
+          <h2 class="text-base font-black text-slate-900">🌐 Γενικές / Αδιάθετες Αποστολές (${generalQuestions.length})</h2>
+        </div>
+        <div class="space-y-6">
+          ${generalActive.map((q, idx) => renderQuestionCard(q, idx, true)).join('\n')}
+          ${generalInactive.map((q, idx) => renderQuestionCard(q, idx, false)).join('\n')}
+        </div>
+      </section>
+    `;
+  }
 
   const docTitle = printLang === 'en' ? (title_en || title) : title;
   const docDesc = printLang === 'en' ? (description_en || description) : description;
@@ -420,12 +563,14 @@ export async function generatePrintableQuestsHtml(
     day: 'numeric'
   });
 
+  const sessionParam = sessionId ? `&session=${encodeURIComponent(sessionId)}` : '';
+
   return `<!DOCTYPE html>
 <html lang="${printLang === 'en' ? 'en' : 'el'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(docTitle)} - ${includeAnswers ? 'Λύσεις & Απαντήσεις (61 Αποστολές)' : 'Φύλλο Εργασίας (61 Αποστολές)'}</title>
+  <title>${escapeHtml(docTitle)} - ${totalCount} Αποστολές (Ενεργές & Ανενεργές ανά Ομάδα)</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
@@ -474,13 +619,13 @@ export async function generatePrintableQuestsHtml(
         <span class="text-2xl">🦅</span>
         <div>
           <h1 class="font-black text-sm sm:text-base text-slate-100 flex items-center gap-2">
-            <span>61 Αποστολές των Γυπών - Έτοιμο για Εκτύπωση & PDF</span>
+            <span>Όλες οι Αποστολές: Χωρισμένες ανά Ομάδα (Ενεργές & Ανενεργές)</span>
             <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold">
-              ${filteredQuestions.length} Αποστολές
+              ${totalCount} Αποστολές (${totalActiveCount} Ενεργές · ${totalInactiveCount} Ανενεργές)
             </span>
           </h1>
           <p class="text-xs text-slate-400">
-            Πατήστε το κουμπί <strong>«Αποθήκευση σε PDF / Εκτύπωση»</strong> και επιλέξτε προορισμό <em>«Αποθήκευση ως PDF»</em> για άψογο έγγραφο!
+            Πατήστε <strong>«Αποθήκευση σε PDF / Εκτύπωση»</strong> για να αποθηκεύσετε όλες τις αποστολές όπως εμφανίζονται παρακάτω.
           </p>
         </div>
       </div>
@@ -498,25 +643,50 @@ export async function generatePrintableQuestsHtml(
 
         <!-- Direct PDF Download Link -->
         <a
-          href="/api/generate-pdf?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}"
-          download="${includeAnswers ? 'BoundPad-Vulture-Arena-61-Apostoles-Lyseis.pdf' : 'BoundPad-Vulture-Arena-61-Apostoles-Fyllo.pdf'}"
+          href="/api/generate-pdf?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}&status=${statusFilter}${sessionParam}"
+          download="${includeAnswers ? `BoundPad-Vulture-Arena-${totalCount}-Lyseis.pdf` : `BoundPad-Vulture-Arena-${totalCount}-Fyllo.pdf`}"
           class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center gap-1.5 transition-all"
           title="Άμεση λήψη αρχείου PDF"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          <span>📥 Αρχείο .pdf</span>
+          <span>📥 Αρχείο .pdf (${totalCount})</span>
         </a>
+
+        <!-- Status Filter Toggle Links -->
+        <div class="flex items-center rounded-xl bg-slate-800 p-0.5 border border-slate-700 text-xs">
+          <a
+            href="?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}&status=all${sessionParam}"
+            class="px-2.5 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'all' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}"
+            title="Όλες οι αποστολές (Ενεργές & Ανενεργές)"
+          >
+            Όλες (${totalCount})
+          </a>
+          <a
+            href="?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}&status=active_only${sessionParam}"
+            class="px-2.5 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'active_only' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}"
+            title="Μόνο οι ενεργές αποστολές"
+          >
+            Ενεργές (${totalActiveCount})
+          </a>
+          <a
+            href="?answers=${includeAnswers}&lang=${printLang}&team=${teamFilter}&status=inactive_only${sessionParam}"
+            class="px-2.5 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'inactive_only' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}"
+            title="Μόνο οι ανενεργές αποστολές"
+          >
+            Ανενεργές (${totalInactiveCount})
+          </a>
+        </div>
 
         <!-- Answers Toggle Links -->
         <div class="flex items-center rounded-xl bg-slate-800 p-0.5 border border-slate-700 text-xs">
           <a
-            href="?answers=true&lang=${printLang}&team=${teamFilter}"
+            href="?answers=true&lang=${printLang}&team=${teamFilter}&status=${statusFilter}${sessionParam}"
             class="px-2.5 py-1.5 rounded-lg font-bold transition-colors ${includeAnswers ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}"
           >
             Με Λύσεις
           </a>
           <a
-            href="?answers=false&lang=${printLang}&team=${teamFilter}"
+            href="?answers=false&lang=${printLang}&team=${teamFilter}&status=${statusFilter}${sessionParam}"
             class="px-2.5 py-1.5 rounded-lg font-bold transition-colors ${!includeAnswers ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}"
           >
             Φύλλο Μαθητή
@@ -526,11 +696,11 @@ export async function generatePrintableQuestsHtml(
     </div>
   </div>
 
-  <!-- Main Printable Quest Sheet Document -->
+  <!-- Main Printable Document Sheet -->
   <main class="max-w-4xl mx-auto my-4 sm:my-8 bg-white text-slate-900 p-6 sm:p-10 rounded-2xl shadow-xl print-shadow-none">
     
     <!-- Document Header -->
-    <header class="border-b-2 border-slate-900 pb-5 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <header class="border-b-2 border-slate-900 pb-5 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <div class="flex items-center gap-3">
           <span class="text-4xl">🦅</span>
@@ -539,7 +709,7 @@ export async function generatePrintableQuestsHtml(
               ${escapeHtml(docTitle)}
             </h1>
             <div class="text-xs text-slate-600 font-semibold mt-0.5">
-              Οι 4 Γύπες της Ελλάδας: Όρνιο (Gyps fulvus), Γυπαετός (Gypaetus barbatus), Μαυρόγυπας (Aegypius monachus), Ασπροπάρης (Neophron percnopterus)
+              Οι 4 Γύπες της Ελλάδας: Όρνιο, Γυπαετός, Μαυρόγυπας, Ασπροπάρης
             </div>
           </div>
         </div>
@@ -550,9 +720,10 @@ export async function generatePrintableQuestsHtml(
               : (printLang === 'en' ? 'Student Field Activity Sheet' : 'Φύλλο Δραστηριοτήτων & Αποστολών Ομάδων')}
           </span>
           <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded border border-slate-300">
-            ${printLang === 'en'
-              ? `${filteredQuestions.length} Quests · ${totalPoints} Total Points`
-              : `${filteredQuestions.length} Αποστολές · ${totalPoints} Συνολικοί Πόντοι`}
+            ${totalCount} Αποστολές (${totalActiveCount} Ενεργές · ${totalInactiveCount} Ανενεργές)
+          </span>
+          <span class="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300">
+            Χωρισμένες ανά Ομάδα & Κατάσταση
           </span>
         </div>
         <p class="text-xs text-slate-600 mt-2 max-w-2xl leading-relaxed">
@@ -561,24 +732,25 @@ export async function generatePrintableQuestsHtml(
       </div>
 
       <div class="text-left sm:text-right text-xs text-slate-500 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200">
-        <div class="font-black text-slate-900 text-sm">BoundPad Vulture Arena 61</div>
+        <div class="font-black text-slate-900 text-sm">BoundPad Vulture Arena</div>
         <div>${dateFormatted}</div>
         <div class="font-mono text-[11px] text-slate-500 mt-0.5">
-          ${teamFilter === 'all' ? (printLang === 'en' ? 'All 4 Teams' : 'Και οι 4 Ομάδες') : escapeHtml(teams.find(t => t.id === teamFilter)?.name || getTeamNames([teamFilter]))}
+          ${teamFilter === 'all' ? (printLang === 'en' ? 'All Teams (Grouped)' : 'Και οι 4 Ομάδες (Ανά Ομάδα)') : escapeHtml(teams.find(t => t.id === teamFilter)?.name || getTeamNames([teamFilter]))}
         </div>
       </div>
     </header>
 
-    <!-- Questions List (All 61 Quests) -->
-    <div class="space-y-6">
-      ${questionsCardsHtml}
+    <!-- Quests List (Grouped by Team, Active first, then Inactive) -->
+    <div class="space-y-4">
+      ${teamSectionsHtml}
+      ${generalSectionHtml}
     </div>
 
     <!-- Document Footer -->
-    <footer class="mt-10 pt-4 border-t-2 border-slate-300 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+    <footer class="mt-12 pt-4 border-t-2 border-slate-300 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
       <div>BoundPad - Actionbound & Padlet Interactive Team Arena</div>
       <div class="font-bold text-slate-800">Εκπαιδευτικό Πρόγραμμα για τους 4 Γύπες της Ελλάδας & Κύπρου</div>
-      <div>Σελίδα Οδηγού & Λύσεων (61 Αποστολές)</div>
+      <div>Σελίδα Οδηγού & Λύσεων (${totalCount} Αποστολές)</div>
     </footer>
 
   </main>

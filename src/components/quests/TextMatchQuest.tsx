@@ -29,7 +29,10 @@ export const TextMatchQuest: React.FC<Props> = ({
   readOnly = false
 }) => {
   const t = translations[lang];
-  const payload = question.payload as TextMatchPayload;
+  const isEn = lang === 'en';
+  const payload = (isEn && question.payload_en && Array.isArray((question.payload_en as TextMatchPayload).pairs))
+    ? (question.payload_en as TextMatchPayload)
+    : (question.payload as TextMatchPayload);
   
   // Deterministic or stable shuffle for the right items
   const shuffledRight = useMemo(() => {
@@ -128,7 +131,7 @@ export const TextMatchQuest: React.FC<Props> = ({
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-300 leading-relaxed font-normal">
-        {t.matchInstructionsText}
+        {(isEn ? question.description_en || question.description : question.description) || t.matchInstructionsText}
       </p>
 
       {!hasSubmitted && !readOnly && (
@@ -260,6 +263,12 @@ export const TextMatchQuest: React.FC<Props> = ({
               </>
             )}
           </div>
+          {(question.explanation || question.explanation_en) && (
+            <p className="text-slate-300 pt-1 text-xs">
+              <span className="font-semibold text-slate-200">{t.explanation}:</span>{' '}
+              {isEn ? (question.explanation_en || question.explanation) : question.explanation}
+            </p>
+          )}
         </div>
       )}
     </div>

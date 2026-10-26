@@ -21,7 +21,10 @@ export const MultipleChoiceQuest: React.FC<Props> = ({
   readOnly = false
 }) => {
   const t = translations[lang];
-  const payload = question.payload as MultipleChoicePayload;
+  const isEn = lang === 'en';
+  const payload = (isEn && question.payload_en && Array.isArray((question.payload_en as MultipleChoicePayload).options))
+    ? (question.payload_en as MultipleChoicePayload)
+    : (question.payload as MultipleChoicePayload);
   const correctIndices = getMultipleChoiceCorrectIndices(payload);
   const isMultiple = correctIndices.length > 1;
 
@@ -128,7 +131,7 @@ export const MultipleChoiceQuest: React.FC<Props> = ({
 
       {/* Description */}
       <p className="text-sm text-slate-300 leading-relaxed font-normal">
-        {question.description}
+        {isEn ? (question.description_en || question.description) : question.description}
       </p>
 
       {/* Helper Banner for Question Type */}
@@ -323,11 +326,11 @@ export const MultipleChoiceQuest: React.FC<Props> = ({
             </p>
           )}
 
-          {question.explanation && (
+          {(question.explanation || question.explanation_en) && (
             <div className="pt-2 border-t border-slate-700/50">
               <p className="text-slate-300">
                 <span className="font-semibold text-slate-200">{t.explanation}:</span>{' '}
-                {question.explanation}
+                {isEn ? (question.explanation_en || question.explanation) : question.explanation}
               </p>
             </div>
           )}

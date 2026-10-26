@@ -1,0 +1,443 @@
+/**
+ * Bulletproof State Persistence Layer
+ * Provides robust localStorage persistence with automatic JSON serialization/deserialization,
+ * try/catch wrapping on every read/write, in-memory fail-safe caches,
+ * and automatic synchronization across sessions and refreshes.
+ */
+
+import { Submission, TeamSynthesisNote } from '../types/game';
+
+// Storage keys versioned for safety
+export const STORAGE_KEYS = {
+  SUBMISSIONS: 'boundpad_submissions_v10',
+  TEAM_TASK_INDEXES: 'boundpad_team_task_indexes_v10',
+  SYNTHESIS_NOTES: 'boundpad_synthesis_notes_v10',
+  ACTIVE_TAB: 'boundpad_active_tab_v10',
+  LANGUAGE: 'boundpad_lang_v10',
+  BACKUP_TIMESTAMP: 'boundpad_last_backup_ts',
+  TASK_ACTIVE_OVERRIDES: 'boundpad_task_active_overrides_v10',
+  ADMIN_AUTH: 'boundpad_admin_auth_v10',
+  CUSTOM_QUESTIONS: 'boundpad_custom_questions_v10'
+} as const;
+
+// In-memory fallback cache in case localStorage is disabled, private, or quota-exceeded
+const memoryCache: Record<string, string> = {};
+
+function safeGetItem(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const val = window.localStorage.getItem(key);
+      if (val !== null) return val;
+    }
+  } catch (err) {
+    console.warn(`[StorageService] safeGetItem error for key "${key}":`, err);
+  }
+  return memoryCache[key] ?? null;
+}
+
+function safeSetItem(key: string, value: string): boolean {
+  // Always update memory cache as instant fail-safe
+  memoryCache[key] = value;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+      return true;
+    }
+  } catch (err) {
+    console.warn(`[StorageService] safeSetItem error for key "${key}":`, err);
+  }
+  return false;
+}
+
+function safeRemoveItem(key: string): void {
+  delete memoryCache[key];
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+    }
+  } catch (err) {
+    console.warn(`[StorageService] safeRemoveItem error for key "${key}":`, err);
+  }
+}
+
+export const storageService = {
+  /**
+   * Load all submissions (scores, answers, completion status)
+   */
+  getSubmissions(): Record<string, Submission> {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.SUBMISSIONS);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed as Record<string, Submission>;
+      }
+      return {};
+    } catch (e) {
+      console.warn('[StorageService] Error reading submissions from localStorage:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Save a single submission and persist immediately to localStorage
+   */
+  saveSubmission(submission: Submission): Record<string, Submission> {
+    try {
+      const current = this.getSubmissions();
+      const updated: Record<string, Submission> = {
+        ...current,
+        [`${submission.teamId}_${submission.questionId}`]: submission
+      };
+      safeSetItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.warn('[StorageService] Error saving submission:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Batch save submissions
+   */
+  saveAllSubmissions(submissions: Record<string, Submission>): boolean {
+    try {
+      return safeSetItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
+    } catch (e) {
+      console.warn('[StorageService] Error saving all submissions:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Load last viewed task index for a given team (Focus mode pagination bookmark)
+   */
+  getTeamTaskIndex(teamId: string, fallback = 0): number {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.TEAM_TASK_INDEXES);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed[teamId] === 'number' && !isNaN(parsed[teamId])) {
+        return Math.max(0, parsed[teamId]);
+      }
+      return fallback;
+    } catch (e) {
+      console.warn('[StorageService] Error getting team task index:', e);
+      return fallback;
+    }
+  },
+
+  /**
+   * Save current viewed task index for a given team
+   */
+  saveTeamTaskIndex(teamId: string, index: number): void {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.TEAM_TASK_INDEXES);
+      let map: Record<string, number> = {};
+      if (raw) {
+        try {
+          map = JSON.parse(raw) || {};
+        } catch {}
+      }
+      map[teamId] = Math.max(0, index);
+      safeSetItem(STORAGE_KEYS.TEAM_TASK_INDEXES, JSON.stringify(map));
+    } catch (e) {
+      console.warn('[StorageService] Error saving team task index:', e);
+    }
+  },
+
+  /**
+   * Load Padlet / Synthesis notes
+   */
+  getSynthesisNotes<T = TeamSynthesisNote>(defaults: T[] = []): T[] {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.SYNTHESIS_NOTES);
+      if (!raw) return defaults;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed as T[];
+      }
+      return defaults;
+    } catch (e) {
+      console.warn('[StorageService] Error loading synthesis notes:', e);
+      return defaults;
+    }
+  },
+
+  /**
+   * Save Padlet / Synthesis notes
+   */
+  saveSynthesisNotes<T = TeamSynthesisNote>(notes: T[]): boolean {
+    try {
+      return safeSetItem(STORAGE_KEYS.SYNTHESIS_NOTES, JSON.stringify(notes));
+    } catch (e) {
+      console.warn('[StorageService] Error saving synthesis notes:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Load active navigation tab with safe fallback
+   */
+  getActiveTab(fallback = 'home'): string {
+    try {
+      const tab = safeGetItem(STORAGE_KEYS.ACTIVE_TAB);
+      return tab || fallback;
+    } catch {
+      return fallback;
+    }
+  },
+
+  /**
+   * Save active navigation tab
+   */
+  saveActiveTab(tab: string): void {
+    try {
+      safeSetItem(STORAGE_KEYS.ACTIVE_TAB, tab);
+    } catch (e) {
+      console.warn('[StorageService] Error saving active tab:', e);
+    }
+  },
+
+  /**
+   * Load UI language
+   */
+  getLanguage(fallback: 'el' | 'en' = 'el'): 'el' | 'en' {
+    try {
+      const lang = safeGetItem(STORAGE_KEYS.LANGUAGE);
+      return lang === 'en' || lang === 'el' ? lang : fallback;
+    } catch {
+      return fallback;
+    }
+  },
+
+  /**
+   * Save UI language
+   */
+  saveLanguage(lang: 'el' | 'en'): void {
+    try {
+      safeSetItem(STORAGE_KEYS.LANGUAGE, lang);
+    } catch (e) {
+      console.warn('[StorageService] Error saving language:', e);
+    }
+  },
+
+  /**
+   * Export all game state as JSON string for backup / sync
+   */
+  exportAllData(): string {
+    try {
+      const data = {
+        version: 10,
+        exportedAt: new Date().toISOString(),
+        submissions: this.getSubmissions(),
+        teamIndexes: safeGetItem(STORAGE_KEYS.TEAM_TASK_INDEXES)
+          ? JSON.parse(safeGetItem(STORAGE_KEYS.TEAM_TASK_INDEXES) || '{}')
+          : {},
+        synthesisNotes: this.getSynthesisNotes(),
+        language: this.getLanguage()
+      };
+      return JSON.stringify(data, null, 2);
+    } catch (e) {
+      console.error('[StorageService] Failed to export data:', e);
+      return '{}';
+    }
+  },
+
+  /**
+   * Import data from JSON string
+   */
+  importData(jsonString: string): boolean {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (!parsed || typeof parsed !== 'object') return false;
+
+      if (parsed.submissions && typeof parsed.submissions === 'object') {
+        safeSetItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(parsed.submissions));
+      }
+      if (parsed.teamIndexes && typeof parsed.teamIndexes === 'object') {
+        safeSetItem(STORAGE_KEYS.TEAM_TASK_INDEXES, JSON.stringify(parsed.teamIndexes));
+      }
+      if (Array.isArray(parsed.synthesisNotes)) {
+        safeSetItem(STORAGE_KEYS.SYNTHESIS_NOTES, JSON.stringify(parsed.synthesisNotes));
+      }
+      if (parsed.language === 'el' || parsed.language === 'en') {
+        safeSetItem(STORAGE_KEYS.LANGUAGE, parsed.language);
+      }
+      return true;
+    } catch (e) {
+      console.error('[StorageService] Failed to import data:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Load task active/inactive overrides
+   */
+  getTaskActiveOverrides(): Record<string, boolean> {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.TASK_ACTIVE_OVERRIDES);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, boolean>;
+      }
+      return {};
+    } catch (e) {
+      console.warn('[StorageService] Error loading task active overrides:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Save a single task active override
+   */
+  saveTaskActiveOverride(taskId: string, isActive: boolean): Record<string, boolean> {
+    try {
+      const current = this.getTaskActiveOverrides();
+      const updated = { ...current, [taskId]: isActive };
+      safeSetItem(STORAGE_KEYS.TASK_ACTIVE_OVERRIDES, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.warn('[StorageService] Error saving task active override:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Save all task active overrides
+   */
+  saveAllTaskActiveOverrides(overrides: Record<string, boolean>): boolean {
+    try {
+      return safeSetItem(STORAGE_KEYS.TASK_ACTIVE_OVERRIDES, JSON.stringify(overrides));
+    } catch (e) {
+      console.warn('[StorageService] Error saving all task active overrides:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Reset all task active overrides to defaults
+   */
+  resetTaskActiveOverrides(): void {
+    try {
+      safeRemoveItem(STORAGE_KEYS.TASK_ACTIVE_OVERRIDES);
+    } catch (e) {
+      console.warn('[StorageService] Error resetting task active overrides:', e);
+    }
+  },
+
+  /**
+   * Check if admin is currently authenticated in session
+   */
+  isAdminAuthenticated(): boolean {
+    try {
+      const auth = safeGetItem(STORAGE_KEYS.ADMIN_AUTH);
+      return auth === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Set admin authentication status
+   */
+  setAdminAuthenticated(auth: boolean): void {
+    try {
+      if (auth) {
+        safeSetItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+      } else {
+        safeRemoveItem(STORAGE_KEYS.ADMIN_AUTH);
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error setting admin auth:', e);
+    }
+  },
+
+  /**
+   * Load custom edited questions
+   */
+  getCustomQuestions(): Record<string, any> {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+      return {};
+    } catch (e) {
+      console.warn('[StorageService] Error loading custom questions:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Save a single custom question to localStorage
+   */
+  saveCustomQuestion(question: any): Record<string, any> {
+    try {
+      const current = this.getCustomQuestions();
+      const updated = { ...current, [question.id]: question };
+      safeSetItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.warn('[StorageService] Error saving custom question:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Save all custom questions
+   */
+  saveAllCustomQuestions(questions: Record<string, any>): boolean {
+    try {
+      return safeSetItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(questions));
+    } catch (e) {
+      console.warn('[StorageService] Error saving all custom questions:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Reset a custom question back to original default
+   */
+  resetCustomQuestion(questionId: string): Record<string, any> {
+    try {
+      const current = this.getCustomQuestions();
+      delete current[questionId];
+      safeSetItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(current));
+      return current;
+    } catch (e) {
+      console.warn('[StorageService] Error resetting custom question:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Reset all custom questions back to original defaults
+   */
+  resetAllCustomQuestions(): void {
+    try {
+      safeRemoveItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+    } catch (e) {
+      console.warn('[StorageService] Error resetting all custom questions:', e);
+    }
+  },
+
+  /**
+   * Clear all stored game data safely
+   */
+  clearAll(): void {
+    try {
+      safeRemoveItem(STORAGE_KEYS.SUBMISSIONS);
+      safeRemoveItem(STORAGE_KEYS.TEAM_TASK_INDEXES);
+      safeRemoveItem(STORAGE_KEYS.SYNTHESIS_NOTES);
+      safeRemoveItem(STORAGE_KEYS.ACTIVE_TAB);
+      safeRemoveItem(STORAGE_KEYS.TASK_ACTIVE_OVERRIDES);
+      safeRemoveItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+    } catch (e) {
+      console.warn('[StorageService] Error clearing storage:', e);
+    }
+  }
+};

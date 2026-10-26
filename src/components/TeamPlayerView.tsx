@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Users, CheckCircle2, Clock, Award, ChevronRight, HelpCircle, Camera,
+  Users, CheckCircle2, Clock, Award, ChevronRight, ChevronLeft, HelpCircle, Camera,
   Puzzle, QrCode, SplitSquareVertical, MessageSquare, Sparkles, Radio, ArrowRight,
   Lock, Target, Film, Search
 } from 'lucide-react';
@@ -87,12 +87,32 @@ export const TeamPlayerView: React.FC<Props> = ({
     }
   };
 
-  const filteredQuestions = visibleQuestions.filter(quest => {
-    const isDone = !!safeSubmissions[`${activeTeam.id}_${quest.id}`];
-    if (activeFilter === 'pending') return !isDone;
-    if (activeFilter === 'completed') return isDone;
-    return true;
-  });
+  // Pagination State for strict memory protection (8 quests per page)
+  const PAGE_SIZE = 8;
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Reset page to 1 when changing team or filter
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTeamId, activeFilter]);
+
+  const filteredQuestions = useMemo(() => {
+    return visibleQuestions.filter(quest => {
+      const isDone = !!safeSubmissions[`${activeTeam.id}_${quest.id}`];
+      if (activeFilter === 'pending') return !isDone;
+      if (activeFilter === 'completed') return isDone;
+      return true;
+    });
+  }, [visibleQuestions, safeSubmissions, activeTeam.id, activeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, filteredQuestions.length);
+
+  const paginatedQuestions = useMemo(() => {
+    return filteredQuestions.slice(startIndex, endIndex);
+  }, [filteredQuestions, startIndex, endIndex]);
 
   const getQuestIcon = (type: Question['type']) => {
     switch (type) {
@@ -358,6 +378,38 @@ export const TeamPlayerView: React.FC<Props> = ({
             </div>
           </div>
 
+          {/* Pagination Top Bar */}
+          {filteredQuestions.length > 0 && totalPages > 1 && (
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+              <span className="text-slate-400 font-medium">
+                {lang === 'el' ? `Προβολή ${startIndex + 1}-${endIndex} από ${filteredQuestions.length} αποστολές` : `Showing ${startIndex + 1}-${endIndex} of ${filteredQuestions.length} quests`}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{lang === 'el' ? 'Προηγούμενη' : 'Prev'}</span>
+                </button>
+                <span className="px-2 py-1 rounded-lg bg-slate-950 font-mono font-bold text-amber-400 text-[11px]">
+                  {safeCurrentPage} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <span className="hidden sm:inline">{lang === 'el' ? 'Επόμενη' : 'Next'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Cards List */}
           {visibleQuestions.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800">
@@ -365,7 +417,7 @@ export const TeamPlayerView: React.FC<Props> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredQuestions.map((quest) => {
+              {paginatedQuestions.map((quest) => {
                 const submission = gameState.submissions[`${activeTeam.id}_${quest.id}`];
                 const isDone = !!submission;
                 const isCorrect = submission?.status === 'correct' || submission?.status === 'completed';
@@ -448,6 +500,9 @@ export const TeamPlayerView: React.FC<Props> = ({
                             alt={quest.title}
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
                         </div>
                       ) : null}
@@ -507,6 +562,39 @@ export const TeamPlayerView: React.FC<Props> = ({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Pagination Bottom Bar */}
+          {filteredQuestions.length > 0 && totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => {
+                  setCurrentPage((p) => Math.max(1, p - 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>{lang === 'el' ? 'Προηγούμενη Σελίδα' : 'Previous Page'}</span>
+              </button>
+              <span className="text-xs text-slate-400 font-medium px-2">
+                {safeCurrentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => {
+                  setCurrentPage((p) => Math.min(totalPages, p + 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <span>{lang === 'el' ? 'Επόμενη Σελίδα' : 'Next Page'}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 

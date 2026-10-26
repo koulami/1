@@ -20,6 +20,7 @@ import { Question, ResearchPayload, Submission } from '../../types/game';
 import { translations } from '../../locales/translations';
 import { sound } from '../../services/sound';
 import { getEmbedVideoUrl } from '../UnlockedMediaViewer';
+import { useDebouncedCallback } from '../../hooks/useDebounce';
 
 interface Props {
   question: Question;
@@ -62,9 +63,30 @@ export const ResearchQuest: React.FC<Props> = ({
   });
   const [answeredState, setAnsweredState] = useState<boolean[]>(initialAnswered);
 
-  const [findingsText, setFindingsText] = useState<string>(
-    existingAnswerData.findingsText || existingAnswerData.reportText || existingAnswerData.caption || ''
-  );
+  const DRAFT_KEY = `boundpad_draft_research_${question.id}`;
+
+  const [findingsText, setFindingsText] = useState<string>(() => {
+    if (existingAnswerData.findingsText || existingAnswerData.reportText || existingAnswerData.caption) {
+      return existingAnswerData.findingsText || existingAnswerData.reportText || existingAnswerData.caption;
+    }
+    try {
+      return localStorage.getItem(DRAFT_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [saveDraftToStorage, cancelDraftSave] = useDebouncedCallback((text: string) => {
+    try {
+      if (typeof window !== 'undefined') {
+        if (text && text.trim()) {
+          localStorage.setItem(DRAFT_KEY, text);
+        } else {
+          localStorage.removeItem(DRAFT_KEY);
+        }
+      }
+    } catch {}
+  }, 400);
 
   const [sourcesList, setSourcesList] = useState<string[]>(() => {
     if (Array.isArray(existingAnswerData.sourcesConsulted) && existingAnswerData.sourcesConsulted.length > 0) {
@@ -207,6 +229,13 @@ export const ResearchQuest: React.FC<Props> = ({
 
     setErrorMessage(null);
     sound.success();
+
+    cancelDraftSave();
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    } catch {}
 
     onSubmit({
       points: question.points,
@@ -375,7 +404,11 @@ export const ResearchQuest: React.FC<Props> = ({
         <textarea
           rows={6}
           value={findingsText}
-          onChange={(e) => setFindingsText(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setFindingsText(val);
+            saveDraftToStorage(val);
+          }}
           disabled={readOnly || isCompleted}
           placeholder={t.researchFindingsPlaceholder}
           className="w-full p-3.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-500 leading-relaxed disabled:opacity-80"

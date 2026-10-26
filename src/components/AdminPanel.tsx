@@ -4,7 +4,7 @@ import {
   AlertTriangle, Users, Award, ShieldAlert, Sparkles, Download, Upload,
   Image as ImageIcon, Power, Eye, EyeOff, Check, ArrowLeft,
   ArrowUp, ArrowDown, Shuffle, Lock, Unlock, Copy, Layers, Filter, Undo2, ShieldCheck,
-  Loader2, Github, Camera, Film
+  Loader2, Github, Camera, Film, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { GameState, Language, Question, Team, QuestionType, GamePhase } from '../types/game';
 import { translations } from '../locales/translations';
@@ -105,6 +105,8 @@ export const AdminPanel: React.FC<Props> = ({
   const [isSavingCheckpoint, setIsSavingCheckpoint] = useState<boolean>(false);
   const [isManualSaving, setIsManualSaving] = useState<boolean>(false);
   const [justSaved, setJustSaved] = useState<boolean>(false);
+  const [allQuestionsPage, setAllQuestionsPage] = useState<number>(1);
+  const allQuestionsPageSize = 10;
 
   // Subscribe to real-time snapshot changes from storage/IndexedDB
   useEffect(() => {
@@ -1740,12 +1742,56 @@ export const AdminPanel: React.FC<Props> = ({
             )}
           </div>
         ) : (
-          /* VIEW B: ALL QUESTIONS OVERVIEW (Active on top, Inactive at the bottom) */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {[
-              ...gameState.questions.filter((q) => q.isActive !== false),
-              ...gameState.questions.filter((q) => q.isActive === false)
-            ].map((quest, index) => {
+          /* VIEW B: ALL QUESTIONS OVERVIEW (Paginated 10 per page) */
+          <div className="space-y-4">
+            {(() => {
+              const allSorted = [
+                ...gameState.questions.filter((q) => q.isActive !== false),
+                ...gameState.questions.filter((q) => q.isActive === false)
+              ];
+              const totalPages = Math.max(1, Math.ceil(allSorted.length / allQuestionsPageSize));
+              const safePage = Math.min(allQuestionsPage, totalPages);
+              const start = (safePage - 1) * allQuestionsPageSize;
+              const end = Math.min(start + allQuestionsPageSize, allSorted.length);
+              const pagedQuestions = allSorted.slice(start, end);
+
+              return (
+                <>
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800 text-xs">
+                    <div className="text-slate-400 font-medium">
+                      {lang === 'el'
+                        ? `Εμφάνιση ${allSorted.length > 0 ? start + 1 : 0}-${end} από ${allSorted.length} ερωτήσεις`
+                        : `Showing ${allSorted.length > 0 ? start + 1 : 0}-${end} of ${allSorted.length} questions`}
+                      <span className="text-slate-600 ml-2">· (10 ανά σελίδα)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAllQuestionsPage(p => Math.max(1, p - 1))}
+                        disabled={safePage <= 1}
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>{lang === 'el' ? 'Προηγούμενη' : 'Prev'}</span>
+                      </button>
+                      <span className="font-mono font-bold text-amber-400 px-3 py-1 rounded-lg bg-slate-950 border border-slate-800">
+                        {safePage} / {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAllQuestionsPage(p => Math.min(totalPages, p + 1))}
+                        disabled={safePage >= totalPages}
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                      >
+                        <span>{lang === 'el' ? 'Επόμενη' : 'Next'}</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {pagedQuestions.map((quest, index) => {
+                      const globalIndex = start + index;
               const isActive = quest.isActive !== false;
               const assignedTeams = quest.assignedTeamIds && quest.assignedTeamIds.length > 0
                 ? gameState.teams.filter(t => quest.assignedTeamIds?.includes(t.id))
@@ -1895,6 +1941,37 @@ export const AdminPanel: React.FC<Props> = ({
                 </div>
               );
             })}
+          </div>
+                  {totalPages > 1 && (
+                    <div className="flex justify-end pt-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setAllQuestionsPage(p => Math.max(1, p - 1))}
+                          disabled={safePage <= 1}
+                          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed font-bold flex items-center gap-1 cursor-pointer transition-colors text-xs shadow-xs"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>{lang === 'el' ? 'Προηγούμενη' : 'Prev'}</span>
+                        </button>
+                        <span className="font-mono font-bold text-amber-400 px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+                          {safePage} / {totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAllQuestionsPage(p => Math.min(totalPages, p + 1))}
+                          disabled={safePage >= totalPages}
+                          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed font-bold flex items-center gap-1 cursor-pointer transition-colors text-xs shadow-xs"
+                        >
+                          <span>{lang === 'el' ? 'Επόμενη' : 'Next'}</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

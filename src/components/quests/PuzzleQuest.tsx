@@ -167,7 +167,7 @@ export const PuzzleQuest: React.FC<Props> = ({
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-300 leading-relaxed font-normal">
-        {t.puzzleInstructions}
+        {(lang === 'en' ? question.description_en || question.description : question.description) || t.puzzleInstructions}
       </p>
 
       {/* Grid Size Selector & Image options */}

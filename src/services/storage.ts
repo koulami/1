@@ -8,12 +8,13 @@ import {
 import { translateGreekToEnglish, translateQuestionAsync, containsGreekCharacters } from '../utils/translator';
 import { sanitizeGameState } from '../utils/sanitizeGame';
 
-const STORAGE_KEY = 'boundpad_gamestate_v8';
-const PREV_STORAGE_KEY = 'boundpad_gamestate_v7';
-const BACKUP_KEY = 'boundpad_gamestate_backup_v8';
-const CUSTOM_QUESTIONS_KEY = 'boundpad_custom_questions_v8';
-const UNDO_HISTORY_KEY = 'boundpad_undo_history_v8';
-const CHANNEL_NAME = 'boundpad_realtime_channel_v8';
+const STORAGE_KEY = 'boundpad_gamestate_v9';
+const PREV_STORAGE_KEY = 'boundpad_gamestate_v8';
+const SUBMISSIONS_STORAGE_KEY = 'boundpad_submissions_v9';
+const BACKUP_KEY = 'boundpad_gamestate_backup_v9';
+const CUSTOM_QUESTIONS_KEY = 'boundpad_custom_questions_v9';
+const UNDO_HISTORY_KEY = 'boundpad_undo_history_v9';
+const CHANNEL_NAME = 'boundpad_realtime_channel_v9';
 
 export interface GameSnapshot {
   timestamp: number;
@@ -301,10 +302,16 @@ class GameSyncService {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      // 0. Initial cleanup of redundant duplicate keys to free localStorage quota immediately
+      // 0. Initial cleanup of redundant duplicate and legacy keys to free localStorage quota immediately
       try {
         localStorage.removeItem(BACKUP_KEY);
         localStorage.removeItem(CUSTOM_QUESTIONS_KEY);
+        localStorage.removeItem('boundpad_gamestate_v8');
+        localStorage.removeItem('boundpad_gamestate_v7');
+        localStorage.removeItem('boundpad_gamestate_v6');
+        localStorage.removeItem('boundpad_gamestate_v5');
+        localStorage.removeItem('boundpad_undo_history_v8');
+        localStorage.removeItem('boundpad_undo_history_v7');
       } catch {
         // ignore
       }
@@ -423,37 +430,116 @@ class GameSyncService {
     if (typeof window === 'undefined') return INITIAL_GAME_STATE;
 
     try {
-      let saved = localStorage.getItem(STORAGE_KEY);
-      let prevSaved = null;
-      if (!saved) {
-        prevSaved = localStorage.getItem(PREV_STORAGE_KEY) || localStorage.getItem(BACKUP_KEY);
+      // Check for explicit reset flag in query string: ?reset=true or ?clean=true
+      if (typeof window !== 'undefined' && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('reset') === 'true' || params.get('clean') === 'true') {
+          return this.resetToDefaultState();
+        }
       }
 
-      if (!saved && !prevSaved) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        // Clean default boot: save and return INITIAL_GAME_STATE directly without legacy fallback
         this.saveState(INITIAL_GAME_STATE);
         return INITIAL_GAME_STATE;
       }
 
-      const parsed = JSON.parse(saved || prevSaved || '{}');
+      const parsed = JSON.parse(saved);
+      if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+        this.saveState(INITIAL_GAME_STATE);
+        return INITIAL_GAME_STATE;
+      }
+
+      // Load submissions from state, with fallback merge from dedicated SUBMISSIONS_STORAGE_KEY
+      let submissions = parsed.submissions || {};
+      try {
+        const directSubsRaw = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
+        if (directSubsRaw) {
+          const directSubs = JSON.parse(directSubsRaw);
+          if (directSubs && typeof directSubs === 'object') {
+            submissions = { ...directSubs, ...submissions };
+          }
+        }
+      } catch {}
 
       const upgradedState: GameState = {
         ...INITIAL_GAME_STATE,
         ...parsed,
-        teams: INITIAL_GAME_STATE.teams, // Enforce restored team names from before 9am
+        teams: INITIAL_GAME_STATE.teams, // Enforce restored team names
         questions: (parsed.questions && parsed.questions.length >= 61) ? parsed.questions : INITIAL_GAME_STATE.questions,
-        submissions: parsed.submissions || {},
+        submissions,
         timer: parsed.timer || INITIAL_GAME_STATE.timer,
         updatedAt: Date.now()
       };
 
       const finalState = sanitizeGameState(upgradedState);
-      this.saveState(finalState);
       this.activeState = finalState;
       return finalState;
     } catch {
       this.activeState = INITIAL_GAME_STATE;
       return INITIAL_GAME_STATE;
     }
+  }
+
+  /**
+   * Immediately and synchronously persist a single team quest submission to localStorage.
+   * Ensures team submissions are never lost, even on immediate page refresh or network drop.
+   */
+  saveSubmission(submission: Submission) {
+    if (!submission || !submission.teamId || !submission.questionId) return;
+    const subKey = `${submission.teamId}_${submission.questionId}`;
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
+        const subs = raw ? JSON.parse(raw) : {};
+        subs[subKey] = submission;
+        localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(subs));
+      }
+    } catch (e) {
+      console.warn('Failed writing submission to dedicated storage key:', e);
+    }
+
+    if (this.activeState) {
+      const updatedState: GameState = {
+        ...this.activeState,
+        submissions: {
+          ...this.activeState.submissions,
+          [subKey]: submission
+        },
+        updatedAt: Date.now()
+      };
+      this.saveState(updatedState);
+    }
+  }
+
+  /**
+   * Resets the entire application to the clean initial default state,
+   * purging legacy and bloated items from localStorage and IndexedDB.
+   */
+  resetToDefaultState(): GameState {
+    this.activeState = INITIAL_GAME_STATE;
+    this.inMemorySnapshots = [];
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(PREV_STORAGE_KEY);
+        localStorage.removeItem(BACKUP_KEY);
+        localStorage.removeItem(CUSTOM_QUESTIONS_KEY);
+        localStorage.removeItem(UNDO_HISTORY_KEY);
+        localStorage.removeItem('boundpad_gamestate_v8');
+        localStorage.removeItem('boundpad_gamestate_v7');
+      } catch {}
+
+      idbClearSnapshots().catch(() => {});
+      idbSaveGameState(INITIAL_GAME_STATE).catch(() => {});
+      this.notifySnapshotListeners();
+      this.notifyListeners(INITIAL_GAME_STATE);
+    }
+
+    this.saveState(INITIAL_GAME_STATE);
+    return INITIAL_GAME_STATE;
   }
 
   loadPreset(preset: 'epic_challenge' | 'vultures' | 'combined'): GameState {
@@ -484,6 +570,13 @@ class GameSyncService {
 
     // 2. Persist full state with all media into IndexedDB (unlimited capacity)
     idbSaveGameState(sanitized).catch(() => {});
+
+    // 2b. Synchronous persistence of team submissions to dedicated key
+    if (sanitized.submissions && Object.keys(sanitized.submissions).length > 0) {
+      try {
+        localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(sanitized.submissions));
+      } catch {}
+    }
 
     // 3. Persist to localStorage with intelligent multi-stage quota handling
     try {

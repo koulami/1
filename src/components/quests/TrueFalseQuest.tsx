@@ -88,7 +88,7 @@ export const TrueFalseQuest: React.FC<Props> = ({
       ) : null}
 
       <p className="text-sm text-slate-300 leading-relaxed font-normal">
-        {question.description}
+        {lang === 'en' ? (question.description_en || question.description) : question.description}
       </p>
 
       <div className="grid grid-cols-2 gap-3 pt-2">
@@ -158,8 +158,10 @@ export const TrueFalseQuest: React.FC<Props> = ({
               </>
             )}
           </div>
-          {question.explanation && (
-            <p className="text-slate-300 pt-1">{t.explanation}: {question.explanation}</p>
+          {(question.explanation || question.explanation_en) && (
+            <p className="text-slate-300 pt-1">
+              {t.explanation}: {lang === 'en' ? (question.explanation_en || question.explanation) : question.explanation}
+            </p>
           )}
         </div>
       )}

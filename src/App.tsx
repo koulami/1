@@ -1,908 +1,1698 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ShieldCheck, Github, Printer } from 'lucide-react';
-import { GameState, ViewMode, Language, Question, Team, Submission, GamePhase, TeamSynthesisNote } from './types/game';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
-  INITIAL_GAME_STATE,
-  EPIC_CHALLENGE_GAME_STATE,
-  VULTURES_GAME_STATE,
-  ALL_COMBINED_GAME_STATE
-} from './data/defaultGame';
-import { translations } from './locales/translations';
-import { syncService } from './services/storage';
-import { sound } from './services/sound';
-import { getLocalizedGameState, getLocalizedQuestion, getLocalizedTeam } from './utils/localizedGame';
-import { sanitizeGameState } from './utils/sanitizeGame';
-import { translateGreekToEnglish, translateGreekToEnglishAsync, translateQuestionAsync, containsGreekCharacters } from './utils/translator';
-import { TopBar } from './components/TopBar';
-import { TeamColumn } from './components/TeamColumn';
-import { ProjectorView } from './components/ProjectorView';
-import { TeamPlayerView } from './components/TeamPlayerView';
-import { AdminPanel } from './components/AdminPanel';
-import { DiscussionShowcaseView } from './components/DiscussionShowcaseView';
-import { QuestSolverModal } from './components/QuestSolverModal';
-import { TeamJoinLobbyModal } from './components/TeamJoinLobbyModal';
-import { TeamEditorModal } from './components/TeamEditorModal';
-import { QuestionEditorModal } from './components/QuestionEditorModal';
-import { GitHubSyncModal } from './components/GitHubSyncModal';
-import { PrintPdfModal } from './components/PrintPdfModal';
+  Award,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  BookOpen,
+  RotateCcw,
+  Languages,
+  LayoutGrid,
+  Home as HomeIcon,
+  Compass,
+  Zap,
+  Rocket,
+  Microscope,
+  Check,
+  ChevronRight,
+  ChevronLeft,
+  MessageSquare,
+  Plus,
+  Trash2,
+  ThumbsUp,
+  Info,
+  List,
+  Target,
+  Flag,
+  ArrowLeft,
+  Camera,
+  QrCode,
+  ShieldCheck,
+  Trophy
+} from 'lucide-react';
+import {
+  masterTeamsPool,
+  getActiveTasksForTeam,
+  computeTeamTaskStats,
+  TeamTaskStats,
+  getCheckpointsForTeam,
+  isCheckpointTask,
+  getCheckpointMetadata,
+  TEAM_GROUP_MAP
+} from './data/masterTaskPool';
+import { storageService } from './services/storageService';
+import { Question, Team, Submission } from './types/game';
+import { SectionErrorBoundary } from './components/SectionErrorBoundary';
+import { MultipleChoiceQuest } from './components/quests/MultipleChoiceQuest';
+import { TrueFalseQuest } from './components/quests/TrueFalseQuest';
+import { TextMatchQuest } from './components/quests/TextMatchQuest';
+import { ImageMatchQuest } from './components/quests/ImageMatchQuest';
+import { PuzzleQuest } from './components/quests/PuzzleQuest';
+import { QrScanQuest } from './components/quests/QrScanQuest';
+import { PhotoUploadQuest } from './components/quests/PhotoUploadQuest';
+import { TaskQuest } from './components/quests/TaskQuest';
+import { ResearchQuest } from './components/quests/ResearchQuest';
+import { AdminConsole } from './components/AdminConsole';
+import { TeamPresentationArena } from './components/TeamPresentationArena';
+
+const VALID_TABS = ['home', 'group-1', 'group-2', 'group-3', 'group-4', 'padlet', 'arena'] as const;
+type ValidTab = typeof VALID_TABS[number];
+
+interface SynthesisNote {
+  id: string;
+  teamId: string;
+  author: string;
+  title: string;
+  content: string;
+  likes: number;
+  createdAt: number;
+}
+
+const DEFAULT_SYNTHESIS_NOTES: SynthesisNote[] = [
+  {
+    id: 'note-1',
+    teamId: 'team-alpha',
+    author: 'Ομάδα 1 (Ταυτότητα & Βασικά)',
+    title: 'Το Μοναδικό Όρνιο της Κύπρου (Gyps fulvus)',
+    content: 'Το Gyps fulvus είναι το μοναδικό είδος γύπα στην Κύπρο. Με άνοιγμα πτερύγων 2.5m και βάρος 7-10kg, γεννά μόνο 1 αυγό το χρόνο και είναι κρίσιμα απειλούμενο.',
+    likes: 6,
+    createdAt: Date.now() - 3600000
+  },
+  {
+    id: 'note-2',
+    teamId: 'team-beta',
+    author: 'Ομάδα 2 (Περιβάλλον & Πτήση)',
+    title: 'Γκρεμοί Επισκοπής & Θερμικά Ρεύματα',
+    content: 'Η ιστορική αποικία φωλεοποίησης βρίσκεται στους απόκρημνους παράκτιους γκρεμούς της Επισκοπής. Εκμεταλλεύονται τα θερμικά ανοδικά ρεύματα και καλύπτουν αποστάσεις άνω των 100km.',
+    likes: 8,
+    createdAt: Date.now() - 2400000
+  },
+  {
+    id: 'note-3',
+    teamId: 'team-gamma',
+    author: 'Ομάδα 3 (Διατροφή & Βιολογία)',
+    title: 'Αποκλειστικοί Πτωματοφάγοι & pH 1-2',
+    content: 'Δεν κυνηγούν ζωντανά ζώα. Τα πανίσχυρα γαστρικά οξέα τους (pH 1-2) εξουδετερώνουν ακόμη και άνθρακα ή αλλαντίαση, καθαρίζοντας αποτελεσματικά την κυπριακή ύπαιθρο.',
+    likes: 11,
+    createdAt: Date.now() - 1200000
+  },
+  {
+    id: 'note-4',
+    teamId: 'team-delta',
+    author: 'Ομάδα 4 (Απειλές & Προστασία)',
+    title: 'LIFE with Vultures: Σκύλοι K9 & 4 Ταΐστρες',
+    content: 'Κύρια απειλή οι παράνομες φόλες. Με το πρόγραμμα LIFE, οι ομάδες σκύλων K9 και οι 4 περιφραγμένες ταΐστρες («εστιατόρια γυπών») διασφαλίζουν την επιβίωση του είδους.',
+    likes: 10,
+    createdAt: Date.now() - 600000
+  }
+];
+
+/**
+ * Crash-proof image component with fallback icon
+ */
+function SafeImage({ src, alt, className = '' }: { src?: string; alt: string; className?: string }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (!src || hasError) {
+    return (
+      <div className={`flex items-center justify-center bg-slate-800/80 text-3xl text-amber-400 select-none ${className}`}>
+        🦅
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      onError={() => setHasError(true)}
+      className={`object-contain ${className}`}
+    />
+  );
+}
 
 export default function App() {
-  const [gameState, setGameState] = useState<GameState>(() => syncService.loadState());
-  const [history, setHistory] = useState<GameState[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('padlet_board');
-  const [lang, setLang] = useState<Language>('el');
-  const [activeTeamId, setActiveTeamId] = useState<string>(() => {
-    return gameState.teams[0]?.id || 'team-alpha';
+  // Safe Tab State with bulletproof persistence
+  const [activeTab, setActiveTabRaw] = useState<string>(() => storageService.getActiveTab('home'));
+  const [lang, setLangState] = useState<'el' | 'en'>(() => storageService.getLanguage('el'));
+
+  const setLang = (newLang: 'el' | 'en') => {
+    setLangState(newLang);
+    storageService.saveLanguage(newLang);
+  };
+
+  // Robust tab setter that validates and persists
+  const safeSetActiveTab = (tabName: string) => {
+    try {
+      if (VALID_TABS.includes(tabName as ValidTab)) {
+        setActiveTabRaw(tabName);
+        storageService.saveActiveTab(tabName);
+      } else {
+        setActiveTabRaw('home');
+        storageService.saveActiveTab('home');
+      }
+    } catch {
+      setActiveTabRaw('home');
+    }
+  };
+
+  const currentTab: ValidTab = VALID_TABS.includes(activeTab as ValidTab)
+    ? (activeTab as ValidTab)
+    : 'home';
+
+  // Submissions State with clean bulletproof persistence
+  const [submissions, setSubmissions] = useState<Record<string, Submission>>(() => {
+    return storageService.getSubmissions();
   });
-  const [activeModalQuest, setActiveModalQuest] = useState<{
-    question: Question;
-    team: Team;
-  } | null>(null);
-  const [showJoinQrModal, setShowJoinQrModal] = useState<boolean>(false);
-  const [editingTeamOnBoard, setEditingTeamOnBoard] = useState<Team | null>(null);
-  const [editingQuestOnBoard, setEditingQuestOnBoard] = useState<{ question: Question; initialTab?: 'both' | 'el' | 'en' } | null>(null);
-  const [showGitHubSyncModal, setShowGitHubSyncModal] = useState<boolean>(false);
-  const [showPrintPdfModal, setShowPrintPdfModal] = useState<boolean>(false);
 
-  const t = translations[lang];
+  // Admin Console Open State, Task Active Overrides & Custom Question Edits
+  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [taskOverrides, setTaskOverrides] = useState<Record<string, boolean>>(() => {
+    return storageService.getTaskActiveOverrides();
+  });
+  const [customQuestions, setCustomQuestions] = useState<Record<string, Question>>(() => {
+    return storageService.getCustomQuestions();
+  });
 
-  // Detect URL parameter (?join=true or ?team=...)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('join') === 'true') {
-        setViewMode('team_play');
-      }
-      const teamParam = params.get('team');
-      if (teamParam && gameState.teams.some(t => t.id === teamParam)) {
-        setActiveTeamId(teamParam);
-        setViewMode('team_play');
-      }
-    }
-  }, [gameState.teams]);
-
-  // Listen to multi-tab / real-time updates and guarantee full hydration from IndexedDB on startup
-  useEffect(() => {
-    let isMounted = true;
-
-    // Immediately hydrate authoritative state from IndexedDB (virtually unlimited quota)
-    // to guarantee that no questions, media, or edits are ever lost across reloads
-    syncService.hydrateAuthoritativeState().then((auth) => {
-      if (isMounted && auth && Array.isArray(auth.questions) && auth.questions.length > 0) {
-        setGameState((current) => {
-          const sanitizedAuth = sanitizeGameState(auth);
-          const currentCount = current.questions?.length || 0;
-          const authCount = sanitizedAuth.questions.length;
-          const currentUpdated = current.updatedAt || 0;
-          const authUpdated = sanitizedAuth.updatedAt || 0;
-
-          if (authCount >= currentCount || authUpdated >= currentUpdated) {
-            return sanitizedAuth;
-          }
-          const currentIds = new Set(current.questions.map((q: Question) => q.id));
-          const missingInCurrent = sanitizedAuth.questions.filter((q: Question) => !currentIds.has(q.id));
-          if (missingInCurrent.length > 0) {
-            return sanitizeGameState({
-              ...current,
-              questions: [...current.questions, ...missingInCurrent]
-            });
-          }
-          return current;
-        });
-      }
-    }).catch(() => {});
-
-    const unsubscribe = syncService.subscribe((newState) => {
-      if (isMounted && newState) {
-        setGameState((prev) => {
-          if (prev && prev.updatedAt && newState.updatedAt && prev.updatedAt === newState.updatedAt) {
-            return prev;
-          }
-          return sanitizeGameState(newState);
-        });
-      }
-    });
-
-    // Flush and permanently save on beforeunload or tab switch
-    const handleFlushOnExit = () => {
-      if (gameStateRef.current) {
-        syncService.saveState(gameStateRef.current);
-      }
-    };
-    window.addEventListener('beforeunload', handleFlushOnExit);
-    document.addEventListener('visibilitychange', handleFlushOnExit);
-
-    return () => {
-      isMounted = false;
-      window.removeEventListener('beforeunload', handleFlushOnExit);
-      document.removeEventListener('visibilitychange', handleFlushOnExit);
-      unsubscribe();
-    };
-  }, []);
-
-  // Maintain latest gameState in ref for synchronous exit flushing
-  const gameStateRef = React.useRef(gameState);
-  useEffect(() => {
-    gameStateRef.current = gameState;
-  }, [gameState]);
-
-  // Synchronized countdown timer interval
-  useEffect(() => {
-    if (!gameState.timer.isRunning) return;
-
-    const timerInterval = setInterval(() => {
-      setGameState((prevState) => {
-        if (!prevState.timer.isRunning) return prevState;
-
-        const nextRemaining = Math.max(0, prevState.timer.remainingSeconds - 1);
-        const hasJustEnded = nextRemaining === 0 && prevState.timer.remainingSeconds > 0;
-
-        if (hasJustEnded) {
-          sound.playTimerAlert();
-        }
-
-        const nextState: GameState = {
-          ...prevState,
-          timer: {
-            ...prevState.timer,
-            remainingSeconds: nextRemaining,
-            isRunning: nextRemaining > 0,
-            updatedAt: Date.now()
-          }
-        };
-
-        // Sync every 5 seconds or when ended to save CPU/storage outside setState callback
-        if (nextRemaining % 5 === 0 || nextRemaining === 0) {
-          setTimeout(() => {
-            syncService.saveState(nextState);
-          }, 0);
-        }
-
-        return nextState;
-      });
-    }, 1000);
-
-    return () => clearInterval(timerInterval);
-  }, [gameState.timer.isRunning]);
-
-  // Persist state mutations with undo history tracking
-  const updateAndSyncState = (updater: (prev: GameState) => GameState, recordHistory = true) => {
-    setGameState((prev) => {
-      if (recordHistory) {
-        setHistory((h) => [...h.slice(-2), prev]);
-      }
-      const next = sanitizeGameState(updater(prev));
-      setTimeout(() => {
-        syncService.saveState(next);
-      }, 0);
-      return next;
-    });
+  const handleUpdateTaskOverrides = (newOverrides: Record<string, boolean>) => {
+    setTaskOverrides(newOverrides);
   };
 
-  // Revert to previous state
-  const handleUndo = () => {
-    if (history.length === 0) return;
-    const previousState = history[history.length - 1];
-    setHistory((h) => h.slice(0, -1));
-    setGameState(previousState);
-    syncService.saveState(previousState);
-  };
-
-  // Full backup restore
-  const handleRestoreBackup = (restored: GameState) => {
-    setHistory((h) => [...h.slice(-2), gameState]);
-    setGameState(restored);
-    syncService.saveState(restored);
-  };
-
-  // Apply recovered questions from GitHub or direct paste (e.g. 31 vulture quests)
-  const handleApplyRecoveredQuestions = (recoveredQuestions: Question[]) => {
-    setHistory((h) => [...h.slice(-2), gameState]);
-    const updatedState: GameState = {
-      ...gameState,
-      questions: recoveredQuestions,
-      updatedAt: Date.now()
-    };
-    setGameState(updatedState);
-    syncService.saveState(updatedState);
-    syncService.createManualCheckpoint(updatedState, `31 Αποστολές Γύπες (GitHub)`);
-  };
-
-  // Switch or reload game preset ('epic_challenge' | 'vultures' | 'combined')
-  const handleLoadPreset = (preset: 'epic_challenge' | 'vultures' | 'combined') => {
-    setHistory((h) => [...h.slice(-2), gameState]);
-    const nextState = syncService.loadPreset(preset);
-    setGameState(nextState);
-    if (nextState.teams[0]) {
-      setActiveTeamId(nextState.teams[0].id);
-    }
-    sound.playSuccess();
-  };
-
-  // Restore default quests (loads the 32 vulture quests & arena requested by user)
-  const handleRestoreDefaultQuests = () => {
-    handleLoadPreset('vultures');
-  };
-
-  // Bulk auto-translate all questions and game text into English
-  const handleBulkAutoTranslate = async () => {
-    setHistory((h) => [...h.slice(-2), gameState]);
-
-    const updatedQuestions = await Promise.all(
-      gameState.questions.map(async (q) => {
-        try {
-          const trans = await translateQuestionAsync(q);
-          return {
-            ...q,
-            title_en: trans.title_en || q.title_en || q.title,
-            description_en: trans.description_en || q.description_en || q.description,
-            explanation_en: trans.explanation_en !== undefined ? trans.explanation_en : q.explanation_en,
-            payload_en: trans.payload_en || q.payload_en
-          };
-        } catch (e) {
-          console.error('Failed translating question in bulk:', q.id, e);
-          return q;
-        }
-      })
-    );
-
-    const [gameTitleEn, gameDescEn, synthPromptEn] = await Promise.all([
-      gameState.title ? translateGreekToEnglishAsync(gameState.title) : Promise.resolve(''),
-      gameState.description ? translateGreekToEnglishAsync(gameState.description) : Promise.resolve(''),
-      gameState.synthesisPrompt ? translateGreekToEnglishAsync(gameState.synthesisPrompt) : Promise.resolve('')
-    ]);
-
-    const updatedTeams = await Promise.all(
-      gameState.teams.map(async (t) => ({
-        ...t,
-        name_en: t.name ? await translateGreekToEnglishAsync(t.name) : t.name,
-        slogan_en: t.slogan ? await translateGreekToEnglishAsync(t.slogan) : undefined
-      }))
-    );
-
-    const updatedState: GameState = {
-      ...gameState,
-      title_en: gameTitleEn || gameState.title,
-      description_en: gameDescEn || gameState.description,
-      synthesisPrompt_en: synthPromptEn || undefined,
-      teams: updatedTeams,
-      questions: updatedQuestions,
-      updatedAt: Date.now()
-    };
-
-    setGameState(updatedState);
-    syncService.saveState(updatedState);
-  };
-
-  // Timer controls
-  const handleStartTimer = () => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      timer: {
-        ...prev.timer,
-        isRunning: true,
-        remainingSeconds: prev.timer.remainingSeconds <= 0 ? prev.timer.totalSeconds : prev.timer.remainingSeconds,
-        updatedAt: Date.now()
-      }
-    }));
-  };
-
-  const handlePauseTimer = () => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      timer: {
-        ...prev.timer,
-        isRunning: false,
-        updatedAt: Date.now()
-      }
-    }));
-  };
-
-  const handleToggleTimer = () => {
-    if (gameState.timer.isRunning) {
-      handlePauseTimer();
-    } else {
-      handleStartTimer();
-    }
-  };
-
-  const handleResetTimer = () => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      timer: {
-        ...prev.timer,
-        remainingSeconds: prev.timer.totalSeconds,
-        isRunning: false,
-        updatedAt: Date.now()
-      }
-    }));
-  };
-
-  const handleSetTimerDuration = (seconds: number) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      timer: {
-        ...prev.timer,
-        totalSeconds: seconds,
-        remainingSeconds: seconds,
-        isRunning: false,
-        updatedAt: Date.now()
-      }
-    }));
-  };
-
-  // Phase Controller
-  const handleSetPhase = (phase: GamePhase) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      phase,
-      updatedAt: Date.now()
-    }));
-  };
-
-  const handleSimultaneousStart = () => {
-    sound.playFanfare();
-    updateAndSyncState((prev) => ({
-      ...prev,
-      phase: 'in_progress',
-      timer: {
-        ...prev.timer,
-        isRunning: true,
-        remainingSeconds: prev.timer.remainingSeconds <= 0 ? prev.timer.totalSeconds : prev.timer.remainingSeconds,
-        updatedAt: Date.now()
-      },
-      updatedAt: Date.now()
-    }));
-  };
-
-  const handleSetSynthesisPrompt = (prompt: string, promptEn?: string) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      synthesisPrompt: prompt,
-      synthesisPrompt_en: promptEn !== undefined ? promptEn : prev.synthesisPrompt_en,
-      updatedAt: Date.now()
-    }));
-  };
-
-  // Synthesis Note handlers
-  const handleAddSynthesisNote = (noteData: Omit<TeamSynthesisNote, 'id' | 'createdAt'>) => {
-    const newNote: TeamSynthesisNote = {
-      ...noteData,
-      id: `note-${Date.now()}`,
-      createdAt: Date.now(),
-      likes: 0
-    };
-    updateAndSyncState((prev) => ({
-      ...prev,
-      synthesisNotes: [newNote, ...prev.synthesisNotes],
-      updatedAt: Date.now()
-    }));
-  };
-
-  const handleDeleteSynthesisNote = (noteId: string) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      synthesisNotes: prev.synthesisNotes.filter((n) => n.id !== noteId),
-      updatedAt: Date.now()
-    }));
-  };
-
-  const handleLikeSynthesisNote = (noteId: string) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      synthesisNotes: prev.synthesisNotes.map((n) => {
-        if (n.id === noteId) {
-          return { ...n, likes: (n.likes || 0) + 1 };
-        }
-        return n;
-      }),
-      updatedAt: Date.now()
-    }));
-  };
-
-  const handleAddTeacherFeedback = (noteId: string, feedback: string) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      synthesisNotes: prev.synthesisNotes.map((n) => {
-        if (n.id === noteId) {
-          return { ...n, feedbackComment: feedback };
-        }
-        return n;
-      }),
-      updatedAt: Date.now()
-    }));
-  };
-
-  // Submission handler
-  const handleSubmitQuest = (questionId: string, teamId: string, data: Partial<Submission>) => {
-    updateAndSyncState((prev) => {
-      const submissionKey = `${teamId}_${questionId}`;
-      const newSubmission: Submission = {
-        id: submissionKey,
-        teamId,
-        questionId,
-        submittedAt: Date.now(),
-        status: data.status || 'completed',
-        scoreEarned: data.scoreEarned ?? 0,
-        answerData: data.answerData,
-        photoUrl: data.photoUrl,
-        puzzleStats: data.puzzleStats,
-        feedbackNote: data.feedbackNote
-      };
-
-      return {
+  const handleSaveCustomQuestion = (updated: Question) => {
+    try {
+      storageService.saveCustomQuestion(updated);
+      setCustomQuestions((prev) => ({
         ...prev,
-        submissions: {
-          ...prev.submissions,
-          [submissionKey]: newSubmission
-        },
-        updatedAt: Date.now()
-      };
-    });
+        [updated.id]: updated
+      }));
+    } catch (err) {
+      console.error('Error saving custom question', err);
+    }
   };
 
-  // Reset Facilitator handlers
-  const handleResetAllSubmissions = () => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      submissions: {},
-      synthesisNotes: [],
-      activeRound: prev.activeRound + 1,
-      phase: 'waiting_lobby',
-      updatedAt: Date.now()
-    }));
+  const handleResetCustomQuestion = (questionId: string) => {
+    try {
+      storageService.resetCustomQuestion(questionId);
+      setCustomQuestions((prev) => {
+        const next = { ...prev };
+        delete next[questionId];
+        return next;
+      });
+    } catch (err) {
+      console.error('Error resetting custom question', err);
+    }
   };
 
   const handleResetTeamSubmissions = (teamId: string) => {
-    updateAndSyncState((prev) => {
-      const filteredSubmissions: Record<string, Submission> = {};
-      Object.entries(prev.submissions).forEach(([key, sub]) => {
-        if (sub.teamId !== teamId) {
-          filteredSubmissions[key] = sub;
+    try {
+      const current = { ...submissions };
+      for (const key of Object.keys(current)) {
+        if (key.startsWith(`${teamId}_`)) {
+          delete current[key];
         }
-      });
-      return {
-        ...prev,
-        submissions: filteredSubmissions,
-        synthesisNotes: prev.synthesisNotes.filter((n) => n.teamId !== teamId),
-        updatedAt: Date.now()
-      };
-    });
+      }
+      storageService.saveAllSubmissions(current);
+      setSubmissions(current);
+    } catch (err) {
+      console.error('Error resetting team submissions', err);
+    }
   };
 
-  // Question handlers
-  const handleAddQuestion = (question: Question) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      questions: [...prev.questions, question],
-      updatedAt: Date.now()
-    }));
+  const handleRestoreStateFromJson = (jsonString: string): boolean => {
+    try {
+      const success = storageService.importData(jsonString);
+      if (success) {
+        setSubmissions(storageService.getSubmissions());
+        setSynthesisNotes(storageService.getSynthesisNotes(DEFAULT_SYNTHESIS_NOTES));
+        setTaskOverrides(storageService.getTaskActiveOverrides());
+        setCustomQuestions(storageService.getCustomQuestions());
+        return true;
+      }
+    } catch (err) {
+      console.error('Restore error', err);
+    }
+    return false;
   };
 
-  const handleUpdateQuestion = (updatedQuestion: Question) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      questions: prev.questions.map((q) => (q.id === updatedQuestion.id ? updatedQuestion : q)),
-      updatedAt: Date.now()
-    }));
+  // Collaborative Synthesis Notes
+  const [synthesisNotes, setSynthesisNotes] = useState<SynthesisNote[]>(() => {
+    return storageService.getSynthesisNotes<SynthesisNote>(DEFAULT_SYNTHESIS_NOTES);
+  });
+
+  // Save submission directly to bulletproof storage
+  const saveSubmission = (sub: Submission) => {
+    try {
+      storageService.saveSubmission(sub);
+      const key = `${sub.teamId}_${sub.questionId}`;
+      setSubmissions((prev) => ({ ...prev, [key]: sub }));
+    } catch (err) {
+      console.error('saveSubmission error', err);
+    }
   };
 
-  const handleToggleQuestionActive = (questionId: string) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      questions: prev.questions.map((q) => {
-        if (q.id === questionId) {
-          const currentActive = q.isActive !== false;
-          return { ...q, isActive: !currentActive };
-        }
-        return q;
-      }),
-      updatedAt: Date.now()
-    }));
+  // Reset submissions
+  const resetAllSubmissions = () => {
+    const msg = lang === 'el'
+      ? 'Είστε βέβαιοι ότι θέλετε να μηδενίσετε όλες τις απαντήσεις και την πρόοδο;'
+      : 'Are you sure you want to reset all submissions and progress?';
+    if (window.confirm(msg)) {
+      try {
+        storageService.clearAll();
+      } catch {}
+      setSubmissions({});
+    }
   };
 
-  const handleDeleteQuestion = (questionId: string) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      questions: prev.questions.filter((q) => q.id !== questionId),
-      updatedAt: Date.now()
-    }));
+  // Synthesis Note Form Modal
+  const [showAddNote, setShowAddNote] = useState<boolean>(false);
+  const [newNoteAuthor, setNewNoteAuthor] = useState('');
+  const [newNoteTitle, setNewNoteTitle] = useState('');
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [newNoteTeam, setNewNoteTeam] = useState<string>('team-alpha');
+
+  // Compute live team stats dynamically from master pool with task overrides and custom question edits
+  const allTeamStats: TeamTaskStats[] = useMemo(() => {
+    try {
+      return masterTeamsPool.map((team) =>
+        computeTeamTaskStats(team, submissions, taskOverrides, customQuestions)
+      );
+    } catch {
+      return [];
+    }
+  }, [submissions, taskOverrides, customQuestions]);
+
+  // Tab mapping for the 4 groups
+  const teamTabs: { tab: ValidTab; teamIndex: number; icon: any }[] = [
+    { tab: 'group-1', teamIndex: 0, icon: Compass },
+    { tab: 'group-2', teamIndex: 1, icon: Zap },
+    { tab: 'group-3', teamIndex: 2, icon: Rocket },
+    { tab: 'group-4', teamIndex: 3, icon: Microscope }
+  ];
+
+  // Synthesis note handlers
+  const handleAddNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNoteTitle.trim() || !newNoteContent.trim()) return;
+
+    const note: SynthesisNote = {
+      id: `note-${Date.now()}`,
+      teamId: newNoteTeam,
+      author: newNoteAuthor.trim() || (lang === 'el' ? 'Μαθητής / Ομάδα' : 'Student / Team'),
+      title: newNoteTitle.trim(),
+      content: newNoteContent.trim(),
+      likes: 0,
+      createdAt: Date.now()
+    };
+
+    const updated = [note, ...synthesisNotes];
+    setSynthesisNotes(updated);
+    storageService.saveSynthesisNotes(updated as any);
+
+    setNewNoteTitle('');
+    setNewNoteContent('');
+    setShowAddNote(false);
   };
 
-  // Team handlers
-  const handleAddTeam = (team: Team) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      teams: [...prev.teams, team],
-      updatedAt: Date.now()
-    }));
+  const handleLikeNote = (noteId: string) => {
+    const updated = synthesisNotes.map((n) =>
+      n.id === noteId ? { ...n, likes: n.likes + 1 } : n
+    );
+    setSynthesisNotes(updated);
+    storageService.saveSynthesisNotes(updated as any);
   };
 
-  const handleUpdateTeam = (updatedTeam: Team) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      teams: prev.teams.map((t) => (t.id === updatedTeam.id ? updatedTeam : t)),
-      updatedAt: Date.now()
-    }));
+  const handleDeleteNote = (noteId: string) => {
+    const updated = synthesisNotes.filter((n) => n.id !== noteId);
+    setSynthesisNotes(updated);
+    storageService.saveSynthesisNotes(updated as any);
   };
-
-  const handleDeleteTeam = (teamId: string) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      teams: prev.teams.filter((t) => t.id !== teamId),
-      updatedAt: Date.now()
-    }));
-  };
-
-  // Team question order and progression handlers
-  const handleSetTeamQuestionOrder = (teamId: string, questionIds: string[]) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      teamQuestionOrders: {
-        ...(prev.teamQuestionOrders || {}),
-        [teamId]: questionIds
-      },
-      updatedAt: Date.now()
-    }));
-  };
-
-  const handleSetTeamSequentialMode = (teamId: string, isSequential: boolean) => {
-    updateAndSyncState((prev) => ({
-      ...prev,
-      teamSequentialModes: {
-        ...(prev.teamSequentialModes || {}),
-        [teamId]: isSequential
-      },
-      updatedAt: Date.now()
-    }));
-  };
-
-  const handleApplyOrderToAllTeams = (questionIds: string[]) => {
-    updateAndSyncState((prev) => {
-      const newOrders: Record<string, string[]> = {};
-      prev.teams.forEach((t) => {
-        newOrders[t.id] = [...questionIds];
-      });
-      return {
-        ...prev,
-        teamQuestionOrders: newOrders,
-        updatedAt: Date.now()
-      };
-    });
-  };
-
-  const handleApplyStationRotation = () => {
-    updateAndSyncState((prev) => {
-      const newOrders: Record<string, string[]> = {};
-      prev.teams.forEach((team, teamIdx) => {
-        const teamQuestions = prev.questions
-          .filter(
-            (q) =>
-              q.isActive !== false &&
-              (!q.assignedTeamIds ||
-                q.assignedTeamIds.length === 0 ||
-                q.assignedTeamIds.includes(team.id))
-          )
-          .map((q) => q.id);
-
-        if (teamQuestions.length > 0) {
-          const shift = teamIdx % teamQuestions.length;
-          const rotated = [
-            ...teamQuestions.slice(shift),
-            ...teamQuestions.slice(0, shift)
-          ];
-          newOrders[team.id] = rotated;
-        }
-      });
-
-      return {
-        ...prev,
-        teamQuestionOrders: newOrders,
-        updatedAt: Date.now()
-      };
-    });
-  };
-
-  const localizedGameState = useMemo(
-    () => getLocalizedGameState(gameState, lang),
-    [gameState, lang]
-  );
-
-  const safeTeams = Array.isArray(localizedGameState.teams) && localizedGameState.teams.length > 0
-    ? localizedGameState.teams
-    : INITIAL_GAME_STATE.teams;
-  const activeTeam = safeTeams.find((t) => t.id === activeTeamId) || safeTeams[0];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-      {/* 3-Zone Top Bar */}
-      <TopBar
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        lang={lang}
-        onLanguageChange={setLang}
-        timer={gameState.timer}
-        phase={gameState.phase}
-        onToggleTimer={handleToggleTimer}
-        onOpenJoinQr={() => setShowJoinQrModal(true)}
-        onOpenGitHubSync={() => setShowGitHubSyncModal(true)}
-        onOpenPrintPdf={() => setShowPrintPdfModal(true)}
-        onSimultaneousStart={handleSimultaneousStart}
-        canUndo={history.length > 0}
-        onUndo={handleUndo}
-      />
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col">
-        {/* MODE 1: PADLET BOARD VIEW */}
-        {viewMode === 'padlet_board' && (
-          <div className="flex-1 p-4 sm:p-6 space-y-4 flex flex-col">
-            {/* Header info */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black text-slate-100 flex items-center gap-2">
-                  <span>{localizedGameState.title}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                    {t.liveSynced}
-                  </span>
-                </h1>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {localizedGameState.description} · {localizedGameState.questions.filter(q => q.isActive !== false).length}/{localizedGameState.questions.length} {lang === 'el' ? 'ενεργές αποστολές' : 'active quests'}
-                </p>
-              </div>
-
-              <div className="flex items-center flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
-                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-sky-600/50 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                  title={lang === 'el' ? 'Προβολή ολόκληρου του πίνακα στα Αγγλικά' : 'Επιστροφή στα Ελληνικά'}
-                >
-                  <span>{lang === 'el' ? '🇬🇧 Δες στα Αγγλικά' : '🇬🇷 Δες στα Ελληνικά'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowPrintPdfModal(true)}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 hover:text-emerald-200 border border-emerald-500/50 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/40 cursor-pointer"
-                  title={lang === 'el' ? 'Εκτύπωση & Αποθήκευση PDF όλων των ερωτήσεων με τις απαντήσεις τους' : 'Print & Save PDF of all quests with answers'}
-                >
-                  <Printer className="w-4 h-4 text-emerald-400" />
-                  <span>{lang === 'el' ? '🖨️ PDF Αποστολών & Λύσεων' : '🖨️ PDF Quests & Answers'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowGitHubSyncModal(true)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-amber-500/40 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                  title={lang === 'el' ? 'Σύνδεση με GitHub koulami/Koulami-vultures & Ανάκτηση των 31 αποστολών με τους γύπες' : 'Connect with GitHub koulami/Koulami-vultures & restore 31 quests'}
-                >
-                  <Github className="w-4 h-4 text-amber-400" />
-                  <span>{lang === 'el' ? '🐙 Γύπες (GitHub)' : '🐙 Vultures (GitHub)'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setViewMode('admin')}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/25 cursor-pointer ring-1 ring-amber-400/50"
-                  title={lang === 'el' ? 'Κονσόλα Διαχειριστή: Επεξεργασία ερωτήσεων, ονομάτων ομάδων και ρυθμίσεων' : 'Facilitator Console: Edit questions, team names, and settings'}
-                >
-                  <ShieldCheck className="w-4 h-4 text-slate-950" />
-                  <span>{lang === 'el' ? '⚙️ Κονσόλα Διαχειριστή' : '⚙️ Facilitator Console'}</span>
-                </button>
-
-                <div className="flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-700">
-                  <span className="text-xs text-slate-400 hidden sm:inline">{t.selectYourTeam}:</span>
-                  <select
-                    value={activeTeamId}
-                    onChange={(e) => setActiveTeamId(e.target.value)}
-                    className="bg-transparent text-xs text-slate-200 font-semibold focus:outline-none"
-                  >
-                    {localizedGameState.teams.map((tm) => (
-                      <option key={tm.id} value={tm.id} className="bg-slate-900 text-slate-100">
-                        {tm.avatar} {tm.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      {/* ===================== TOP HEADER ===================== */}
+      <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-lg px-4 py-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          {/* Logo */}
+          <div
+            className="flex items-center gap-3 cursor-pointer select-none"
+            onClick={(e) => {
+              e.preventDefault();
+              safeSetActiveTab('home');
+            }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-emerald-600 flex items-center justify-center shadow-md text-2xl">
+              🦅
             </div>
-
-            {/* Horizontal scrollable columns for each team */}
-            <div className="flex-1 flex gap-4 overflow-x-auto pb-4 pt-1 items-start no-scrollbar">
-              {localizedGameState.teams.map((team) => (
-                <TeamColumn
-                  key={team.id}
-                  team={team}
-                  questions={localizedGameState.questions}
-                  submissions={gameState.submissions}
-                  lang={lang}
-                  isInteractive={true}
-                  teamQuestionOrders={gameState.teamQuestionOrders}
-                  teamSequentialModes={gameState.teamSequentialModes}
-                  onEditTeam={(tm) => setEditingTeamOnBoard(tm)}
-                  onEditQuest={(quest, tab) => {
-                    const rawQuest = gameState.questions.find((q) => q.id === quest.id) || quest;
-                    setEditingQuestOnBoard({ question: rawQuest, initialTab: tab || 'both' });
-                  }}
-                  onOpenQuest={(quest) => {
-                    setActiveModalQuest({ question: quest, team });
-                  }}
-                />
-              ))}
+            <div>
+              <h1 className="font-extrabold text-lg sm:text-xl tracking-tight text-white flex items-center gap-2">
+                BoundPad <span className="text-amber-400 font-semibold text-sm sm:text-base">• {lang === 'el' ? 'Αρένα Γυπών' : 'Vulture Arena'}</span>
+              </h1>
+              <p className="text-xs text-slate-400">
+                {lang === 'el'
+                  ? 'Master Task Pool • 100% Σταθερότητα & Απομονωμένα Τμήματα'
+                  : 'Master Task Pool • 100% Stability & Isolated Boundaries'}
+              </p>
             </div>
           </div>
-        )}
 
-        {/* MODE 2: TEAM PLAYER VIEW (Mobile & Individual Team Focused with Lobby & Synthesis) */}
-        {viewMode === 'team_play' && (
-          <TeamPlayerView
-            gameState={localizedGameState}
-            activeTeamId={activeTeamId}
-            onSelectTeam={setActiveTeamId}
-            lang={lang}
-            onSubmitQuest={handleSubmitQuest}
-            onAddSynthesisNote={handleAddSynthesisNote}
-            onDeleteSynthesisNote={handleDeleteSynthesisNote}
-            onLikeSynthesisNote={handleLikeSynthesisNote}
-          />
-        )}
+          {/* Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Εναλλαγή Γλώσσας / Switch Language"
+            >
+              <Languages className="w-4 h-4 text-emerald-400" />
+              <span>{lang === 'el' ? 'English' : 'Ελληνικά'}</span>
+            </button>
 
-        {/* MODE 3: SHARED PROJECTOR SCREEN */}
-        {viewMode === 'projector' && (
-          <ProjectorView
-            gameState={localizedGameState}
-            lang={lang}
-          />
-        )}
+            <button
+              type="button"
+              onClick={() => setIsAdminOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title={lang === 'el' ? 'Κονσόλα Διαχείρισης Εκπαιδευτικού & Εξαγωγές' : 'Admin Console & Exports'}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>{lang === 'el' ? 'Διαχείριση' : 'Admin'}</span>
+            </button>
 
-        {/* MODE 4: CLASSROOM DISCUSSION & DEBRIEF PADLET */}
-        {viewMode === 'discussion' && (
-          <DiscussionShowcaseView
-            gameState={localizedGameState}
-            lang={lang}
-            onLikeNote={handleLikeSynthesisNote}
-            onAddTeacherFeedback={handleAddTeacherFeedback}
-          />
-        )}
+            <button
+              type="button"
+              onClick={resetAllSubmissions}
+              className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title={lang === 'el' ? 'Επαναφορά Απαντήσεων' : 'Reset Submissions'}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{lang === 'el' ? 'Επαναφορά' : 'Reset'}</span>
+            </button>
+          </div>
+        </div>
 
-        {/* MODE 5: FACILITATOR / ADMIN PANEL */}
-        {viewMode === 'admin' && (
-          <AdminPanel
-            gameState={gameState}
-            lang={lang}
-            onLanguageChange={setLang}
-            onResetAllSubmissions={handleResetAllSubmissions}
-            onResetTeamSubmissions={handleResetTeamSubmissions}
-            onStartTimer={handleStartTimer}
-            onPauseTimer={handlePauseTimer}
-            onResetTimer={handleResetTimer}
-            onSetTimerDuration={handleSetTimerDuration}
-            onAddQuestion={handleAddQuestion}
-            onUpdateQuestion={handleUpdateQuestion}
-            onDeleteQuestion={handleDeleteQuestion}
-            onToggleQuestionActive={handleToggleQuestionActive}
-            onAddTeam={handleAddTeam}
-            onUpdateTeam={handleUpdateTeam}
-            onDeleteTeam={handleDeleteTeam}
-            onSetPhase={handleSetPhase}
-            onSetSynthesisPrompt={handleSetSynthesisPrompt}
-            onOpenJoinQr={() => setShowJoinQrModal(true)}
-            onSetTeamQuestionOrder={handleSetTeamQuestionOrder}
-            onSetTeamSequentialMode={handleSetTeamSequentialMode}
-            onApplyOrderToAllTeams={handleApplyOrderToAllTeams}
-            onApplyStationRotation={handleApplyStationRotation}
-            canUndo={history.length > 0}
-            onUndo={handleUndo}
-            onRestoreBackup={handleRestoreBackup}
-            onRestoreDefaultQuests={handleRestoreDefaultQuests}
-            onLoadPreset={handleLoadPreset}
-            onBulkAutoTranslate={handleBulkAutoTranslate}
-            onOpenGitHubSync={() => setShowGitHubSyncModal(true)}
-            onOpenPrintPdf={() => setShowPrintPdfModal(true)}
-            onClose={() => setViewMode('padlet_board')}
-          />
-        )}
+        {/* ===================== TAB NAVIGATION BAR ===================== */}
+        <div className="max-w-7xl mx-auto mt-3 pt-2 border-t border-slate-800/80 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {/* Home Tab */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              safeSetActiveTab('home');
+            }}
+            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer ${
+              currentTab === 'home'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-bold'
+                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white'
+            }`}
+          >
+            <HomeIcon className="w-4 h-4" />
+            <span>{lang === 'el' ? 'Αρχική' : 'Home'}</span>
+          </button>
+
+          {/* 4 Group Tabs */}
+          {teamTabs.map(({ tab, teamIndex }) => {
+            const stat = allTeamStats[teamIndex];
+            const team = masterTeamsPool[teamIndex];
+            if (!team) return null;
+            const isActive = currentTab === tab;
+
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  safeSetActiveTab(tab);
+                }}
+                style={{
+                  borderColor: isActive ? team.color : 'transparent'
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 border transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-slate-800 text-white shadow-md'
+                    : 'bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white'
+                }`}
+              >
+                <span className="text-base">{team.avatar}</span>
+                <span className="truncate max-w-[130px] sm:max-w-none">
+                  {lang === 'el' ? `Ομάδα ${teamIndex + 1}` : `Group ${teamIndex + 1}`}
+                </span>
+                {stat && (
+                  <span
+                    style={{ backgroundColor: `${team.color}25`, color: team.color }}
+                    className="px-1.5 py-0.5 rounded-md text-[10px] font-bold ml-0.5"
+                  >
+                    {stat.totalScore}p
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Padlet Board Tab */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              safeSetActiveTab('padlet');
+            }}
+            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer ${
+              currentTab === 'padlet'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
+                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>{lang === 'el' ? 'Πίνακας Padlet' : 'Padlet Board'}</span>
+          </button>
+
+          {/* Team Arena / Digital Posters Tab */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              safeSetActiveTab('arena');
+            }}
+            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer ${
+              currentTab === 'arena'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black'
+                : 'bg-slate-800/60 hover:bg-slate-800 text-amber-300 hover:text-white'
+            }`}
+          >
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span>{lang === 'el' ? 'Αρένα Παρουσίασης & Posters' : 'Team Arena & Posters'}</span>
+          </button>
+
+          {/* Admin Console Shortcut in Navbar */}
+          <button
+            type="button"
+            onClick={() => setIsAdminOpen(true)}
+            className="ml-auto px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-slate-800/80 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400 shadow-sm transition-all cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>{lang === 'el' ? 'Κονσόλα Admin & Εξαγωγές' : 'Admin & Exports'}</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ===================== MAIN CONTENT WRAPPED IN GLOBAL SECTION ERROR BOUNDARY ===================== */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+        <SectionErrorBoundary sectionName="Main View" onReset={() => safeSetActiveTab('home')}>
+          {currentTab === 'home' && (
+            <SectionErrorBoundary sectionName="Home Screen" onReset={() => safeSetActiveTab('home')}>
+              <HomeScreen
+                lang={lang}
+                teamStats={allTeamStats}
+                onSelectTab={safeSetActiveTab}
+              />
+            </SectionErrorBoundary>
+          )}
+
+          {currentTab === 'group-1' && (
+            <SectionErrorBoundary sectionName="Group 1 (Ομάδα 1)" onReset={() => safeSetActiveTab('home')}>
+              <GroupMissionsView
+                teamIndex={0}
+                lang={lang}
+                submissions={submissions}
+                taskOverrides={taskOverrides}
+                customQuestions={customQuestions}
+                onSaveSubmission={saveSubmission}
+                onGoHome={() => safeSetActiveTab('home')}
+              />
+            </SectionErrorBoundary>
+          )}
+
+          {currentTab === 'group-2' && (
+            <SectionErrorBoundary sectionName="Group 2 (Ομάδα 2)" onReset={() => safeSetActiveTab('home')}>
+              <GroupMissionsView
+                teamIndex={1}
+                lang={lang}
+                submissions={submissions}
+                taskOverrides={taskOverrides}
+                customQuestions={customQuestions}
+                onSaveSubmission={saveSubmission}
+                onGoHome={() => safeSetActiveTab('home')}
+              />
+            </SectionErrorBoundary>
+          )}
+
+          {currentTab === 'group-3' && (
+            <SectionErrorBoundary sectionName="Group 3 (Ομάδα 3)" onReset={() => safeSetActiveTab('home')}>
+              <GroupMissionsView
+                teamIndex={2}
+                lang={lang}
+                submissions={submissions}
+                taskOverrides={taskOverrides}
+                customQuestions={customQuestions}
+                onSaveSubmission={saveSubmission}
+                onGoHome={() => safeSetActiveTab('home')}
+              />
+            </SectionErrorBoundary>
+          )}
+
+          {currentTab === 'group-4' && (
+            <SectionErrorBoundary sectionName="Group 4 (Ομάδα 4)" onReset={() => safeSetActiveTab('home')}>
+              <GroupMissionsView
+                teamIndex={3}
+                lang={lang}
+                submissions={submissions}
+                taskOverrides={taskOverrides}
+                customQuestions={customQuestions}
+                onSaveSubmission={saveSubmission}
+                onGoHome={() => safeSetActiveTab('home')}
+              />
+            </SectionErrorBoundary>
+          )}
+
+          {currentTab === 'padlet' && (
+            <SectionErrorBoundary sectionName="Padlet Board" onReset={() => safeSetActiveTab('home')}>
+              <PadletBoardView
+                lang={lang}
+                allTeamStats={allTeamStats}
+                submissions={submissions}
+                taskOverrides={taskOverrides}
+                synthesisNotes={synthesisNotes}
+                onOpenAddNote={() => setShowAddNote(true)}
+                onLikeNote={handleLikeNote}
+                onDeleteNote={handleDeleteNote}
+              />
+            </SectionErrorBoundary>
+          )}
+
+          {currentTab === 'arena' && (
+            <SectionErrorBoundary sectionName="Team Presentation Arena" onReset={() => safeSetActiveTab('home')}>
+              <TeamPresentationArena
+                lang={lang}
+                submissions={submissions}
+                taskOverrides={taskOverrides}
+                customQuestions={customQuestions}
+                synthesisNotes={synthesisNotes}
+                onGoBack={() => safeSetActiveTab('home')}
+                onSelectTeamMissions={(teamIdx) => safeSetActiveTab(`group-${teamIdx + 1}` as ValidTab)}
+              />
+            </SectionErrorBoundary>
+          )}
+        </SectionErrorBoundary>
       </main>
 
-      {/* Team Editor Modal (when clicking edit directly on the board) */}
-      {editingTeamOnBoard && (
-        <TeamEditorModal
-          team={editingTeamOnBoard}
-          isOpen={!!editingTeamOnBoard}
+      {/* ================= CONDITIONAL MODAL: ADMIN CONSOLE ================= */}
+      {isAdminOpen && (
+        <AdminConsole
           lang={lang}
-          onClose={() => setEditingTeamOnBoard(null)}
-          onSave={(savedTeam) => {
-            handleUpdateTeam(savedTeam);
-            setEditingTeamOnBoard(null);
-          }}
+          submissions={submissions}
+          taskOverrides={taskOverrides}
+          customQuestions={customQuestions}
+          onUpdateTaskOverrides={handleUpdateTaskOverrides}
+          onSaveCustomQuestion={handleSaveCustomQuestion}
+          onResetCustomQuestion={handleResetCustomQuestion}
+          onResetAllSubmissions={resetAllSubmissions}
+          onResetTeamSubmissions={handleResetTeamSubmissions}
+          onRestoreStateFromJson={handleRestoreStateFromJson}
+          synthesisNotes={synthesisNotes}
+          onClose={() => setIsAdminOpen(false)}
         />
       )}
 
-      {/* Direct Board Question Editor Modal (allows editing or EN editing from the Padlet board) */}
-      {editingQuestOnBoard && (
-        <QuestionEditorModal
-          question={editingQuestOnBoard.question}
-          teams={gameState.teams}
-          lang={lang}
-          initialTab={editingQuestOnBoard.initialTab}
-          onSave={(savedQuest) => {
-            handleUpdateQuestion(savedQuest);
-            setEditingQuestOnBoard(null);
-          }}
-          onClose={() => setEditingQuestOnBoard(null)}
-        />
+      {/* ================= CONDITIONAL MODAL: ADD SYNTHESIS NOTE ================= */}
+      {showAddNote && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-white">
+              {lang === 'el' ? 'Νέα Σημείωση Σύνθεσης' : 'New Synthesis Note'}
+            </h3>
+            <form onSubmit={handleAddNote} className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  {lang === 'el' ? 'Επιλογή Ομάδας' : 'Select Team'}
+                </label>
+                <select
+                  value={newNoteTeam}
+                  onChange={(e) => setNewNoteTeam(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                >
+                  {masterTeamsPool.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.avatar} {lang === 'el' ? t.name : t.name_en || t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  {lang === 'el' ? 'Όνομα / Συντάκτης' : 'Author'}
+                </label>
+                <input
+                  type="text"
+                  value={newNoteAuthor}
+                  onChange={(e) => setNewNoteAuthor(e.target.value)}
+                  placeholder={lang === 'el' ? 'π.χ. Μαρία, Νίκος (Ομάδα Α)' : 'e.g. John, Team Alpha'}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  {lang === 'el' ? 'Τίτλος Συμπεράσματος' : 'Title'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newNoteTitle}
+                  onChange={(e) => setNewNoteTitle(e.target.value)}
+                  placeholder={lang === 'el' ? 'π.χ. Αποτέλεσμα έρευνας για τη Δαδιά' : 'e.g. Dadia Park Findings'}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  {lang === 'el' ? 'Περιεχόμενο' : 'Content'}
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={newNoteContent}
+                  onChange={(e) => setNewNoteContent(e.target.value)}
+                  placeholder={lang === 'el' ? 'Γράψτε τι μάθατε από τις αποστολές...' : 'Write what you learned...'}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddNote(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold hover:bg-slate-700 cursor-pointer"
+                >
+                  {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm cursor-pointer"
+                >
+                  {lang === 'el' ? 'Ανάρτηση' : 'Post'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
-      {/* Floating Quick Facilitator / Admin Button - Always visible regardless of scroll or screen size */}
-      {viewMode !== 'admin' && (
+      {/* ================= FOOTER ================= */}
+      <footer className="border-t border-slate-800/80 bg-slate-900/60 px-4 py-4 text-center text-xs text-slate-500">
+        <p>
+          BoundPad • Αρένα των 4 Γυπών (Master Task Pool Architecture • 100% Stability & Isolated Boundaries)
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENT: HOME SCREEN
+// ============================================================================
+interface HomeScreenProps {
+  lang: 'el' | 'en';
+  teamStats: TeamTaskStats[];
+  onSelectTab: (tab: string) => void;
+}
+
+function HomeScreen({ lang, teamStats, onSelectTab }: HomeScreenProps) {
+  return (
+    <div className="space-y-6">
+      {/* Hero Banner */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-emerald-950/40 to-amber-950/40 border border-slate-800 p-6 sm:p-8 shadow-2xl">
+        <div className="relative z-10 max-w-3xl space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>
+              {lang === 'el' ? 'Ενιαίο Master Task Pool (61 Αποστολές Έρευνας)' : 'Master Task Pool (61 Research Missions)'}
+            </span>
+          </div>
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            {lang === 'el'
+              ? 'Το Όρνιο στην Κύπρο (Gyps fulvus) • LIFE with Vultures'
+              : 'The Cyprus Griffon Vulture (Gyps fulvus) • LIFE with Vultures'}
+          </h2>
+          <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+            {lang === 'el'
+              ? 'Διαδραστική εκπαιδευτική αρένα 61 πραγματικών αποστολών. Κάθε μία από τις 4 ερευνητικές ομάδες αναλαμβάνει τον δικό της θεματικό πυλώνα (Ταυτότητα, Περιβάλλον, Βιολογία, Προστασία) και συνεισφέρει στον κοινό Πίνακα Padlet!'
+              : 'Interactive educational arena with 61 real inquiry missions. Each of the 4 research teams undertakes its dedicated thematic pillar (Identity, Habitat, Biology, Conservation) and collaborates on the shared Padlet board!'}
+          </p>
+          <div className="pt-2 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onSelectTab('group-1');
+              }}
+              className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+            >
+              <span>{lang === 'el' ? 'Έναρξη Αποστολών Ομάδας 1' : 'Start Group 1 Missions'}</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onSelectTab('padlet');
+              }}
+              className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm flex items-center gap-2 border border-slate-700 transition-all cursor-pointer"
+            >
+              <LayoutGrid className="w-4 h-4 text-emerald-400" />
+              <span>{lang === 'el' ? 'Πίνακας Padlet' : 'View Padlet Board'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onSelectTab('arena');
+              }}
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+            >
+              <Trophy className="w-4 h-4" />
+              <span>{lang === 'el' ? 'Αρένα Παρουσίασης & Posters' : 'Team Arena & Posters'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Scores for 4 Teams */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Award className="w-5 h-5 text-amber-400" />
+            <span>{lang === 'el' ? 'Δυναμική Βαθμολογία 4 Ομάδων Έρευνας' : 'Dynamic 4-Group Research Scoreboard'}</span>
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {masterTeamsPool.map((team, idx) => {
+            const stat = teamStats[idx];
+            return (
+              <div
+                key={team.id}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onSelectTab(`group-${idx + 1}`);
+                }}
+                style={{ borderColor: `${team.color}40` }}
+                className="p-5 rounded-2xl bg-slate-900 border hover:border-slate-600 transition-all cursor-pointer group shadow-lg flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-3xl p-2 rounded-xl bg-slate-800/80 border border-slate-700/60 group-hover:scale-110 transition-transform">
+                      {team.avatar}
+                    </span>
+                    <div
+                      style={{ backgroundColor: `${team.color}20`, color: team.color }}
+                      className="px-3 py-1 rounded-full font-extrabold text-sm border border-current/30"
+                    >
+                      {stat ? stat.totalScore : 0} pts
+                    </div>
+                  </div>
+                  <h4 className="font-bold text-white text-base group-hover:text-amber-300 transition-colors">
+                    {lang === 'el' ? team.name : team.name_en || team.name}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-1">
+                    {lang === 'el' ? team.slogan : team.slogan_en}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-800">
+                  <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                    <span>{lang === 'el' ? 'Ενεργές Αποστολές' : 'Active Quests'}</span>
+                    <span className="font-semibold text-slate-200">
+                      {stat ? `${stat.completedTasks} / ${stat.totalActiveTasks} (${stat.progressPercent}%)` : '0'}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      style={{
+                        width: `${stat ? stat.progressPercent : 0}%`,
+                        backgroundColor: team.color
+                      }}
+                      className="h-full rounded-full transition-all duration-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4 Pillars of the Cyprus Griffon Vulture Project */}
+      <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4">
+        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-emerald-400" />
+          <span>
+            {lang === 'el'
+              ? 'Οι 4 Θεματικοί Πυλώνες του Προγράμματος LIFE with Vultures'
+              : 'The 4 Thematic Pillars of LIFE with Vultures Cyprus'}
+          </span>
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 rounded-xl bg-slate-800/40 border border-emerald-700/40 space-y-2">
+            <div className="font-bold text-emerald-400 text-sm">Ομάδα 1: Ταυτότητα & Βασικά (15)</div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {lang === 'el'
+                ? 'Αναγνώριση του είδους Gyps fulvus, άνοιγμα πτερύγων 2.5m, βάρος 7-10kg, κύκλος αναπαραγωγής (1 αυγό), κατάσταση κινδύνου και εσωτερικός σταθμός φωτογράφισης (#36).'
+                : 'Species ID Gyps fulvus, 2.5m wingspan, 7-10kg weight, 1 egg clutch, critically endangered status, and indoor photo checkpoint (#36).'}
+            </p>
+          </div>
+          <div className="p-4 rounded-xl bg-slate-800/40 border border-cyan-700/40 space-y-2">
+            <div className="font-bold text-cyan-400 text-sm">Ομάδα 2: Περιβάλλον & Πτήση (15)</div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {lang === 'el'
+                ? 'Απόκρημνοι γκρεμοί Επισκοπής, κοιλάδες Διαρίζου & Χα-Ποτάμι, ανοδικά θερμικά ρεύματα, πτητική αεροδυναμική και ακτίνα αναζήτησης τροφής άνω των 100km.'
+                : 'Episkopi sea cliffs colony, Diarizos & Cha-Potami valleys, thermal soaring updrafts, and long foraging flights exceeding 100km.'}
+            </p>
+          </div>
+          <div className="p-4 rounded-xl bg-slate-800/40 border border-amber-700/40 space-y-2">
+            <div className="font-bold text-amber-400 text-sm">Ομάδα 3: Διατροφή & Βιολογία (15)</div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {lang === 'el'
+                ? 'Αποκλειστικοί καθαριστές πτωματοφάγοι (όχι θηρευτές), γυμνός λαιμός για υγιεινή, πανίσχυρο γαστρικό pH 1-2, όξυνση όρασης και σταθμός QR πάρκου (#56).'
+                : 'Obligate scavengers (not predators), bare hygiene neck, acidic stomach pH 1-2 neutralizing pathogens, visual foraging, and park QR checkpoint (#56).'}
+            </p>
+          </div>
+          <div className="p-4 rounded-xl bg-slate-800/40 border border-purple-700/40 space-y-2">
+            <div className="font-bold text-purple-400 text-sm">Ομάδα 4: Απειλές & Προστασία (16)</div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {lang === 'el'
+                ? 'Καταπολέμηση δηλητηριασμένων δολωμάτων, εκπαιδευμένοι σκύλοι K9, 4 περιφραγμένες ταΐστρες, σημαντήρες καλωδίων, ενίσχυση από Ισπανία και Σύμφωνο Προστασίας (#61).'
+                : 'Combatting poison baits, K9 detection teams, 4 feeding stations, power line markers, restocking from Spain, and the official Conservation Charter (#61).'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENT: GROUP MISSIONS VIEW (1 Question At a Time OR Clean Accordion)
+// ============================================================================
+interface GroupMissionsViewProps {
+  teamIndex: number;
+  lang: 'el' | 'en';
+  submissions: Record<string, Submission>;
+  taskOverrides: Record<string, boolean>;
+  customQuestions?: Record<string, Question>;
+  onSaveSubmission: (submission: Submission) => void;
+  onGoHome: () => void;
+}
+
+function GroupMissionsView({
+  teamIndex,
+  lang,
+  submissions,
+  taskOverrides,
+  customQuestions = {},
+  onSaveSubmission,
+  onGoHome
+}: GroupMissionsViewProps) {
+  const team = masterTeamsPool[teamIndex] || masterTeamsPool[0];
+
+  // Query ONLY active tasks for this team dynamically from Master Pool with custom overrides
+  const tasks = useMemo(() => {
+    try {
+      return getActiveTasksForTeam(team.id, taskOverrides, customQuestions) || [];
+    } catch {
+      return [];
+    }
+  }, [team.id, taskOverrides, customQuestions]);
+
+  // Designated checkpoints for this group
+  const checkpoints = useMemo(() => {
+    try {
+      return getCheckpointsForTeam(team.id, taskOverrides, customQuestions) || [];
+    } catch {
+      return [];
+    }
+  }, [team.id, taskOverrides, customQuestions]);
+
+  // Compute stats safely
+  const { totalScore, completedTasks, totalActiveTasks } = useMemo(() => {
+    try {
+      return computeTeamTaskStats(team, submissions, taskOverrides, customQuestions);
+    } catch {
+      return { totalScore: 0, completedTasks: 0, totalActiveTasks: tasks.length };
+    }
+  }, [team, submissions, taskOverrides, customQuestions, tasks.length]);
+
+  // View Mode: 'single' (Focus Mode, 1 task at a time) is DEFAULT
+  const [viewStyle, setViewStyle] = useState<'single' | 'accordion'>('single');
+
+  // Single Question Index initialized and persisted in bulletproof storage
+  const [currentTaskIndex, setCurrentTaskIndex] = useState<number>(() => {
+    return storageService.getTeamTaskIndex(team.id, 0);
+  });
+
+  const handleSetTaskIndex = (index: number) => {
+    const safeIdx = Math.max(0, Math.min(tasks.length - 1, index));
+    setCurrentTaskIndex(safeIdx);
+    storageService.saveTeamTaskIndex(team.id, safeIdx);
+  };
+
+  // Accordion expanded question id
+  const [expandedId, setExpandedId] = useState<string | null>(tasks[0]?.id || null);
+
+  const safeIndex = Math.min(Math.max(0, currentTaskIndex), Math.max(0, tasks.length - 1));
+  const currentTask = tasks[safeIndex];
+
+  return (
+    <div className="space-y-6">
+      {/* ================= SAFE GO BACK NAVIGATION & TOP BAR ================= */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <button
           type="button"
-          onClick={() => setViewMode('admin')}
-          className="fixed bottom-4 right-4 z-40 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-slate-900/95 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-amber-500/50 hover:border-amber-400 shadow-2xl backdrop-blur-md text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95 group"
-          title={lang === 'el' ? 'Κονσόλα Διαχειριστή: Επεξεργασία ερωτήσεων, ονομάτων ομάδων και ρυθμίσεων' : 'Facilitator Console: Edit quests, team names, and settings'}
+          onClick={onGoHome}
+          className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer group"
         >
-          <ShieldCheck className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
-          <span>{lang === 'el' ? '⚙️ Διαχειριστής' : '⚙️ Facilitator'}</span>
+          <ArrowLeft className="w-4 h-4 text-amber-400 group-hover:-translate-x-1 transition-transform" />
+          <span>{lang === 'el' ? '← Επιστροφή στην Αρχική' : '← Return to Overview'}</span>
         </button>
+
+        {/* View Mode Switcher */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setViewStyle('single')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewStyle === 'single'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            <Target className="w-3.5 h-3.5" />
+            <span>{lang === 'el' ? 'Focus Mode (1 Αποστολή)' : 'Focus Mode (1 Task)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewStyle('accordion')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewStyle === 'accordion'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            <List className="w-3.5 h-3.5" />
+            <span>{lang === 'el' ? 'Προβολή Λίστας' : 'List View'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Group Header Card */}
+      <div
+        style={{ borderColor: `${team.color}50` }}
+        className="p-6 rounded-3xl bg-slate-900 border shadow-xl flex flex-wrap items-center justify-between gap-4"
+      >
+        <div className="flex items-center gap-4">
+          <div
+            style={{ backgroundColor: `${team.color}25` }}
+            className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl border border-current/30 shadow-inner"
+          >
+            {team.avatar}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                style={{ backgroundColor: `${team.color}20`, color: team.color }}
+                className="px-2.5 py-0.5 rounded-full text-xs font-bold"
+              >
+                {lang === 'el' ? `Ομάδα ${teamIndex + 1}` : `Group ${teamIndex + 1}`}
+              </span>
+              <span className="text-xs text-slate-400">
+                {lang === 'el' ? team.slogan : team.slogan_en}
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
+              {lang === 'el' ? team.name : team.name_en || team.name}
+            </h2>
+          </div>
+        </div>
+
+        {/* Score & Progress */}
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-center">
+            <div className="text-xs text-slate-400">{lang === 'el' ? 'Βαθμολογία' : 'Score'}</div>
+            <div
+              style={{ color: team.color }}
+              className="text-xl font-black"
+            >
+              {totalScore} pts
+            </div>
+          </div>
+          <div className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-center">
+            <div className="text-xs text-slate-400">{lang === 'el' ? 'Πρόοδος' : 'Progress'}</div>
+            <div className="text-xl font-black text-emerald-400">
+              {completedTasks} / {totalActiveTasks}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Checkpoints Quick Navigation Bar */}
+      {checkpoints.length > 0 && (
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-amber-500/30 flex items-center justify-between flex-wrap gap-2 shadow-lg">
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
+            <Flag className="w-4 h-4 text-amber-400" />
+            <span>{lang === 'el' ? 'Επίσημοι Σταθμοί & Checkpoints:' : 'Official Checkpoints:'}</span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {checkpoints.map((cp) => {
+              const cpIdx = tasks.findIndex((t) => t.id === cp.id);
+              const isCpCurrent = cpIdx === safeIndex;
+              const isCpDone = submissions[`${team.id}_${cp.id}`]?.status === 'correct';
+              const meta = getCheckpointMetadata(cp);
+
+              return (
+                <button
+                  key={cp.id}
+                  type="button"
+                  onClick={() => handleSetTaskIndex(cpIdx)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    isCpCurrent
+                      ? 'bg-amber-500 text-slate-950 font-black shadow-md ring-2 ring-amber-300'
+                      : isCpDone
+                      ? 'bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/60'
+                      : 'bg-slate-800 border border-amber-500/30 text-amber-300 hover:bg-slate-700'
+                  }`}
+                  title={meta.description}
+                >
+                  <span>{meta.badge}</span>
+                  {isCpDone && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
-      {/* Quest Solver Modal */}
-      {activeModalQuest && (
-        <QuestSolverModal
-          question={getLocalizedQuestion(activeModalQuest.question, lang)}
-          team={getLocalizedTeam(activeModalQuest.team, lang)}
-          existingSubmission={
-            gameState.submissions[`${activeModalQuest.team.id}_${activeModalQuest.question.id}`]
-          }
-          lang={lang}
-          onClose={() => setActiveModalQuest(null)}
-          onSubmit={(submissionData) => {
-            handleSubmitQuest(
-              activeModalQuest.question.id,
-              activeModalQuest.team.id,
-              submissionData
+      {/* ================= VIEW STYLE 1: FOCUS MODE (STRICT PAGINATION - ABSOLUTE DOM CLEANLINESS) ================= */}
+      {viewStyle === 'single' && currentTask && (
+        <div className="space-y-4">
+          {/* Stepper / Dots Pagination Bar */}
+          <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800">
+            <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+              <span>
+                {lang === 'el'
+                  ? `Αποστολή ${safeIndex + 1} από ${tasks.length}`
+                  : `Mission ${safeIndex + 1} of ${tasks.length}`}
+              </span>
+              <span className="text-[11px] text-slate-500">
+                {lang === 'el' ? 'Κλικ σε αριθμό για άμεση μετάβαση' : 'Click number to jump'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+              {tasks.map((t, idx) => {
+                const isDone = submissions[`${team.id}_${t.id}`]?.status === 'correct';
+                const isCurrent = idx === safeIndex;
+                const isCp = isCheckpointTask(t.id);
+
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleSetTaskIndex(idx)}
+                    className={`w-8 h-8 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center justify-center relative ${
+                      isCurrent
+                        ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-300 shadow-md font-black scale-105'
+                        : isDone
+                        ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/40'
+                        : isCp
+                        ? 'bg-amber-950/40 text-amber-300 border border-amber-500/50'
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                    }`}
+                    title={t.title}
+                  >
+                    {isDone ? '✓' : isCp ? '🚩' : idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* EXACTLY 1 TASK IN THE DOM - WRAPPED IN STRICT SECTION ERROR BOUNDARY */}
+          <SectionErrorBoundary
+            sectionName={`Task ${currentTask.id}`}
+            onReset={() => handleSetTaskIndex(safeIndex)}
+          >
+            <InlineQuestCard
+              quest={currentTask}
+              team={team}
+              lang={lang}
+              submission={submissions[`${team.id}_${currentTask.id}`]}
+              onSaveSubmission={onSaveSubmission}
+              onNextTask={() => handleSetTaskIndex(safeIndex + 1)}
+              hasNextTask={safeIndex < tasks.length - 1}
+            />
+          </SectionErrorBoundary>
+
+          {/* Safe Stepper Navigation Controls */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              disabled={safeIndex <= 0}
+              onClick={() => handleSetTaskIndex(safeIndex - 1)}
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 text-xs sm:text-sm font-semibold flex items-center gap-2 cursor-pointer transition-colors shadow-md"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>{lang === 'el' ? 'Προηγούμενη Αποστολή' : 'Previous Mission'}</span>
+            </button>
+
+            <span className="text-xs font-semibold text-slate-400">
+              {safeIndex + 1} / {tasks.length}
+            </span>
+
+            <button
+              type="button"
+              disabled={safeIndex >= tasks.length - 1}
+              onClick={() => handleSetTaskIndex(safeIndex + 1)}
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:pointer-events-none text-slate-950 text-xs sm:text-sm font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md shadow-amber-500/20 active:scale-95"
+            >
+              <span>{lang === 'el' ? 'Επόμενη Αποστολή' : 'Next Mission'}</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= VIEW STYLE 2: ACCORDION LIST ================= */}
+      {viewStyle === 'accordion' && (
+        <div className="space-y-3">
+          {tasks.map((t, idx) => {
+            const isDone = submissions[`${team.id}_${t.id}`]?.status === 'correct';
+            const isExpanded = expandedId === t.id;
+            const isCp = isCheckpointTask(t.id);
+
+            return (
+              <div
+                key={t.id}
+                className={`rounded-2xl border transition-all ${
+                  isDone
+                    ? 'bg-emerald-950/10 border-emerald-500/40'
+                    : isCp
+                    ? 'bg-amber-950/10 border-amber-500/40'
+                    : 'bg-slate-900 border-slate-800'
+                }`}
+              >
+                {/* Accordion Header */}
+                <div
+                  onClick={() => setExpandedId(isExpanded ? null : t.id)}
+                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/40 rounded-2xl"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 ${
+                        isDone
+                          ? 'bg-emerald-500 text-slate-950'
+                          : isCp
+                          ? 'bg-amber-500 text-slate-950 font-black'
+                          : 'bg-slate-800 text-slate-300'
+                      }`}
+                    >
+                      {isDone ? '✓' : isCp ? '🚩' : idx + 1}
+                    </span>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">
+                        {lang === 'el' ? t.title : t.title_en || t.title}
+                      </h4>
+                      <span className="text-[11px] text-slate-400">
+                        {t.type.replace('_', ' ')} • +{t.points} pts
+                      </span>
+                    </div>
+                  </div>
+
+                  <span className="text-slate-400 font-bold text-sm px-2">
+                    {isExpanded ? '▲' : '▼'}
+                  </span>
+                </div>
+
+                {/* Expanded Card Body with Error Boundary */}
+                {isExpanded && (
+                  <div className="p-4 border-t border-slate-800">
+                    <SectionErrorBoundary sectionName={`Accordion Task ${t.id}`}>
+                      <InlineQuestCard
+                        quest={t}
+                        team={team}
+                        lang={lang}
+                        submission={submissions[`${team.id}_${t.id}`]}
+                        onSaveSubmission={onSaveSubmission}
+                      />
+                    </SectionErrorBoundary>
+                  </div>
+                )}
+              </div>
             );
-            if (activeModalQuest.question.type !== 'qr_scan') {
-              setActiveModalQuest(null);
-            }
-          }}
-        />
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENT: PADLET BOARD VIEW
+// ============================================================================
+interface PadletBoardViewProps {
+  lang: 'el' | 'en';
+  allTeamStats: TeamTaskStats[];
+  submissions: Record<string, Submission>;
+  taskOverrides: Record<string, boolean>;
+  synthesisNotes: SynthesisNote[];
+  onOpenAddNote: () => void;
+  onLikeNote: (id: string) => void;
+  onDeleteNote: (id: string) => void;
+}
+
+function PadletBoardView({
+  lang,
+  allTeamStats,
+  submissions,
+  taskOverrides,
+  synthesisNotes,
+  onOpenAddNote,
+  onLikeNote,
+  onDeleteNote
+}: PadletBoardViewProps) {
+  return (
+    <div className="space-y-6">
+      {/* Padlet Header */}
+      <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+            <LayoutGrid className="w-6 h-6 text-emerald-400" />
+            <span>{lang === 'el' ? 'Πίνακας Padlet - Επισκόπηση & Συμπεράσματα' : 'Padlet Board - Overview & Debrief'}</span>
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            {lang === 'el'
+              ? 'Δυναμική άντληση αποστολών ανά ομάδα από το Master Pool και συνεργατικός τοίχος σύνθεσης'
+              : 'Dynamic team missions querying from Master Pool and collaborative synthesis wall'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenAddNote}
+          className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>{lang === 'el' ? 'Προσθήκη Σημείωσης Σύνθεσης' : 'Add Synthesis Note'}</span>
+        </button>
+      </div>
+
+      {/* 4 Team Padlet Columns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {masterTeamsPool.map((team, idx) => {
+          const stat = allTeamStats[idx];
+          const teamTasks = getActiveTasksForTeam(team.id, taskOverrides) || [];
+
+          return (
+            <div
+              key={team.id}
+              style={{ borderTopColor: team.color }}
+              className="rounded-2xl bg-slate-900 border border-slate-800 border-t-4 flex flex-col shadow-lg"
+            >
+              {/* Column Header */}
+              <div className="p-4 border-b border-slate-800 bg-slate-900/90">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{team.avatar}</span>
+                    <div>
+                      <h4 className="font-bold text-white text-sm line-clamp-1">
+                        {lang === 'el' ? team.name : team.name_en || team.name}
+                      </h4>
+                      <span
+                        style={{ color: team.color }}
+                        className="text-xs font-black"
+                      >
+                        {stat ? stat.totalScore : 0} pts
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold">
+                    {stat ? `${stat.completedTasks}/${stat.totalActiveTasks}` : '0'}
+                  </span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mt-3 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    style={{ width: `${stat ? stat.progressPercent : 0}%`, backgroundColor: team.color }}
+                    className="h-full rounded-full transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Lightweight Column List */}
+              <div className="p-3 space-y-2 max-h-[380px] overflow-y-auto scrollbar-thin">
+                {teamTasks.slice(0, 10).map((quest) => {
+                  const isDone = submissions[`${team.id}_${quest.id}`]?.status === 'correct';
+
+                  return (
+                    <div
+                      key={quest.id}
+                      className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                        isDone
+                          ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
+                          : 'bg-slate-800/50 border-slate-700/60 text-slate-300'
+                      }`}
+                    >
+                      <span className="truncate flex-1 font-semibold">
+                        {lang === 'el' ? quest.title : quest.title_en || quest.title}
+                      </span>
+                      {isDone ? (
+                        <span className="text-[10px] font-bold text-emerald-400 shrink-0 flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          <span>+{quest.points}p</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 shrink-0 font-medium">
+                          {quest.points}p
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Synthesis Sticky Notes Wall */}
+      <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-amber-400" />
+            <span>
+              {lang === 'el'
+                ? 'Τοίχος Σύνθεσης & Συμπερασμάτων (Sticky Notes)'
+                : 'Synthesis & Findings Wall (Sticky Notes)'}
+            </span>
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {synthesisNotes.map((note) => {
+            const authorTeam = masterTeamsPool.find((t) => t.id === note.teamId);
+
+            return (
+              <div
+                key={note.id}
+                style={{ borderLeftColor: authorTeam?.color || '#3b82f6' }}
+                className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 border-l-4 shadow-md flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span className="font-semibold text-slate-200">{note.author}</span>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteNote(note.id)}
+                      className="text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                      title="Διαγραφή"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <h5 className="font-bold text-white text-sm mb-1">{note.title}</h5>
+                  <p className="text-xs text-slate-300 leading-relaxed">{note.content}</p>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => onLikeNote(note.id)}
+                    className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-amber-400 transition-colors cursor-pointer"
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5" />
+                    <span>{note.likes}</span>
+                  </button>
+                  <span className="text-[10px] text-slate-500">
+                    {new Date(note.createdAt).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENT: INLINE QUEST CARD & SOLVER
+// ============================================================================
+interface InlineQuestCardProps {
+  quest: Question;
+  team: Team;
+  lang: 'el' | 'en';
+  submission?: Submission;
+  onSaveSubmission: (submission: Submission) => void;
+  onNextTask?: () => void;
+  hasNextTask?: boolean;
+}
+
+function InlineQuestCard({
+  quest,
+  team,
+  lang,
+  submission,
+  onSaveSubmission,
+  onNextTask,
+  hasNextTask
+}: InlineQuestCardProps) {
+  const isDone = submission?.status === 'correct';
+  const cpMeta = getCheckpointMetadata(quest);
+
+  const title = lang === 'el' ? quest.title : quest.title_en || quest.title;
+  const explanation = lang === 'el' ? quest.explanation : quest.explanation_en || quest.explanation;
+
+  const handleSaveSub = (answerData: any, isCorrect: boolean, pointsEarned?: number) => {
+    const newSub: Submission = {
+      id: submission?.id || `sub-${Date.now()}`,
+      teamId: team.id,
+      questionId: quest.id,
+      submittedAt: Date.now(),
+      status: isCorrect ? 'correct' : 'incorrect',
+      scoreEarned: isCorrect ? (pointsEarned ?? quest.points) : 0,
+      answerData
+    };
+    onSaveSubmission(newSub);
+  };
+
+  // Whether this quest type already displays the explanation internally
+  const rendersExplanationInternally = quest.type === 'multiple_choice' || quest.type === 'true_false';
+
+  return (
+    <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-5">
+      {/* Checkpoint Illuminated Banner */}
+      {cpMeta.isCheckpoint && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/40 border-2 border-amber-500/70 shadow-lg shadow-amber-500/10 flex items-start gap-3.5">
+          <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0 text-xl font-bold">
+            🚩
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider">
+                {cpMeta.badge}
+              </span>
+              <span className="text-sm font-bold text-amber-300">{cpMeta.label}</span>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+              {cpMeta.description}
+            </p>
+          </div>
+        </div>
       )}
 
-      {/* Team Join / QR Code Lobby Modal */}
-      {showJoinQrModal && (
-        <TeamJoinLobbyModal
-          gameState={localizedGameState}
-          activeTeam={activeTeam}
-          onSelectTeam={setActiveTeamId}
-          lang={lang}
-          isFacilitator={true}
-          onClose={() => setShowJoinQrModal(false)}
-          onStartGame={() => {
-            handleSimultaneousStart();
-            setShowJoinQrModal(false);
-          }}
-        />
+      {/* Meta & Title */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span
+              style={{ backgroundColor: `${team.color}20`, color: team.color }}
+              className="px-2.5 py-0.5 rounded-full text-xs font-bold"
+            >
+              {team.avatar} {lang === 'el' ? team.name : team.name_en || team.name}
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-bold">
+              +{quest.points} pts
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] uppercase font-semibold text-slate-400">
+              {quest.type.replace('_', ' ')}
+            </span>
+          </div>
+          <h3 className="text-xl sm:text-2xl font-extrabold text-white leading-snug">{title}</h3>
+        </div>
+
+        {isDone && (
+          <span className="px-3.5 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-sm">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{lang === 'el' ? 'Ολοκληρώθηκε' : 'Completed'}</span>
+          </span>
+        )}
+      </div>
+
+      {/* Attached Question Reference Media (Image / Video) */}
+      {quest.type !== 'multiple_choice' && quest.type !== 'puzzle' && (quest.imageUrl || quest.videoUrl) && (
+        <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+            <span>📷</span>
+            <span>{lang === 'el' ? 'Πολυμέσο Αναφοράς Αποστολής:' : 'Mission Reference Media:'}</span>
+          </div>
+          {quest.imageUrl && (
+            <div className="rounded-xl overflow-hidden border border-slate-700 bg-black max-h-72 flex items-center justify-center">
+              <img
+                src={quest.imageUrl}
+                alt={title}
+                className="w-full h-auto max-h-72 object-contain rounded-xl"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            </div>
+          )}
+          {quest.videoUrl && (
+            <div className="rounded-xl overflow-hidden border border-slate-700 bg-black max-h-72 flex items-center justify-center">
+              <video
+                src={quest.videoUrl}
+                controls
+                playsInline
+                className="w-full max-h-72 object-contain rounded-xl"
+              />
+            </div>
+          )}
+        </div>
       )}
 
-      {/* GitHub Sync & Restore Modal (for koulami/Koulami-vultures and 31 vulture quests) */}
-      <GitHubSyncModal
-        isOpen={showGitHubSyncModal}
-        onClose={() => setShowGitHubSyncModal(false)}
-        lang={lang}
-        onRestoreBackup={handleRestoreBackup}
-        onApplyQuestions={handleApplyRecoveredQuestions}
-        currentQuestionCount={gameState.questions.length}
-      />
+      {/* Dynamic Interactive Quest Solver by Type */}
+      <div className="pt-1">
+        {quest.type === 'multiple_choice' && (
+          <MultipleChoiceQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
+          />
+        )}
 
-      {/* Print & Save as PDF Modal (Full Solutions, Teacher Guide & Activity Worksheets) */}
-      <PrintPdfModal
-        isOpen={showPrintPdfModal}
-        onClose={() => setShowPrintPdfModal(false)}
-        gameState={gameState}
-        lang={lang}
-      />
+        {quest.type === 'true_false' && (
+          <TrueFalseQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
+          />
+        )}
+
+        {quest.type === 'text_match' && (
+          <TextMatchQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
+          />
+        )}
+
+        {quest.type === 'image_match' && (
+          <ImageMatchQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
+          />
+        )}
+
+        {quest.type === 'puzzle' && (
+          <PuzzleQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, true, data.points)}
+          />
+        )}
+
+        {quest.type === 'qr_scan' && (
+          <QrScanQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
+          />
+        )}
+
+        {quest.type === 'photo_upload' && (
+          <PhotoUploadQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, true, data.points)}
+          />
+        )}
+
+        {quest.type === 'task' && (
+          <TaskQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, true, data.points)}
+          />
+        )}
+
+        {quest.type === 'research' && (
+          <ResearchQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={lang}
+            readOnly={isDone}
+            onSubmit={(data) => handleSaveSub(data, true, data.points)}
+          />
+        )}
+      </div>
+
+      {/* Authoritative Scientific Explanation when Solved (for types not displaying it internally) */}
+      {isDone && !rendersExplanationInternally && explanation && (
+        <div className="p-4 rounded-2xl border border-emerald-500/40 bg-emerald-950/20 text-xs text-slate-300 leading-relaxed space-y-1">
+          <p className="font-bold text-emerald-300 flex items-center gap-1.5">
+            <Info className="w-4 h-4 text-emerald-400" />
+            <span>{lang === 'el' ? 'Επιστημονική Τεκμηρίωση:' : 'Scientific Note:'}</span>
+          </p>
+          <p className="text-slate-300">{explanation}</p>
+        </div>
+      )}
+
+      {/* Stepper Navigation Footer */}
+      {isDone && hasNextTask && onNextTask && (
+        <div className="pt-4 border-t border-slate-800 flex justify-end">
+          <button
+            type="button"
+            onClick={onNextTask}
+            className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 cursor-pointer shadow-md shadow-amber-500/20 transition-all active:scale-95"
+          >
+            <span>{lang === 'el' ? 'Συνέχεια στην Επόμενη Αποστολή' : 'Continue to Next Mission'}</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -71,6 +71,10 @@ export interface QrScanPayload {
 export interface PhotoUploadPayload {
   instructions: string;
   sampleReferenceUrl?: string;
+  acceptedTypes?: 'photo' | 'video' | 'both';
+  maxFileSizeMb?: number;
+  minWordCount?: number;
+  promptGuidance?: string;
 }
 
 export interface PuzzlePayload {

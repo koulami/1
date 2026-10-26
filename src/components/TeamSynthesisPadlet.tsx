@@ -4,6 +4,7 @@ import { Team, TeamSynthesisNote, Language } from '../types/game';
 import { translations } from '../locales/translations';
 import { ImageSourcePicker } from './ImageSourcePicker';
 import { sound } from '../services/sound';
+import { useDebouncedCallback } from '../hooks/useDebounce';
 
 interface Props {
   team: Team;
@@ -30,10 +31,47 @@ export const TeamSynthesisPadlet: React.FC<Props> = ({
 }) => {
   const t = translations[lang];
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
-  const [newTitle, setNewTitle] = useState<string>('');
-  const [newContent, setNewContent] = useState<string>('');
-  const [newAuthor, setNewAuthor] = useState<string>('');
+  const DRAFT_KEY = `boundpad_synthesis_draft_${team.id}`;
+  const [newTitle, setNewTitle] = useState<string>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(DRAFT_KEY) : null;
+      return saved ? JSON.parse(saved).title || '' : '';
+    } catch {
+      return '';
+    }
+  });
+  const [newContent, setNewContent] = useState<string>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(DRAFT_KEY) : null;
+      return saved ? JSON.parse(saved).content || '' : '';
+    } catch {
+      return '';
+    }
+  });
+  const [newAuthor, setNewAuthor] = useState<string>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(DRAFT_KEY) : null;
+      return saved ? JSON.parse(saved).author || '' : '';
+    } catch {
+      return '';
+    }
+  });
   const [newImageUrl, setNewImageUrl] = useState<string>('');
+
+  const [saveDraftDebounced, cancelDraftSave] = useDebouncedCallback(
+    (draft: { title: string; content: string; author: string }) => {
+      try {
+        if (typeof window !== 'undefined') {
+          if (draft.title.trim() || draft.content.trim()) {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+          } else {
+            localStorage.removeItem(DRAFT_KEY);
+          }
+        }
+      } catch {}
+    },
+    400
+  );
 
   const [feedbackInputId, setFeedbackInputId] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState<string>('');
@@ -51,6 +89,13 @@ export const TeamSynthesisPadlet: React.FC<Props> = ({
       imageUrl: newImageUrl || undefined,
       likes: 0
     });
+
+    cancelDraftSave();
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    } catch {}
 
     setNewTitle('');
     setNewContent('');
@@ -135,6 +180,9 @@ export const TeamSynthesisPadlet: React.FC<Props> = ({
                       alt={note.title}
                       className="w-full h-36 object-cover"
                       referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   </div>
                 )}
@@ -246,7 +294,11 @@ export const TeamSynthesisPadlet: React.FC<Props> = ({
                 type="text"
                 required
                 value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNewTitle(val);
+                  saveDraftDebounced({ title: val, content: newContent, author: newAuthor });
+                }}
                 placeholder={t.noteTitlePlaceholder}
                 className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
               />
@@ -260,7 +312,11 @@ export const TeamSynthesisPadlet: React.FC<Props> = ({
                 required
                 rows={4}
                 value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNewContent(val);
+                  saveDraftDebounced({ title: newTitle, content: val, author: newAuthor });
+                }}
                 placeholder={t.noteContentPlaceholder}
                 className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
               />
@@ -273,7 +329,11 @@ export const TeamSynthesisPadlet: React.FC<Props> = ({
               <input
                 type="text"
                 value={newAuthor}
-                onChange={(e) => setNewAuthor(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNewAuthor(val);
+                  saveDraftDebounced({ title: newTitle, content: newContent, author: val });
+                }}
                 placeholder={t.noteAuthorPlaceholder}
                 className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
               />

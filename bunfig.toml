@@ -1,0 +1,5 @@
+[install]
+cache = true
+network-concurrency = 8
+prefer-offline = true
+backend = "hardlink"

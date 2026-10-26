@@ -578,25 +578,95 @@ async function startServer() {
     }
   });
 
-  // Dedicated Pixel-Perfect HTML Print & PDF Export endpoint (renders exact preview layout for all 61 quests)
+  // In-memory cache for dynamic client print sessions (supports any number of questions, e.g. 91, with active/inactive grouping)
+  const printSessions = new Map<string, {
+    questions: any[];
+    teams: any[];
+    title?: string;
+    title_en?: string;
+    description?: string;
+    description_en?: string;
+    teamQuestionOrders?: Record<string, string[]>;
+    createdAt: number;
+  }>();
+
+  // Periodic cleanup of sessions older than 2 hours
+  setInterval(() => {
+    const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+    for (const [id, session] of printSessions.entries()) {
+      if (session.createdAt < cutoff) printSessions.delete(id);
+    }
+  }, 15 * 60 * 1000);
+
+  // Endpoint to create a dynamic print session with the user's exact current client questions (all 91+)
+  app.post('/api/print-session', (req, res) => {
+    try {
+      const {
+        questions,
+        teams,
+        title,
+        title_en,
+        description,
+        description_en,
+        teamQuestionOrders
+      } = req.body || {};
+
+      if (!Array.isArray(questions) || questions.length === 0) {
+        return res.status(400).json({ error: 'questions array is required' });
+      }
+
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      printSessions.set(sessionId, {
+        questions,
+        teams: teams || INITIAL_GAME_STATE.teams,
+        title: title || INITIAL_GAME_STATE.title,
+        title_en: title_en || INITIAL_GAME_STATE.title_en,
+        description: description || INITIAL_GAME_STATE.description,
+        description_en: description_en || INITIAL_GAME_STATE.description_en,
+        teamQuestionOrders,
+        createdAt: Date.now()
+      });
+
+      return res.json({ success: true, sessionId, count: questions.length });
+    } catch (err: any) {
+      console.error('Error in /api/print-session:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Dedicated Pixel-Perfect HTML Print & PDF Export endpoint
+  // Groups by team and separates Active vs Inactive questions for all questions (61, 91, etc.)
   app.get('/api/print-view', async (req, res) => {
     try {
+      const sessionId = (req.query.session || req.query.sessionId) as string;
+      const session = sessionId ? printSessions.get(sessionId) : null;
+
+      const questionsToUse = session ? session.questions : INITIAL_GAME_STATE.questions;
+      const teamsToUse = session ? session.teams : INITIAL_GAME_STATE.teams;
+      const titleToUse = session ? session.title : INITIAL_GAME_STATE.title;
+      const titleEnToUse = session ? session.title_en : INITIAL_GAME_STATE.title_en;
+      const descToUse = session ? session.description : INITIAL_GAME_STATE.description;
+      const descEnToUse = session ? session.description_en : INITIAL_GAME_STATE.description_en;
+
       const includeAnswers = req.query.answers !== 'false';
       const printLang = (req.query.lang as 'el' | 'en' | 'both') || 'el';
       const teamFilter = (req.query.team as string) || 'all';
+      const statusFilter = (req.query.status as 'all' | 'active_only' | 'inactive_only') || 'all';
       const autoprint = req.query.autoprint === '1';
 
-      const html = await generatePrintableQuestsHtml(INITIAL_GAME_STATE.questions, {
-        title: INITIAL_GAME_STATE.title,
-        title_en: INITIAL_GAME_STATE.title_en,
-        description: INITIAL_GAME_STATE.description,
-        description_en: INITIAL_GAME_STATE.description_en,
+      const html = await generatePrintableQuestsHtml(questionsToUse, {
+        title: titleToUse,
+        title_en: titleEnToUse,
+        description: descToUse,
+        description_en: descEnToUse,
         includeAnswers,
         printLang,
         includeExplanations: true,
         teamFilter,
-        teams: INITIAL_GAME_STATE.teams,
-        autoprint
+        statusFilter,
+        teams: teamsToUse,
+        autoprint,
+        sessionId
       });
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -619,6 +689,7 @@ async function startServer() {
         printLang = 'el',
         includeExplanations = true,
         teamFilter = 'all',
+        statusFilter = 'all',
         teams = INITIAL_GAME_STATE.teams,
         autoprint = false
       } = req.body || {};
@@ -632,6 +703,7 @@ async function startServer() {
         printLang,
         includeExplanations,
         teamFilter,
+        statusFilter,
         teams,
         autoprint
       });
@@ -647,16 +719,18 @@ async function startServer() {
   // Direct PDF generation endpoint (POST: customizable options & custom questions; GET: quick download)
   app.post('/api/generate-pdf', (req, res) => {
     try {
-      const {
-        questions = INITIAL_GAME_STATE.questions,
-        title = INITIAL_GAME_STATE.title,
-        title_en = INITIAL_GAME_STATE.title_en,
-        includeAnswers = true,
-        printLang = 'el',
-        includeExplanations = true,
-        teamFilter = 'all',
-        teams = INITIAL_GAME_STATE.teams
-      } = req.body || {};
+      const sessionId = req.body?.sessionId || req.body?.session;
+      const session = sessionId ? printSessions.get(sessionId) : null;
+
+      const questions = req.body?.questions || session?.questions || INITIAL_GAME_STATE.questions;
+      const title = req.body?.title || session?.title || INITIAL_GAME_STATE.title;
+      const title_en = req.body?.title_en || session?.title_en || INITIAL_GAME_STATE.title_en;
+      const includeAnswers = req.body?.includeAnswers !== undefined ? req.body.includeAnswers : true;
+      const printLang = req.body?.printLang || 'el';
+      const includeExplanations = req.body?.includeExplanations !== undefined ? req.body.includeExplanations : true;
+      const teamFilter = req.body?.teamFilter || 'all';
+      const statusFilter = req.body?.statusFilter || 'all';
+      const teams = req.body?.teams || session?.teams || INITIAL_GAME_STATE.teams;
 
       const pdfBuffer = generateVultureQuestsPdf(questions, {
         title,
@@ -665,13 +739,15 @@ async function startServer() {
         printLang,
         includeExplanations,
         teamFilter,
+        statusFilter,
         teams
       });
 
       const dateStr = new Date().toISOString().slice(0, 10);
+      const totalCount = questions.length;
       const fileName = includeAnswers
-        ? `BoundPad-Vulture-Arena-61-Apostoles-Lyseis-${dateStr}.pdf`
-        : `BoundPad-Vulture-Arena-61-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
+        ? `BoundPad-Vulture-Arena-${totalCount}-Apostoles-Lyseis-${dateStr}.pdf`
+        : `BoundPad-Vulture-Arena-${totalCount}-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -685,24 +761,35 @@ async function startServer() {
 
   app.get('/api/generate-pdf', (req, res) => {
     try {
+      const sessionId = (req.query.sessionId || req.query.session) as string;
+      const session = sessionId ? printSessions.get(sessionId) : null;
+
+      const questionsToUse = session ? session.questions : INITIAL_GAME_STATE.questions;
+      const teamsToUse = session ? session.teams : INITIAL_GAME_STATE.teams;
+      const titleToUse = session ? session.title : INITIAL_GAME_STATE.title;
+      const titleEnToUse = session ? session.title_en : INITIAL_GAME_STATE.title_en;
+
       const includeAnswers = req.query.answers !== 'false';
       const printLang = (req.query.lang as 'el' | 'en' | 'both') || 'el';
       const teamFilter = (req.query.team as string) || 'all';
+      const statusFilter = (req.query.status as 'all' | 'active_only' | 'inactive_only') || 'all';
 
-      const pdfBuffer = generateVultureQuestsPdf(INITIAL_GAME_STATE.questions, {
-        title: INITIAL_GAME_STATE.title,
-        title_en: INITIAL_GAME_STATE.title_en,
+      const pdfBuffer = generateVultureQuestsPdf(questionsToUse, {
+        title: titleToUse,
+        title_en: titleEnToUse,
         includeAnswers,
         printLang,
         includeExplanations: true,
         teamFilter,
-        teams: INITIAL_GAME_STATE.teams
+        statusFilter,
+        teams: teamsToUse
       });
 
       const dateStr = new Date().toISOString().slice(0, 10);
+      const totalCount = questionsToUse.length;
       const fileName = includeAnswers
-        ? `BoundPad-Vulture-Arena-61-Apostoles-Lyseis-${dateStr}.pdf`
-        : `BoundPad-Vulture-Arena-61-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
+        ? `BoundPad-Vulture-Arena-${totalCount}-Apostoles-Lyseis-${dateStr}.pdf`
+        : `BoundPad-Vulture-Arena-${totalCount}-Apostoles-Fyllo-Mathiti-${dateStr}.pdf`;
 
       const isInline = req.query.view === '1' || req.query.inline === '1';
       const disposition = isInline ? 'inline' : 'attachment';

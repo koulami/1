@@ -28,7 +28,10 @@ export const ImageMatchQuest: React.FC<Props> = ({
   readOnly = false
 }) => {
   const t = translations[lang];
-  const payload = question.payload as ImageMatchPayload;
+  const isEn = lang === 'en';
+  const payload = (isEn && question.payload_en && Array.isArray((question.payload_en as ImageMatchPayload).pairs))
+    ? (question.payload_en as ImageMatchPayload)
+    : (question.payload as ImageMatchPayload);
 
   const shuffledTextItems = useMemo(() => {
     const list = payload.pairs.map(p => ({ id: p.id, text: p.text }));
@@ -121,7 +124,7 @@ export const ImageMatchQuest: React.FC<Props> = ({
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-300 leading-relaxed font-normal">
-        {t.matchInstructionsImage}
+        {(isEn ? question.description_en || question.description : question.description) || t.matchInstructionsImage}
       </p>
 
       {!hasSubmitted && !readOnly && (
@@ -264,6 +267,12 @@ export const ImageMatchQuest: React.FC<Props> = ({
               </>
             )}
           </div>
+          {(question.explanation || question.explanation_en) && (
+            <p className="text-slate-300 pt-1 text-xs">
+              <span className="font-semibold text-slate-200">{t.explanation}:</span>{' '}
+              {isEn ? (question.explanation_en || question.explanation) : question.explanation}
+            </p>
+          )}
         </div>
       )}
     </div>
