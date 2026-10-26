@@ -146,6 +146,7 @@ export interface Team {
   slogan_en?: string;
   questionOrder?: string[]; // IDs of questions in sequence for this team
   sequentialProgression?: boolean; // If true, team must answer questions in order
+  reflectionText?: string; // Student reflection and wow moment quote
 }
 
 export interface Submission {
@@ -157,6 +158,7 @@ export interface Submission {
   scoreEarned: number;
   answerData: any;
   photoUrl?: string;
+  reflectionText?: string; // Open-ended reflection text
   puzzleStats?: {
     moves: number;
     durationSeconds: number;

@@ -51,7 +51,11 @@ function deriveFactIconAndBadge(quest: Question, isMistake: boolean): { icon: st
   let badge = 'Επιστημονικό Γεγονός';
   let badge_en = 'Scientific Fact';
 
-  if (t.includes('πτέρυγ') || t.includes('άνοιγμα') || t.includes('wingspan')) {
+  if (quest.id.includes('reflection') || t.includes('αναστοχασμ') || t.includes('reflection') || t.includes('wow moment')) {
+    icon = '💬';
+    badge = 'Αναστοχασμός Ομάδας & Wow Moment';
+    badge_en = 'Team Reflection & Wow Moment';
+  } else if (t.includes('πτέρυγ') || t.includes('άνοιγμα') || t.includes('wingspan')) {
     icon = '🦅';
     badge = '2.5m Άνοιγμα Πτερύγων';
     badge_en = '2.5m Wingspan';
@@ -166,8 +170,13 @@ export function extractScientificFact(
 
     case 'task':
     case 'research': {
-      correctAnswerText = (quest.payload as any)?.completionPrompt || (quest.payload as any)?.instructions || quest.title;
-      correctAnswerText_en = quest.title_en || quest.title;
+      if (teamAnswerData?.reportText || teamAnswerData?.reflectionText) {
+        correctAnswerText = teamAnswerData.reportText || teamAnswerData.reflectionText;
+        correctAnswerText_en = teamAnswerData.reportText || teamAnswerData.reflectionText;
+      } else {
+        correctAnswerText = (quest.payload as any)?.completionPrompt || (quest.payload as any)?.instructions || quest.title;
+        correctAnswerText_en = quest.title_en || quest.title;
+      }
       break;
     }
 
@@ -180,8 +189,15 @@ export function extractScientificFact(
   const explanation = quest.explanation || quest.description || '';
   const explanation_en = quest.explanation_en || quest.description_en || quest.explanation || quest.description || '';
 
-  const keyTakeaway = extractTakeawayText(explanation, quest.title);
-  const keyTakeaway_en = extractTakeawayText(explanation_en, quest.title_en || quest.title);
+  const isReflectionQuest = quest.id.includes('reflection');
+  const studentReflection = (teamAnswerData?.reportText || teamAnswerData?.reflectionText || '').trim();
+
+  const keyTakeaway = isReflectionQuest && studentReflection
+    ? studentReflection
+    : extractTakeawayText(explanation, quest.title);
+  const keyTakeaway_en = isReflectionQuest && studentReflection
+    ? studentReflection
+    : extractTakeawayText(explanation_en, quest.title_en || quest.title);
 
   const { icon, badge, badge_en } = deriveFactIconAndBadge(quest, isMistake);
 

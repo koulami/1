@@ -21,7 +21,8 @@ export const STORAGE_KEYS = {
   GAME_STARTED: 'boundpad_game_started_v10',
   GAME_START_TIMESTAMP: 'boundpad_game_start_ts_v10',
   GROUP_TIMERS: 'boundpad_group_timers_v10',
-  TASK_TIMERS: 'boundpad_task_timers_v10'
+  TASK_TIMERS: 'boundpad_task_timers_v10',
+  TEAM_REFLECTIONS: 'boundpad_team_reflections_v10'
 } as const;
 
 // In-memory fallback cache in case localStorage is disabled, private, or quota-exceeded
@@ -110,6 +111,45 @@ export const storageService = {
     } catch (e) {
       console.warn('[StorageService] Error saving all submissions:', e);
       return false;
+    }
+  },
+
+  /**
+   * Load all team reflections / wow moment quotes
+   */
+  getTeamReflections(): Record<string, string> {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.TEAM_REFLECTIONS);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed as Record<string, string>;
+      }
+      return {};
+    } catch (e) {
+      console.warn('[StorageService] Error reading team reflections:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Get reflection quote for a specific team
+   */
+  getTeamReflection(teamId: string): string | null {
+    const all = this.getTeamReflections();
+    return all[teamId] || null;
+  },
+
+  /**
+   * Save reflection quote for a specific team
+   */
+  saveTeamReflection(teamId: string, reflectionText: string): void {
+    try {
+      const current = this.getTeamReflections();
+      current[teamId] = reflectionText.trim();
+      safeSetItem(STORAGE_KEYS.TEAM_REFLECTIONS, JSON.stringify(current));
+    } catch (e) {
+      console.warn('[StorageService] Error saving team reflection:', e);
     }
   },
 

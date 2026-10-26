@@ -593,6 +593,33 @@ export const masterTaskPool: Question[] = [
     "explanation_en": "Observing the life-sized replica anchors student understanding of the vulture's immense physical proportions."
   },
   {
+    "id": "cyprus-vulture-reflection-alpha",
+    "title": "Αναστοχασμός Ομάδας 1: Το Δικό μας «Wow Moment» & Συμπέρασμα",
+    "title_en": "Group 1 Reflection: Our Team 'Wow Moment' & Takeaway",
+    "description": "Μοιραστείτε με δικά σας λόγια το προσωπικό σας συμπέρασμα ή τι σας εντυπωσίασε περισσότερο από τη γνωριμία με την ταυτότητα και τη μορφολογία του Όρνιου (π.χ. το τεράστιο άνοιγμα πτερύγων 2.5m, η μονογαμία για μια ζωή, το 1 μόνο αυγό ετησίως). Η απάντησή σας θα προβληθεί αυτόματα ως το επίσημο Quote Box στο Infographic Poster της ομάδας!",
+    "description_en": "Share in your own words your personal takeaway or what impressed you most about vulture identity and morphology (e.g. 2.5m wingspan, lifelong monogamy, single annual egg). Your response will automatically appear as the official Quote Box on your team's Infographic Poster!",
+    "type": "task",
+    "points": 150,
+    "assignedTeamIds": [
+      "team-alpha"
+    ],
+    "isActive": true,
+    "payload": {
+      "instructions": "Γράψτε το προσωπικό σας συμπέρασμα ή «Wow Moment» από την έρευνα πεδίου:",
+      "requiresEvidence": "text",
+      "minWords": 3,
+      "completionPrompt": "Το «Wow Moment» & Συμπέρασμα της Ομάδας 1 (θα εμφανιστεί στο Poster):"
+    },
+    "payload_en": {
+      "instructions": "Write your personal reflection or team 'Wow Moment' from your field research:",
+      "requiresEvidence": "text",
+      "minWords": 3,
+      "completionPrompt": "Team 1 'Wow Moment' & Reflection (will appear on the Poster):"
+    },
+    "explanation": "Ο αναστοχασμός ολοκληρώνει τη διερευνητική μάθηση. Το απόσταγμα της σκέψης σας καταγράφεται και κοσμεί το ψηφιακό έκθεμα της ομάδας!",
+    "explanation_en": "Student reflection crowns authentic inquiry. Your synthesized thought is now prominently immortalized on the team poster!"
+  },
+  {
     "id": "cyprus-vulture-16",
     "title": "Κύρια Αποικία στην Κύπρο: Γκρεμοί Επισκοπής",
     "title_en": "Main Colony in Cyprus: Episkopi Cliffs",
@@ -1105,6 +1132,33 @@ export const masterTaskPool: Question[] = [
     },
     "explanation": "Σε κακοκαιρία οι γύπες καθηλώνονται στα βράχια. Μπορούν να περιμένουν νηστικοί αρκετές ημέρες μέχρι να ξαναβγεί ήλιος.",
     "explanation_en": "Adverse weather grounds heavy soaring birds; vultures comfortably fast for days on dry ledges awaiting solar resurgence."
+  },
+  {
+    "id": "cyprus-vulture-reflection-beta",
+    "title": "Αναστοχασμός Ομάδας 2: Το Δικό μας «Wow Moment» & Συμπέρασμα",
+    "title_en": "Group 2 Reflection: Our Team 'Wow Moment' & Takeaway",
+    "description": "Ποιο στοιχείο για τους παράκτιους γκρεμούς της Επισκοπής, την ενεργειακά αποδοτική αιώρηση στα θερμικά ρεύματα ή την ακτίνα πτήσης 100+ km σας εντυπωσίασε βαθύτερα; Γράψτε το μήνυμα/συμπέρασμα της ομάδας σας για να κοσμήσει το Infographic Poster!",
+    "description_en": "What impressed you most about Episkopi's marine sea cliffs, soaring effortlessly on thermal updrafts, or the 100+ km foraging patrol range? Write your team quote to feature on the Infographic Poster!",
+    "type": "task",
+    "points": 150,
+    "assignedTeamIds": [
+      "team-beta"
+    ],
+    "isActive": true,
+    "payload": {
+      "instructions": "Γράψτε το προσωπικό σας συμπέρασμα ή «Wow Moment» από την έρευνα πεδίου:",
+      "requiresEvidence": "text",
+      "minWords": 3,
+      "completionPrompt": "Το «Wow Moment» & Συμπέρασμα της Ομάδας 2 (θα εμφανιστεί στο Poster):"
+    },
+    "payload_en": {
+      "instructions": "Write your personal reflection or team 'Wow Moment' from your field research:",
+      "requiresEvidence": "text",
+      "minWords": 3,
+      "completionPrompt": "Team 2 'Wow Moment' & Reflection (will appear on the Poster):"
+    },
+    "explanation": "Ο αναστοχασμός ολοκληρώνει τη διερευνητική μάθηση. Το απόσταγμα της σκέψης σας καταγράφεται και κοσμεί το ψηφιακό έκθεμα της ομάδας!",
+    "explanation_en": "Student reflection crowns authentic inquiry. Your synthesized thought is now prominently immortalized on the team poster!"
   },
   {
     "id": "cyprus-vulture-31",
@@ -1633,6 +1687,33 @@ export const masterTaskPool: Question[] = [
     },
     "explanation": "Λάθος! Είναι επιστημονικά αποδεδειγμένο ότι τα ισχυρότατα οξέα του γύπα καταστρέφουν τα παθογόνα μικρόβια, σταματώντας τη μετάδοση ασθενειών.",
     "explanation_en": "False! Research proves vulture digestive enzymes permanently kill infectious pathogens, actively halting disease spread."
+  },
+  {
+    "id": "cyprus-vulture-reflection-gamma",
+    "title": "Αναστοχασμός Ομάδας 3: Το Δικό μας «Wow Moment» & Συμπέρασμα",
+    "title_en": "Group 3 Reflection: Our Team 'Wow Moment' & Takeaway",
+    "description": "Ποιο βιολογικό μυστικό του γύπα σας προκάλεσε τον μεγαλύτερο θαυμασμό (το υπερ-όξινο γαστρικό υγρό pH 1.0 που εξουδετερώνει τον άνθρακα, ο ρόλος του φυσικού καθαριστή χωρίς επιθέσεις σε ζωντανά, ο γυμνός λαιμός); Γράψτε το προσωπικό συμπέρασμα της ομάδας σας για να κοσμήσει το Infographic Poster!",
+    "description_en": "Which biological adaptation surprised you most (pH 1.0 gastric chemistry neutralizing anthrax and botulism, obligate scavenging, sanitary featherless neck)? Write your team takeaway to feature on the Infographic Poster!",
+    "type": "task",
+    "points": 150,
+    "assignedTeamIds": [
+      "team-gamma"
+    ],
+    "isActive": true,
+    "payload": {
+      "instructions": "Γράψτε το προσωπικό σας συμπέρασμα ή «Wow Moment» από την έρευνα πεδίου:",
+      "requiresEvidence": "text",
+      "minWords": 3,
+      "completionPrompt": "Το «Wow Moment» & Συμπέρασμα της Ομάδας 3 (θα εμφανιστεί στο Poster):"
+    },
+    "payload_en": {
+      "instructions": "Write your personal reflection or team 'Wow Moment' from your field research:",
+      "requiresEvidence": "text",
+      "minWords": 3,
+      "completionPrompt": "Team 3 'Wow Moment' & Reflection (will appear on the Poster):"
+    },
+    "explanation": "Ο αναστοχασμός ολοκληρώνει τη διερευνητική μάθηση. Το απόσταγμα της σκέψης σας καταγράφεται και κοσμεί το ψηφιακό έκθεμα της ομάδας!",
+    "explanation_en": "Student reflection crowns authentic inquiry. Your synthesized thought is now prominently immortalized on the team poster!"
   },
   {
     "id": "cyprus-vulture-46",
@@ -2203,6 +2284,33 @@ export const masterTaskPool: Question[] = [
     },
     "explanation": "Η σωτηρία του Όρνιου στην Κύπρο είναι συλλογική ευθύνη όλων μας. Με την ολοκλήρωση των 61 αποστολών γίνατε επίσημοι Πρεσβευτές Προστασίας!",
     "explanation_en": "Saving the Cyprus Griffon Vulture is our shared heritage. You are now official ambassadors for vulture conservation!"
+  },
+  {
+    "id": "cyprus-vulture-reflection-delta",
+    "title": "Αναστοχασμός Ομάδας 4: Το Δικό μας «Wow Moment» & Συμπέρασμα",
+    "title_en": "Group 4 Reflection: Our Team 'Wow Moment' & Takeaway",
+    "description": "Ως επίσημοι Πρεσβευτές Προστασίας του Γύπα, τι σας άγγιξε περισσότερο στην προσπάθεια διάσωσής του στην Κύπρο (η μάχη κατά των παράνομων δηλητηρίων, οι σκύλοι K9, οι 4 ασφαλείς ταΐστρες, τα πουλιά από την Ισπανία); Καταγράψτε το κορυφαίο σας μήνυμα για να προβληθεί στο Infographic Poster!",
+    "description_en": "As official Vulture Conservation Ambassadors, what resonated with you most in the Cyprus rescue mission (the fight against illegal poison baits, K9 dog units, the 4 safe feeding stations, reintroduction from Spain)? Record your top message to feature on the Infographic Poster!",
+    "type": "task",
+    "points": 150,
+    "assignedTeamIds": [
+      "team-delta"
+    ],
+    "isActive": true,
+    "payload": {
+      "instructions": "Γράψτε το προσωπικό σας συμπέρασμα ή «Wow Moment» από την έρευνα πεδίου:",
+      "requiresEvidence": "text",
+      "minWords": 3,
+      "completionPrompt": "Το «Wow Moment» & Συμπέρασμα της Ομάδας 4 (θα εμφανιστεί στο Poster):"
+    },
+    "payload_en": {
+      "instructions": "Write your personal reflection or team 'Wow Moment' from your field research:",
+      "requiresEvidence": "text",
+      "minWords": 3,
+      "completionPrompt": "Team 4 'Wow Moment' & Reflection (will appear on the Poster):"
+    },
+    "explanation": "Ο αναστοχασμός ολοκληρώνει τη διερευνητική μάθηση. Το απόσταγμα της σκέψης σας καταγράφεται και κοσμεί το ψηφιακό έκθεμα της ομάδας!",
+    "explanation_en": "Student reflection crowns authentic inquiry. Your synthesized thought is now prominently immortalized on the team poster!"
   }
 ];
 
@@ -2304,6 +2412,38 @@ export const CHECKPOINT_TASK_IDS: Record<
     badge_en: '🏆 Final Checkpoint #61',
     desc: 'Υπογραφή Χάρτας και ορκωμοσία Πρεσβευτών Προστασίας του Όρνιου',
     desc_en: 'Signing the Charter and swearing-in Vulture Protection Ambassadors'
+  },
+  'cyprus-vulture-reflection-alpha': {
+    label: 'Τελικός Αναστοχασμός Ομάδας 1: Το Wow Moment',
+    label_en: 'Team 1 Capstone Reflection: The Wow Moment',
+    badge: '💬 Αναστοχασμός Ομάδας 1',
+    badge_en: '💬 Team 1 Reflection',
+    desc: 'Προσωπικό συμπέρασμα και φωνή της ομάδας για το τελικό poster',
+    desc_en: 'Student personal takeaway and team voice for the final poster'
+  },
+  'cyprus-vulture-reflection-beta': {
+    label: 'Τελικός Αναστοχασμός Ομάδας 2: Το Wow Moment',
+    label_en: 'Team 2 Capstone Reflection: The Wow Moment',
+    badge: '💬 Αναστοχασμός Ομάδας 2',
+    badge_en: '💬 Team 2 Reflection',
+    desc: 'Προσωπικό συμπέρασμα και φωνή της ομάδας για το τελικό poster',
+    desc_en: 'Student personal takeaway and team voice for the final poster'
+  },
+  'cyprus-vulture-reflection-gamma': {
+    label: 'Τελικός Αναστοχασμός Ομάδας 3: Το Wow Moment',
+    label_en: 'Team 3 Capstone Reflection: The Wow Moment',
+    badge: '💬 Αναστοχασμός Ομάδας 3',
+    badge_en: '💬 Team 3 Reflection',
+    desc: 'Προσωπικό συμπέρασμα και φωνή της ομάδας για το τελικό poster',
+    desc_en: 'Student personal takeaway and team voice for the final poster'
+  },
+  'cyprus-vulture-reflection-delta': {
+    label: 'Τελικός Αναστοχασμός Ομάδας 4: Το Wow Moment',
+    label_en: 'Team 4 Capstone Reflection: The Wow Moment',
+    badge: '💬 Αναστοχασμός Ομάδας 4',
+    badge_en: '💬 Team 4 Reflection',
+    desc: 'Προσωπικό συμπέρασμα και φωνή της ομάδας για το τελικό poster',
+    desc_en: 'Student personal takeaway and team voice for the final poster'
   }
 };
 

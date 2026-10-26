@@ -276,6 +276,12 @@ export default function App() {
       storageService.saveSubmission(sub);
       const key = `${sub.teamId}_${sub.questionId}`;
       setSubmissions((prev) => ({ ...prev, [key]: sub }));
+
+      // If this submission contains reflection text or is for a reflection task, save to team reflections
+      const reflectionText = (sub.reflectionText || sub.answerData?.reportText || sub.answerData?.reflectionText || '').trim();
+      if (reflectionText && (sub.questionId.includes('reflection') || sub.answerData?.reportText)) {
+        storageService.saveTeamReflection(sub.teamId, reflectionText);
+      }
     } catch (err) {
       console.error('saveSubmission error', err);
     }
@@ -1616,6 +1622,7 @@ function InlineQuestCard({
   const handleSaveSub = (answerData: any, isCorrect: boolean, pointsEarned?: number) => {
     if (isLocked) return; // Prevent submission if time is expired
     const scientificFact = extractScientificFact(quest, team.id, isCorrect, answerData);
+    const reflectionText = (answerData?.reportText || answerData?.reflectionText || '').trim() || undefined;
     const newSub: Submission = {
       id: submission?.id || `sub-${Date.now()}`,
       teamId: team.id,
@@ -1624,6 +1631,7 @@ function InlineQuestCard({
       status: isCorrect ? 'correct' : 'incorrect',
       scoreEarned: isCorrect ? (pointsEarned ?? quest.points) : 0,
       answerData,
+      reflectionText,
       scientificFact
     };
     onSaveSubmission(newSub);
