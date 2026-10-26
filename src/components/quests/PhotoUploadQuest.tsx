@@ -3,6 +3,7 @@ import { Camera, Upload, CheckCircle2, RefreshCw, Video, Film, AlertCircle, File
 import { Question, PhotoUploadPayload, Submission } from '../../types/game';
 import { translations } from '../../locales/translations';
 import { sound } from '../../services/sound';
+import { processLocalFile } from '../../utils/fileUploadHelper';
 
 interface Props {
   question: Question;
@@ -260,21 +261,36 @@ export const PhotoUploadQuest: React.FC<Props> = ({
     sound.playSnap();
   };
 
-  // Generic File Upload Handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Generic File Upload Handler with Native File Processing
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadError(null);
 
-    if (file.type.startsWith('video/')) {
-      processVideoFile(file);
-    } else if (file.type.startsWith('image/')) {
-      processImageFile(file);
-    } else {
+    try {
+      const processed = await processLocalFile(file, 900, 0.82);
+      safeRevokeObjectUrl();
+      if (processed.type === 'video') {
+        currentObjectUrlRef.current = processed.url;
+        setPhotoDataUrl(null);
+        setVideoPreviewUrl(processed.url);
+        setVideoPoster(processed.thumbnail || null);
+        setSelectedMediaType('video');
+      } else {
+        setVideoPreviewUrl(null);
+        setPhotoDataUrl(processed.url);
+        setSelectedMediaType('photo');
+      }
+      setMediaMetadata({
+        name: processed.name,
+        size: processed.size,
+        type: file.type,
+        thumbnail: processed.thumbnail
+      });
+      sound.playSnap();
+    } catch (err: any) {
       setUploadError(
-        lang === 'el'
-          ? 'Μη υποστηριζόμενος τύπος αρχείου. Παρακαλώ επιλέξτε εικόνα ή βίντεο.'
-          : 'Unsupported file type. Please select an image or video file.'
+        err?.message || (lang === 'el' ? 'Σφάλμα ανάγνωσης αρχείου.' : 'Error reading file.')
       );
     }
 

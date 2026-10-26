@@ -128,6 +128,7 @@ export interface Question {
     | TaskPayload
     | ResearchPayload;
   explanation?: string;
+  timeLimitMinutes?: number; // Optional time limit in minutes for task deadline
   // English localization
   title_en?: string;
   description_en?: string;
@@ -161,6 +162,26 @@ export interface Submission {
     durationSeconds: number;
   };
   feedbackNote?: string;
+  scientificFact?: {
+    taskId: string;
+    taskTitle: string;
+    taskTitle_en?: string;
+    taskType: string;
+    points: number;
+    correctAnswerText: string;
+    correctAnswerText_en: string;
+    explanation: string;
+    explanation_en: string;
+    keyTakeaway: string;
+    keyTakeaway_en: string;
+    isMistakeTurnedLearning: boolean;
+    initialStatus: 'correct' | 'incorrect' | 'completed';
+    recordedAt: number;
+    teamId: string;
+    badge?: string;
+    badge_en?: string;
+    icon?: string;
+  };
 }
 
 export interface TimerState {

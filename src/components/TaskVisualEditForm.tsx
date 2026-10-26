@@ -25,8 +25,10 @@ import {
   Eye,
   FileCheck,
   Layers,
-  FileText
+  FileText,
+  Upload
 } from 'lucide-react';
+import { processLocalFile } from '../utils/fileUploadHelper';
 import {
   Question,
   QuestionType,
@@ -105,6 +107,10 @@ export const TaskVisualEditForm: React.FC<Props> = ({
     if (task.imageUrl) return 'image';
     return 'none';
   });
+
+  // Group Assignment & Time Limit
+  const [assignedTeamIds, setAssignedTeamIds] = useState<string[]>(task.assignedTeamIds || []);
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState<number>(task.timeLimitMinutes || 0);
 
   // Type-specific Payload state
   // 1. Multiple Choice
@@ -242,6 +248,8 @@ export const TaskVisualEditForm: React.FC<Props> = ({
     setExplanation(task.explanation || '');
     setImageUrl(task.imageUrl || '');
     setVideoUrl(task.videoUrl || '');
+    setAssignedTeamIds(task.assignedTeamIds || []);
+    setTimeLimitMinutes(task.timeLimitMinutes || 0);
     if (task.videoUrl) {
       setMediaTypeTab('video');
     } else if (task.imageUrl) {
@@ -371,6 +379,8 @@ export const TaskVisualEditForm: React.FC<Props> = ({
       description: description.trim(),
       type,
       points: Number(points) || 100,
+      timeLimitMinutes: Number(timeLimitMinutes) > 0 ? Number(timeLimitMinutes) : undefined,
+      assignedTeamIds: assignedTeamIds.length > 0 ? assignedTeamIds : undefined,
       imageUrl: finalImageUrl,
       videoUrl: finalVideoUrl,
       explanation: explanation.trim(),
@@ -484,6 +494,76 @@ export const TaskVisualEditForm: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Row 2b: Group Assignment & Optional Task Time Limit */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+        <div className="sm:col-span-2 space-y-2">
+          <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{isEl ? 'Ανάθεση σε Ομάδες (Group Assignment):' : 'Assigned Groups:'}</span>
+          </label>
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { id: 'team-alpha', label: isEl ? 'Ομάδα 1' : 'Group 1', color: '#10b981' },
+              { id: 'team-beta', label: isEl ? 'Ομάδα 2' : 'Group 2', color: '#06b6d4' },
+              { id: 'team-gamma', label: isEl ? 'Ομάδα 3' : 'Group 3', color: '#f59e0b' },
+              { id: 'team-delta', label: isEl ? 'Ομάδα 4' : 'Group 4', color: '#8b5cf6' }
+            ].map((grp) => {
+              const isAssigned = assignedTeamIds.includes(grp.id);
+              return (
+                <button
+                  key={grp.id}
+                  type="button"
+                  onClick={() => {
+                    if (assignedTeamIds.includes(grp.id)) {
+                      setAssignedTeamIds(assignedTeamIds.filter((t) => t !== grp.id));
+                    } else {
+                      setAssignedTeamIds([...assignedTeamIds, grp.id]);
+                    }
+                  }}
+                  style={{
+                    borderColor: isAssigned ? grp.color : '#334155',
+                    backgroundColor: isAssigned ? `${grp.color}25` : 'transparent'
+                  }}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    isAssigned ? 'text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span>{isAssigned ? '✓' : '+'}</span>
+                  <span>{grp.label}</span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setAssignedTeamIds([])}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                assignedTeamIds.length === 0
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 ring-1 ring-amber-400/30'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
+              }`}
+            >
+              {isEl ? 'Όλες οι Ομάδες (Κοινή)' : 'All Groups (Shared)'}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+            <Sliders className="w-3.5 h-3.5 text-amber-400" />
+            <span>{isEl ? 'Χρονικό Όριο Αποστολής (λεπτά):' : 'Task Time Limit (mins):'}</span>
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={60}
+            value={timeLimitMinutes || ''}
+            onChange={(e) => setTimeLimitMinutes(Number(e.target.value) || 0)}
+            placeholder={isEl ? '0 = Χωρίς όριο' : '0 = No limit'}
+            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-amber-400"
+          />
+        </div>
+      </div>
+
       {/* ===================================================================== */}
       {/* SECTION: UNIVERSAL QUESTION REFERENCE MEDIA (IMAGE / VIDEO)           */}
       {/* Allows teachers to attach reference media to ANY question type        */}
@@ -548,6 +628,43 @@ export const TaskVisualEditForm: React.FC<Props> = ({
           </div>
         </div>
 
+        {/* Direct Local File Upload Trigger */}
+        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-slate-300">
+            <Upload className="w-4 h-4 text-amber-400" />
+            <span className="font-semibold">
+              {isEl ? 'Άμεση Μεταφόρτωση από Συσκευή (Φωτογραφία / Βίντεο):' : 'Direct Local Device Upload (Photo / Video):'}
+            </span>
+          </div>
+
+          <label className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all active:scale-95">
+            <Upload className="w-3.5 h-3.5" />
+            <span>{isEl ? 'Επιλογή Αρχείου' : 'Choose File'}</span>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const res = await processLocalFile(file, 800, 0.8);
+                  if (res.type === 'video') {
+                    setVideoUrl(res.url);
+                    setMediaTypeTab('video');
+                  } else {
+                    setImageUrl(res.url);
+                    setMediaTypeTab('image');
+                  }
+                } catch (err) {
+                  console.error('File upload failed:', err);
+                }
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+
         {/* Image URL Input & Presets */}
         {mediaTypeTab === 'image' && (
           <div className="space-y-2.5 animate-in fade-in duration-150">
@@ -556,9 +673,31 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                 type="url"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
-                placeholder={isEl ? 'Εισαγάγετε URL εικόνας (https://...)' : 'Enter image URL (https://...)'}
+                placeholder={isEl ? 'Εισαγάγετε URL εικόνας ή επιλέξτε αρχείο από τη συσκευή...' : 'Enter image URL or choose file from device...'}
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
               />
+
+              <label className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0">
+                <Upload className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isEl ? 'Επιλογή' : 'Browse'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const res = await processLocalFile(file, 800, 0.8);
+                      setImageUrl(res.url);
+                    } catch (err) {
+                      console.error(err);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+
               {imageUrl && (
                 <button
                   type="button"
@@ -594,23 +733,25 @@ export const TaskVisualEditForm: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Live Image Preview */}
+            {/* Live Image Preview Thumbnail */}
             {imageUrl && (
-              <div className="p-2 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3">
                 <img
                   src={imageUrl}
                   alt="Task preview"
-                  className="w-20 h-16 object-cover rounded-lg border border-slate-700 shrink-0 bg-slate-900"
+                  className="w-20 h-16 object-cover rounded-lg border border-slate-700 shrink-0 bg-slate-900 shadow-md"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
                   }}
                 />
-                <div className="text-xs space-y-0.5 overflow-hidden">
+                <div className="text-xs space-y-0.5 overflow-hidden flex-1">
                   <span className="font-bold text-emerald-400 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>{isEl ? 'Προεπισκόπηση Εικόνας Ενεργή' : 'Image Preview Active'}</span>
                   </span>
-                  <p className="text-[11px] text-slate-400 truncate max-w-md font-mono">{imageUrl}</p>
+                  <p className="text-[11px] text-slate-400 truncate max-w-md font-mono">
+                    {imageUrl.startsWith('data:') ? (isEl ? 'Τοπικό Αρχείο (Base64 Thumbnail)' : 'Local File (Base64 Thumbnail)') : imageUrl}
+                  </p>
                 </div>
               </div>
             )}
@@ -625,9 +766,31 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                 type="url"
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder={isEl ? 'Εισαγάγετε URL βίντεο MP4 / WebM (https://...)' : 'Enter video MP4/WebM URL (https://...)'}
+                placeholder={isEl ? 'Εισαγάγετε URL βίντεο MP4 / WebM ή επιλέξτε αρχείο...' : 'Enter video MP4/WebM URL or choose file...'}
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
               />
+
+              <label className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0">
+                <Upload className="w-3.5 h-3.5 text-purple-400" />
+                <span>{isEl ? 'Επιλογή' : 'Browse'}</span>
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const res = await processLocalFile(file, 800, 0.8);
+                      setVideoUrl(res.url);
+                    } catch (err) {
+                      console.error(err);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+
               {videoUrl && (
                 <button
                   type="button"
@@ -663,7 +826,7 @@ export const TaskVisualEditForm: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Live Video Player Preview */}
+            {/* Live Video Player Preview Thumbnail */}
             {videoUrl && (
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
@@ -673,7 +836,7 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                 <video
                   src={videoUrl}
                   controls
-                  className="w-full max-h-48 rounded-lg bg-black object-contain border border-slate-700"
+                  className="w-full max-h-48 rounded-lg bg-black object-contain border border-slate-700 shadow-md"
                 />
               </div>
             )}
@@ -912,17 +1075,40 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                   )}
 
                   <div className="flex-1 space-y-1.5 min-w-0">
-                    <input
-                      type="url"
-                      value={pair.image}
-                      onChange={(e) => {
-                        const updated = [...imPairs];
-                        updated[idx].image = e.target.value;
-                        setImPairs(updated);
-                      }}
-                      placeholder="URL Εικόνας (https://...)"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="url"
+                        value={pair.image}
+                        onChange={(e) => {
+                          const updated = [...imPairs];
+                          updated[idx].image = e.target.value;
+                          setImPairs(updated);
+                        }}
+                        placeholder={isEl ? 'URL Εικόνας ή επιλογή αρχείου...' : 'Image URL or choose file...'}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                      />
+                      <label className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer shrink-0" title={isEl ? 'Επιλογή εικόνας από συσκευή' : 'Choose image from device'}>
+                        <Upload className="w-3.5 h-3.5 text-amber-400" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const res = await processLocalFile(file, 600, 0.8);
+                              const updated = [...imPairs];
+                              updated[idx].image = res.url;
+                              setImPairs(updated);
+                            } catch (err) {
+                              console.error(err);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
 
                     <input
                       type="text"
@@ -964,16 +1150,38 @@ export const TaskVisualEditForm: React.FC<Props> = ({
           <div className="space-y-3">
             <div>
               <label className="text-[11px] text-slate-300 block mb-1">
-                {isEl ? 'URL Εικόνας Παζλ:' : 'Puzzle Image URL:'}
+                {isEl ? 'Εικόνα Παζλ (URL ή Επιλογή Αρχείου από Συσκευή):' : 'Puzzle Image (URL or Choose File from Device):'}
               </label>
-              <input
-                type="url"
-                required
-                value={puzzleImageUrl}
-                onChange={(e) => setPuzzleImageUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="url"
+                  required
+                  value={puzzleImageUrl}
+                  onChange={(e) => setPuzzleImageUrl(e.target.value)}
+                  placeholder={isEl ? 'Εισαγάγετε URL ή επιλέξτε τοπικό αρχείο εικόνας...' : 'Enter URL or choose local image file...'}
+                  className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                />
+                <label className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0">
+                  <Upload className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{isEl ? 'Επιλογή' : 'Browse'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const res = await processLocalFile(file, 800, 0.82);
+                        setPuzzleImageUrl(res.url);
+                      } catch (err) {
+                        console.error(err);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
             </div>
 
             {/* Grid pieces count */}
@@ -1114,9 +1322,29 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                 type="url"
                 value={sampleReferenceUrl}
                 onChange={(e) => setSampleReferenceUrl(e.target.value)}
-                placeholder={isEl ? 'Εισαγάγετε URL εικόνας υποδείγματος (https://...)' : 'Enter sample image URL (https://...)'}
+                placeholder={isEl ? 'Εισαγάγετε URL εικόνας υποδείγματος ή επιλέξτε αρχείο...' : 'Enter sample image URL or choose file...'}
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-400"
               />
+              <label className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0">
+                <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{isEl ? 'Επιλογή' : 'Browse'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const res = await processLocalFile(file, 800, 0.8);
+                      setSampleReferenceUrl(res.url);
+                    } catch (err) {
+                      console.error(err);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </label>
               {sampleReferenceUrl && (
                 <button
                   type="button"

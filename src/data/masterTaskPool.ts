@@ -2340,9 +2340,24 @@ export function mergeCustomQuestions(
   if (!customQuestions || Object.keys(customQuestions).length === 0) {
     return baseTasks;
   }
-  return baseTasks.map((t) => {
-    return customQuestions[t.id] ? { ...t, ...customQuestions[t.id] } : t;
-  });
+  const baseMap = new Map<string, Question>();
+  const merged: Question[] = [];
+
+  for (const t of baseTasks) {
+    const custom = customQuestions[t.id];
+    const finalTask = custom ? { ...t, ...custom } : t;
+    merged.push(finalTask);
+    baseMap.set(t.id, finalTask);
+  }
+
+  // Append any brand new custom tasks created by teacher
+  for (const [id, customTask] of Object.entries(customQuestions)) {
+    if (!baseMap.has(id) && customTask) {
+      merged.push(customTask);
+    }
+  }
+
+  return merged;
 }
 
 /**

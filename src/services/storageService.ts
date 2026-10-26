@@ -17,7 +17,11 @@ export const STORAGE_KEYS = {
   BACKUP_TIMESTAMP: 'boundpad_last_backup_ts',
   TASK_ACTIVE_OVERRIDES: 'boundpad_task_active_overrides_v10',
   ADMIN_AUTH: 'boundpad_admin_auth_v10',
-  CUSTOM_QUESTIONS: 'boundpad_custom_questions_v10'
+  CUSTOM_QUESTIONS: 'boundpad_custom_questions_v10',
+  GAME_STARTED: 'boundpad_game_started_v10',
+  GAME_START_TIMESTAMP: 'boundpad_game_start_ts_v10',
+  GROUP_TIMERS: 'boundpad_group_timers_v10',
+  TASK_TIMERS: 'boundpad_task_timers_v10'
 } as const;
 
 // In-memory fallback cache in case localStorage is disabled, private, or quota-exceeded
@@ -422,6 +426,124 @@ export const storageService = {
       safeRemoveItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
     } catch (e) {
       console.warn('[StorageService] Error resetting all custom questions:', e);
+    }
+  },
+
+  /**
+   * Check if game has been started by teacher (Lobby vs Started)
+   */
+  getGameStarted(): boolean {
+    try {
+      const val = safeGetItem(STORAGE_KEYS.GAME_STARTED);
+      return val === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Get timestamp when game was started (milliseconds since epoch)
+   */
+  getGameStartTimestamp(): number {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.GAME_START_TIMESTAMP);
+      if (!raw) return 0;
+      const parsed = parseInt(raw, 10);
+      return isNaN(parsed) ? 0 : parsed;
+    } catch {
+      return 0;
+    }
+  },
+
+  /**
+   * Set game started status by teacher and dispatch storage event
+   */
+  setGameStarted(started: boolean): void {
+    try {
+      safeSetItem(STORAGE_KEYS.GAME_STARTED, started ? 'true' : 'false');
+      if (started) {
+        const currentTs = this.getGameStartTimestamp();
+        if (!currentTs || currentTs <= 0) {
+          safeSetItem(STORAGE_KEYS.GAME_START_TIMESTAMP, Date.now().toString());
+        }
+      } else {
+        safeRemoveItem(STORAGE_KEYS.GAME_START_TIMESTAMP);
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:gameStarted', { detail: { started, timestamp: started ? this.getGameStartTimestamp() : 0 } }));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error setting game started:', e);
+    }
+  },
+
+  /**
+   * Reset game start timestamp manually (e.g. restart timer)
+   */
+  restartGameTimer(): void {
+    try {
+      const now = Date.now();
+      safeSetItem(STORAGE_KEYS.GAME_START_TIMESTAMP, now.toString());
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:timerReset', { detail: { timestamp: now } }));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error restarting game timer:', e);
+    }
+  },
+
+  /**
+   * Load group-specific timer deadlines (in minutes)
+   */
+  getGroupTimers(): Record<string, number> {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.GROUP_TIMERS);
+      if (!raw) return { 'team-alpha': 20, 'team-beta': 20, 'team-gamma': 20, 'team-delta': 20 };
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+      return { 'team-alpha': 20, 'team-beta': 20, 'team-gamma': 20, 'team-delta': 20 };
+    } catch {
+      return { 'team-alpha': 20, 'team-beta': 20, 'team-gamma': 20, 'team-delta': 20 };
+    }
+  },
+
+  /**
+   * Save group-specific timer deadlines
+   */
+  saveGroupTimers(timers: Record<string, number>): void {
+    try {
+      safeSetItem(STORAGE_KEYS.GROUP_TIMERS, JSON.stringify(timers));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:groupTimers', { detail: { timers } }));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error saving group timers:', e);
+    }
+  },
+
+  /**
+   * Load task-specific timer limits (in minutes)
+   */
+  getTaskTimers(): Record<string, number> {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.TASK_TIMERS);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+      return {};
+    } catch {
+      return {};
+    }
+  },
+
+  /**
+   * Save task-specific timer limits
+   */
+  saveTaskTimers(timers: Record<string, number>): void {
+    try {
+      safeSetItem(STORAGE_KEYS.TASK_TIMERS, JSON.stringify(timers));
+    } catch (e) {
+      console.warn('[StorageService] Error saving task timers:', e);
     }
   },
 

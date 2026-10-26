@@ -185,7 +185,7 @@ export const QrScanQuest: React.FC<Props> = ({
     <div className="space-y-4">
       {/* Question Description */}
       <p className="text-sm text-slate-300 leading-relaxed font-normal">
-        {question.description || t.qrScanInstructions}
+        {(lang === 'el' ? question.description : question.description_en || question.description) || t.qrScanInstructions}
       </p>
 
       {/* Location Hint Card */}
