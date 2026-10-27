@@ -67,6 +67,7 @@ interface AdminConsoleProps {
   onRestoreStateFromJson?: (jsonString: string) => boolean;
   synthesisNotes: any[];
   onClose: () => void;
+  onToggleLang?: (newLang: 'el' | 'en') => void;
 }
 
 export const AdminConsole: React.FC<AdminConsoleProps> = ({
@@ -81,7 +82,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   onResetTeamSubmissions,
   onRestoreStateFromJson,
   synthesisNotes,
-  onClose
+  onClose,
+  onToggleLang
 }) => {
   const isEl = lang === 'el';
 
@@ -132,7 +134,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     isEl ? 'Τρίτη επιλογή' : 'Third option',
     isEl ? 'Τέταρτη επιλογή' : 'Fourth option'
   ]);
-  const [newMcCorrect, setNewMcCorrect] = useState<number>(0);
+  const [newMcCorrectIndices, setNewMcCorrectIndices] = useState<number[]>([0]);
   const [newTfCorrect, setNewTfCorrect] = useState<boolean>(true);
   const [newTmPairs, setNewTmPairs] = useState<{ left: string; right: string }[]>([
     { left: isEl ? 'Όρος 1' : 'Term 1', right: isEl ? 'Ορισμός 1' : 'Definition 1' },
@@ -351,12 +353,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     let payload: any = {};
 
     switch (newType) {
-      case 'multiple_choice':
+      case 'multiple_choice': {
+        const filteredOptions = newMcOptions.filter((o) => o.trim().length > 0);
+        const validIndices = newMcCorrectIndices.filter((idx) => idx < filteredOptions.length);
+        const finalIndices = validIndices.length > 0 ? validIndices : [0];
         payload = {
-          options: newMcOptions.filter((o) => o.trim().length > 0),
-          correctOptionIndex: Math.min(newMcCorrect, Math.max(0, newMcOptions.length - 1))
+          options: filteredOptions,
+          correctOptionIndices: finalIndices,
+          correctOptionIndex: finalIndices[0] ?? 0
         };
         break;
+      }
       case 'true_false':
         payload = { correctValue: newTfCorrect };
         break;
@@ -1444,39 +1451,80 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
               {/* Multiple Choice Options */}
               {newType === 'multiple_choice' && (
                 <div className="space-y-2">
-                  <span className="text-xs text-slate-400 block">
-                    {isEl ? 'Επιλογές απάντησης (επιλέξτε το κουμπί radio για τη σωστή):' : 'Choices (select radio button for correct answer):'}
-                  </span>
-                  {newMcOptions.map((opt, oIdx) => (
-                    <div key={oIdx} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="new_mc_correct"
-                        checked={newMcCorrect === oIdx}
-                        onChange={() => setNewMcCorrect(oIdx)}
-                        className="w-4 h-4 text-emerald-500 cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={opt}
-                        onChange={(e) => {
-                          const updated = [...newMcOptions];
-                          updated[oIdx] = e.target.value;
-                          setNewMcOptions(updated);
-                        }}
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-400"
-                      />
-                      {newMcOptions.length > 2 && (
-                        <button
-                          type="button"
-                          onClick={() => setNewMcOptions(newMcOptions.filter((_, idx) => idx !== oIdx))}
-                          className="p-1.5 text-slate-500 hover:text-rose-400"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs text-slate-400 block">
+                      {isEl
+                        ? 'Επιλογές απάντησης (τσεκάρετε τα κουτάκια για όλες τις σωστές επιλογές):'
+                        : 'Choices (check boxes for all correct answer options):'}
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-400">
+                      {newMcCorrectIndices.length > 1
+                        ? (isEl ? `✓ ${newMcCorrectIndices.length} σωστές επιλογές (Checkboxes)` : `✓ ${newMcCorrectIndices.length} correct options (Checkboxes)`)
+                        : (isEl ? '✓ 1 σωστή επιλογή' : '✓ 1 correct option')}
+                    </span>
+                  </div>
+                  {newMcOptions.map((opt, oIdx) => {
+                    const isChecked = newMcCorrectIndices.includes(oIdx);
+                    return (
+                      <div
+                        key={oIdx}
+                        className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all ${
+                          isChecked
+                            ? 'bg-emerald-950/40 border-emerald-500/60 ring-1 ring-emerald-500/30'
+                            : 'bg-slate-900 border-slate-800'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            setNewMcCorrectIndices((prev) => {
+                              if (prev.includes(oIdx)) {
+                                return prev.length > 1 ? prev.filter((i) => i !== oIdx) : prev;
+                              } else {
+                                return [...prev, oIdx].sort((a, b) => a - b);
+                              }
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-emerald-500 accent-emerald-500 cursor-pointer ml-1"
+                        />
+                        <span className="text-xs font-mono font-bold text-slate-400 w-5">
+                          {String.fromCharCode(65 + oIdx)}.
+                        </span>
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => {
+                            const updated = [...newMcOptions];
+                            updated[oIdx] = e.target.value;
+                            setNewMcOptions(updated);
+                          }}
+                          className="flex-1 bg-transparent border-0 text-xs text-white focus:outline-none"
+                        />
+                        {isChecked && (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[10px] font-bold shrink-0">
+                            {isEl ? 'Σωστή' : 'Correct'}
+                          </span>
+                        )}
+                        {newMcOptions.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = newMcOptions.filter((_, idx) => idx !== oIdx);
+                              setNewMcOptions(updated);
+                              setNewMcCorrectIndices((prev) => {
+                                const next = prev.filter((i) => i !== oIdx).map((i) => (i > oIdx ? i - 1 : i));
+                                return next.length > 0 ? next : [0];
+                              });
+                            }}
+                            className="p-1.5 text-slate-500 hover:text-rose-400 cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                   {newMcOptions.length < 6 && (
                     <button
                       type="button"

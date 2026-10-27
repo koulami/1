@@ -126,9 +126,15 @@ export const TaskVisualEditForm: React.FC<Props> = ({
       isEl ? 'Τέταρτη επιλογή' : 'Option 4'
     ];
   });
-  const [mcCorrectIdx, setMcCorrectIdx] = useState<number>(() => {
+  const [mcCorrectIndices, setMcCorrectIndices] = useState<number[]>(() => {
     const p = task.payload as MultipleChoicePayload;
-    return typeof p?.correctOptionIndex === 'number' ? p.correctOptionIndex : 0;
+    if (p && Array.isArray(p.correctOptionIndices) && p.correctOptionIndices.length > 0) {
+      return [...p.correctOptionIndices];
+    }
+    if (typeof p?.correctOptionIndex === 'number') {
+      return [p.correctOptionIndex];
+    }
+    return [0];
   });
 
   // 2. True / False
@@ -293,12 +299,17 @@ export const TaskVisualEditForm: React.FC<Props> = ({
     let builtPayload: any = {};
 
     switch (type) {
-      case 'multiple_choice':
+      case 'multiple_choice': {
+        const filteredOptions = mcOptions.filter((o) => o.trim().length > 0);
+        const validIndices = mcCorrectIndices.filter((idx) => idx < filteredOptions.length);
+        const finalIndices = validIndices.length > 0 ? validIndices : [0];
         builtPayload = {
-          options: mcOptions.filter((o) => o.trim().length > 0),
-          correctOptionIndex: Math.min(mcCorrectIdx, Math.max(0, mcOptions.length - 1))
+          options: filteredOptions,
+          correctOptionIndices: finalIndices,
+          correctOptionIndex: finalIndices[0] ?? 0
         };
         break;
+      }
 
       case 'true_false':
         builtPayload = {
@@ -851,11 +862,26 @@ export const TaskVisualEditForm: React.FC<Props> = ({
       {/* 1. MULTIPLE CHOICE OPTIONS BUILDER */}
       {type === 'multiple_choice' && (
         <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
-              <span>{isEl ? 'Επιλογές Απάντησης (Επιλέξτε το Radio της Σωστής):' : 'Options (Select Radio for Correct):'}</span>
-            </label>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="space-y-0.5">
+              <label className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>
+                  {isEl
+                    ? 'Επιλογές Απάντησης (Τσεκάρετε τα κουτάκια για όλες τις Σωστές):'
+                    : 'Answer Choices (Check boxes for all Correct answers):'}
+                </span>
+              </label>
+              <p className="text-[11px] text-slate-400">
+                {mcCorrectIndices.length > 1
+                  ? (isEl
+                      ? `✓ Πολλαπλές σωστές επιλογές (${mcCorrectIndices.length} σωστές) • Οι μαθητές θα δουν checkboxes`
+                      : `✓ Multiple correct options (${mcCorrectIndices.length} correct) • Students will see checkboxes`)
+                  : (isEl
+                      ? '✓ 1 σωστή επιλογή • Επιλέξτε περισσότερα κουτάκια αν υπάρχουν πολλαπλές σωστές'
+                      : '✓ 1 correct option • Check additional boxes for multiple correct answers')}
+              </p>
+            </div>
             {mcOptions.length < 6 && (
               <button
                 type="button"
@@ -870,7 +896,7 @@ export const TaskVisualEditForm: React.FC<Props> = ({
 
           <div className="space-y-2">
             {mcOptions.map((opt, idx) => {
-              const isCorrect = mcCorrectIdx === idx;
+              const isCorrect = mcCorrectIndices.includes(idx);
               return (
                 <div
                   key={idx}
@@ -882,11 +908,18 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                 >
                   <label className="flex items-center cursor-pointer px-1">
                     <input
-                      type="radio"
-                      name="mc-correct-option"
+                      type="checkbox"
                       checked={isCorrect}
-                      onChange={() => setMcCorrectIdx(idx)}
-                      className="w-4 h-4 accent-emerald-500 cursor-pointer"
+                      onChange={() => {
+                        setMcCorrectIndices((prev) => {
+                          if (prev.includes(idx)) {
+                            return prev.length > 1 ? prev.filter((i) => i !== idx) : prev;
+                          } else {
+                            return [...prev, idx].sort((a, b) => a - b);
+                          }
+                        });
+                      }}
+                      className="w-4 h-4 rounded text-emerald-500 accent-emerald-500 cursor-pointer"
                     />
                   </label>
 
@@ -919,9 +952,10 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                       onClick={() => {
                         const updated = mcOptions.filter((_, i) => i !== idx);
                         setMcOptions(updated);
-                        if (mcCorrectIdx >= updated.length) {
-                          setMcCorrectIdx(0);
-                        }
+                        setMcCorrectIndices((prev) => {
+                          const next = prev.filter((i) => i !== idx).map((i) => (i > idx ? i - 1 : i));
+                          return next.length > 0 ? next : [0];
+                        });
                       }}
                       className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
                       title={isEl ? 'Διαγραφή επιλογής' : 'Delete option'}

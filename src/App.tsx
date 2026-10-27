@@ -638,6 +638,7 @@ export default function App() {
       {isAdminOpen && (
         <AdminConsole
           lang={lang}
+          onToggleLang={setLang}
           submissions={submissions}
           taskOverrides={taskOverrides}
           customQuestions={customQuestions}

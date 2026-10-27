@@ -281,6 +281,13 @@ export const translations = {
     backupSavedSafely: 'Όλες οι αλλαγές αποθηκεύτηκαν αυτόματα με διπλή ασφάλεια!',
     uploadOwnImage: 'Ανέβασμα δικής μου φωτογραφίας',
     previewUploadedImage: 'Προεπισκόπηση εικόνας',
+    // Reflections & Wow Moments
+    teamReflectionTitle: 'Αναστοχασμός Ομάδας & Wow Moment',
+    teamReflectionSubtitle: 'Προσωπική εντύπωση, ανακάλυψη ή το μεγαλύτερο συμπέρασμα των μαθητών από το πεδίο',
+    teamReflectionQuotePrompt: 'Τι σας εντυπωσίασε περισσότερο στις αποστολές πεδίου;',
+    editReflection: 'Επεξεργασία Αναστοχασμού',
+    saveReflection: 'Αποθήκευση στο Πόστερ',
+    reflectionSavedToast: 'Ο αναστοχασμός αποθηκεύτηκε στο πόστερ της ομάδας!',
   },
   en: {
     appTitle: 'BoundPad Arena',
@@ -562,5 +569,12 @@ export const translations = {
     backupSavedSafely: 'All modifications auto-saved safely with redundancy backup!',
     uploadOwnImage: 'Upload my own photo',
     previewUploadedImage: 'Image preview',
+    // Reflections & Wow Moments
+    teamReflectionTitle: 'Team Reflection & Wow Moment',
+    teamReflectionSubtitle: 'Students’ personal takeaway, discovery, or major field realization',
+    teamReflectionQuotePrompt: 'What impressed you the most during your field missions?',
+    editReflection: 'Edit Reflection',
+    saveReflection: 'Save to Poster',
+    reflectionSavedToast: 'Reflection saved to team infographic poster!',
   }
 };

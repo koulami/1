@@ -25,7 +25,9 @@ import {
   ShieldCheck,
   Compass,
   ArrowRight,
-  BookOpen
+  BookOpen,
+  Quote,
+  Edit3
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Team, Question, Submission } from '../types/game';
@@ -330,6 +332,26 @@ const GROUP_DEFAULT_ILLUSTRATIONS: Record<string, string> = {
   'team-delta': "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 550' width='1000' height='550'><rect width='1000' height='550' fill='%230f172a'/><rect x='150' y='100' width='700' height='260' rx='32' fill='%233b0764' stroke='%23a855f7' stroke-width='4'/><text x='500' y='190' font-family='sans-serif' font-weight='900' font-size='48' fill='%23fbbf24' text-anchor='middle'>LIFE with Vultures Cyprus</text><text x='500' y='250' font-family='sans-serif' font-weight='bold' font-size='24' fill='%23e2e8f0' text-anchor='middle'>4 Ασφαλείς Ταΐστρες • Ομάδες K9 • Ενίσχυση από Ισπανία</text><text x='500' y='305' font-family='sans-serif' font-weight='bold' font-size='20' fill='%23c084fc' text-anchor='middle'>Καταπολέμηση Δηλητηριασμένων Δολωμάτων (Φόλες)</text><text x='500' y='460' font-family='sans-serif' font-weight='900' font-size='32' fill='%23c084fc' text-anchor='middle'>Προστασία & Δράσεις Διατήρησης</text><text x='500' y='500' font-family='sans-serif' font-weight='600' font-size='18' fill='%2394a3b8' text-anchor='middle'>GPS Πομποί Παρακολούθησης & Σύμφωνο Συνεργασίας Κοινοτήτων</text></svg>"
 };
 
+// Curated authentic student reflection quotes & wow moments per team
+export const DEFAULT_TEAM_REFLECTIONS: Record<string, { el: string; en: string }> = {
+  'team-alpha': {
+    el: '«Μας εντυπωσίασε το επιβλητικό άνοιγμα φτερών των 2.5 μέτρων και η ισόβια πίστη του ζευγαριού! Καταλάβαμε ότι το Όρνιο είναι ένα σύμβολο άγριας ομορφιάς που οφείλουμε να διαφυλάξουμε για πάντα στην Κύπρο.»',
+    en: '“We were awestruck by the massive 2.5-meter wingspan and the lifelong devotion between vulture pairs! We realized that Gyps fulvus is an indispensable icon of Cyprus’s wilderness that we must safeguard forever.”'
+  },
+  'team-beta': {
+    el: '«Η ικανότητά τους να εκμεταλλεύονται τα θερμικά ρεύματα και να διανύουν πάνω από 100 χιλιόμετρα χωρίς φτεροκόπημα πάνω από τους γκρεμούς της Επισκοπής μάς έδειξε την απόλυτη αρμονία του πουλιού με τους νόμους της φύσης!»',
+    en: '“Their uncanny mastery of thermal air columns, patrolling over 100 km effortlessly without flapping over the cliffs of Episkopi, showed us the ultimate synergy between nature and physics!”'
+  },
+  'team-gamma': {
+    el: '«Μάθαμε ότι το στομάχι τους με pH 1.0 εξουδετερώνει τον άνθρακα και τη χολέρα! Δεν είναι επικίνδυνα αρπακτικά, αλλά οι υπερ-απαραίτητοι υγειονομικοί καθαριστές που σώζουν την κυπριακή ύπαιθρο από επιδημίες.»',
+    en: '“Discovering that their pH 1.0 stomach destroys anthrax and botulism was our wow moment! They are not aggressive predators, but heroic ecosystem sanitizers protecting Cyprus from infectious outbreaks.”'
+  },
+  'team-delta': {
+    el: '«Συνειδητοποιήσαμε ότι η μεγαλύτερη απειλή είναι οι παράνομες φόλες. Οι εκπαιδευμένοι σκύλοι K9 και οι 4 ασφαλείς ταΐστρες του προγράμματος LIFE δίνουν πραγματική ελπίδα για να σωθούν τα Όρνια από την εξαφάνιση.»',
+    en: '“Realizing that 90% of vulture deaths are caused by illegal poison baits opened our eyes. The K9 detection dog teams and safe feeding stations under LIFE with Vultures offer real hope to prevent extinction.”'
+  }
+};
+
 export const TeamPresentationArena: React.FC<Props> = ({
   lang,
   submissions,
@@ -349,6 +371,29 @@ export const TeamPresentationArena: React.FC<Props> = ({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [selectedInspectTask, setSelectedInspectTask] = useState<Question | null>(null);
   const [lightboxMedia, setLightboxMedia] = useState<{ url: string; title: string; caption?: string } | null>(null);
+  const [reflectionsVersion, setReflectionsVersion] = useState<number>(0);
+  const [editingReflectionTeam, setEditingReflectionTeam] = useState<{ id: string; name: string; avatar: string; color: string; currentText: string } | null>(null);
+  const [reflectionDraftText, setReflectionDraftText] = useState<string>('');
+
+  const handleOpenEditReflection = (team: Team, currentText: string) => {
+    setEditingReflectionTeam({
+      id: team.id,
+      name: isEl ? team.name : team.name_en || team.name,
+      avatar: team.avatar,
+      color: team.color,
+      currentText
+    });
+    setReflectionDraftText(currentText);
+  };
+
+  const handleSaveReflection = () => {
+    if (!editingReflectionTeam) return;
+    const trimmed = reflectionDraftText.trim();
+    storageService.saveTeamReflection(editingReflectionTeam.id, trimmed);
+    setReflectionsVersion((v) => v + 1);
+    triggerTeamConfetti(editingReflectionTeam.color);
+    setEditingReflectionTeam(null);
+  };
 
   // Toggle browser fullscreen
   const toggleFullscreen = () => {
@@ -491,6 +536,30 @@ export const TeamPresentationArena: React.FC<Props> = ({
       const metrics = GROUP_INFOGRAPHIC_METRICS[team.id] || GROUP_INFOGRAPHIC_METRICS['team-alpha'];
       const defaultIllustration = GROUP_DEFAULT_ILLUSTRATIONS[team.id] || GROUP_DEFAULT_ILLUSTRATIONS['team-alpha'];
 
+      // Student Reflection Extraction from storage or attempted mission data
+      const storedReflection = storageService.getTeamReflection(team.id);
+      let studentReflection = storedReflection ? storedReflection.trim() : '';
+      let isCustomReflection = Boolean(studentReflection && studentReflection.length > 0);
+
+      if (!studentReflection) {
+        for (const item of attemptedTasks) {
+          if (item.submission.reflectionText && item.submission.reflectionText.trim().length > 0) {
+            studentReflection = item.submission.reflectionText.trim();
+            isCustomReflection = true;
+            break;
+          }
+          if (item.question.id.includes('reflection') && item.submission.answerData?.reportText) {
+            studentReflection = item.submission.answerData.reportText.trim();
+            isCustomReflection = true;
+            break;
+          }
+        }
+      }
+
+      if (!studentReflection) {
+        studentReflection = DEFAULT_TEAM_REFLECTIONS[team.id]?.[lang] || DEFAULT_TEAM_REFLECTIONS['team-alpha'][lang];
+      }
+
       return {
         team,
         index: idx,
@@ -507,10 +576,12 @@ export const TeamPresentationArena: React.FC<Props> = ({
         teamNotes,
         wowMoments,
         metrics,
-        defaultIllustration
+        defaultIllustration,
+        studentReflection,
+        isCustomReflection
       };
     });
-  }, [submissions, taskOverrides, synthesisNotes, allPoolTasks]);
+  }, [submissions, taskOverrides, synthesisNotes, allPoolTasks, reflectionsVersion, lang]);
 
   const currentPoster = teamPosters[spotlightIndex] || teamPosters[0];
 
@@ -696,6 +767,7 @@ export const TeamPresentationArena: React.FC<Props> = ({
             onOpenLightbox={(media) => setLightboxMedia(media)}
             onGoToMissions={() => onSelectTeamMissions && onSelectTeamMissions(currentPoster.index)}
             onDirectUpload={(file) => handleDirectUpload(currentPoster.team.id, file)}
+            onEditReflection={handleOpenEditReflection}
           />
         </div>
       )}
@@ -712,6 +784,7 @@ export const TeamPresentationArena: React.FC<Props> = ({
               onOpenLightbox={(media) => setLightboxMedia(media)}
               onGoToMissions={() => onSelectTeamMissions && onSelectTeamMissions(poster.index)}
               onDirectUpload={(file) => handleDirectUpload(poster.team.id, file)}
+              onEditReflection={handleOpenEditReflection}
             />
           ))}
         </div>
@@ -851,6 +924,107 @@ export const TeamPresentationArena: React.FC<Props> = ({
           </div>
         );
       })()}
+
+      {/* ===================== EDIT STUDENT REFLECTION MODAL ===================== */}
+      {editingReflectionTeam && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in"
+          onClick={() => setEditingReflectionTeam(null)}
+        >
+          <div
+            className="max-w-xl w-full bg-slate-950 border-2 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5"
+            style={{ borderColor: `${editingReflectionTeam.color}80` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl p-2 rounded-2xl bg-slate-900 border border-slate-800">
+                  {editingReflectionTeam.avatar}
+                </span>
+                <div>
+                  <h3 className="font-black text-lg text-white">
+                    {isEl ? 'Αναστοχασμός Ομάδας & Wow Moment' : 'Team Reflection & Wow Moment'}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    <span style={{ color: editingReflectionTeam.color }} className="font-bold">
+                      {editingReflectionTeam.name}
+                    </span>
+                    {' • '}
+                    {isEl ? 'Προσωπική Εντύπωση & Συμπέρασμα για το Πόστερ' : 'Field Takeaway for Team Poster'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingReflectionTeam(null)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Prompt Banner */}
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs text-amber-200">
+              <Quote className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                {isEl
+                  ? 'Γράψτε τι εντυπωσίασε περισσότερο την ομάδα σας ή ποιο είναι το σπουδαιότερο επιστημονικό συμπέρασμα από τις αποστολές πεδίου. Το κείμενο αυτό θα προβληθεί περίοπτα στο επίσημο πόστερ της ομάδας!'
+                  : 'Share what impressed your team the most or your crowning field realization. This quote will be prominently featured on your official presentation poster!'}
+              </p>
+            </div>
+
+            {/* Textarea */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 block">
+                {isEl ? 'Κείμενο Αναστοχασμού / Παράθεμα (Quote):' : 'Reflection Text / Quote Box:'}
+              </label>
+              <textarea
+                value={reflectionDraftText}
+                onChange={(e) => setReflectionDraftText(e.target.value)}
+                rows={4}
+                placeholder={isEl ? 'π.χ. Μας εντυπωσίασε το τεράστιο άνοιγμα των 2.5 μέτρων...' : 'e.g. We were astonished by the 2.5m wingspan...'}
+                className="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-amber-400 transition-colors placeholder:text-slate-600 leading-relaxed italic"
+              />
+            </div>
+
+            {/* Reset to Curated Suggestion button */}
+            <div className="flex items-center justify-between text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  const defaultSuggestion = DEFAULT_TEAM_REFLECTIONS[editingReflectionTeam.id]?.[lang] || DEFAULT_TEAM_REFLECTIONS['team-alpha'][lang];
+                  setReflectionDraftText(defaultSuggestion);
+                }}
+                className="text-slate-400 hover:text-amber-300 underline font-medium cursor-pointer"
+              >
+                {isEl ? '↺ Επαναφορά προτεινόμενου κειμένου' : '↺ Reset to curated suggestion'}
+              </button>
+              <span className="text-slate-500 font-mono text-[11px]">
+                {reflectionDraftText.length} {isEl ? 'χαρακτήρες' : 'chars'}
+              </span>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEditingReflectionTeam(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+              >
+                {isEl ? 'Ακύρωση' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveReflection}
+                className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
+              >
+                {isEl ? '💾 Αποθήκευση στο Πόστερ' : '💾 Save to Poster'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -876,12 +1050,15 @@ interface PosterProps {
     wowMoments: WowMoment[];
     metrics: InfographicMetric[];
     defaultIllustration: string;
+    studentReflection: string;
+    isCustomReflection: boolean;
   };
   lang: 'el' | 'en';
   onInspectTask: (q: Question) => void;
   onOpenLightbox: (media: { url: string; title: string; caption?: string }) => void;
   onGoToMissions: () => void;
   onDirectUpload?: (file: File) => void;
+  onEditReflection: (team: Team, currentText: string) => void;
 }
 
 const VisualInfographicPoster: React.FC<PosterProps> = ({
@@ -890,7 +1067,8 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
   onInspectTask,
   onOpenLightbox,
   onGoToMissions,
-  onDirectUpload
+  onDirectUpload,
+  onEditReflection
 }) => {
   const isEl = lang === 'el';
   const {
@@ -907,7 +1085,9 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
     metrics,
     uploadedMedia,
     teamNotes,
-    defaultIllustration
+    defaultIllustration,
+    studentReflection,
+    isCustomReflection
   } = poster;
 
   // Selected hero media in the centerpiece
@@ -1246,6 +1426,98 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
               ))}
             </div>
           )}
+        </div>
+
+        {/* ================= 3B. PROMINENT STUDENT REFLECTION & 'WOW MOMENT' QUOTE BOX ================= */}
+        <div
+          style={{
+            borderColor: `${team.color}80`,
+            background: `linear-gradient(135deg, ${team.color}18 0%, #030712 55%, ${team.color}10 100%)`,
+            boxShadow: `0 20px 60px -15px ${team.color}35`
+          }}
+          className="relative overflow-hidden rounded-[32px] p-6 sm:p-8 border-2 shadow-2xl transition-all"
+        >
+          {/* Subtle Ambient Radial Glow */}
+          <div
+            className="absolute top-0 right-0 w-80 h-80 pointer-events-none rounded-full blur-3xl opacity-25"
+            style={{ backgroundColor: team.color }}
+          />
+
+          <div className="relative z-10 space-y-4">
+            {/* Header row with badges and action button */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-lg border shrink-0"
+                  style={{
+                    backgroundColor: `${team.color}30`,
+                    borderColor: `${team.color}70`,
+                    color: team.color
+                  }}
+                >
+                  <Quote className="w-5 h-5 fill-current" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                      {isEl ? 'Αναστοχασμός Ομάδας & Wow Moment' : 'Team Reflection & Wow Moment'}
+                    </span>
+                    {isCustomReflection ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/50">
+                        {isEl ? '✓ ΑΥΘΕΝΤΙΚΗ ΚΑΤΑΓΡΑΦΗ ΜΑΘΗΤΩΝ' : '✓ AUTHENTIC STUDENT LOG'}
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/50">
+                        {isEl ? 'ΣΥΜΠΕΡΑΣΜΑ ΠΕΔΙΟΥ' : 'FIELD TAKEAWAY'}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-slate-400 block font-medium mt-0.5">
+                    {isEl
+                      ? 'Τι εντυπωσίασε και τι έμαθε η ομάδα κατά τη διάρκεια της αποστολής'
+                      : 'What captivated and enlightened the team during their field investigations'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Edit / Customize Reflection Button */}
+              <button
+                type="button"
+                onClick={() => onEditReflection(team, studentReflection)}
+                className="px-4 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 hover:border-amber-400 text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md group shrink-0"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span>{isEl ? 'Επεξεργασία Αναστοχασμού' : 'Edit Reflection'}</span>
+              </button>
+            </div>
+
+            {/* Giant Italic Quote Body */}
+            <div className="py-2 px-1 sm:px-2">
+              <blockquote className="text-lg sm:text-xl md:text-2xl font-bold italic text-slate-100 leading-relaxed tracking-tight">
+                {studentReflection.startsWith('«') || studentReflection.startsWith('“') || studentReflection.startsWith('"')
+                  ? studentReflection
+                  : `«${studentReflection}»`}
+              </blockquote>
+            </div>
+
+            {/* Attribution Footnote */}
+            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
+              <div className="flex items-center gap-2 font-semibold">
+                <span className="text-lg">{team.avatar}</span>
+                <span className="text-white font-bold">
+                  {isEl ? team.name : team.name_en || team.name}
+                </span>
+                <span className="text-slate-600">·</span>
+                <span style={{ color: team.color }}>
+                  {isEl ? `Ομάδα Έρευνας 0${poster.index + 1}` : `Research Group 0${poster.index + 1}`}
+                </span>
+              </div>
+
+              <div className="text-[11px] font-mono text-amber-400/90">
+                {isEl ? '★ Παρουσίαση στην Τάξη & Έκθεση Πόστερ' : '★ Classroom Presentation & Poster Exhibit'}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ================= 4. CLEAN INFOGRAPHIC CARDS: SCIENTIFIC FACTS & WOW MOMENTS ================= */}

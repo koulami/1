@@ -22,10 +22,14 @@ export const MultipleChoiceQuest: React.FC<Props> = ({
 }) => {
   const t = translations[lang];
   const isEn = lang === 'en';
-  const payload = (isEn && question.payload_en && Array.isArray((question.payload_en as MultipleChoicePayload).options))
+  const greekPayload = question.payload as MultipleChoicePayload;
+  const enPayload = (isEn && question.payload_en && Array.isArray((question.payload_en as MultipleChoicePayload).options) && (question.payload_en as MultipleChoicePayload).options.length > 0)
     ? (question.payload_en as MultipleChoicePayload)
-    : (question.payload as MultipleChoicePayload);
-  const correctIndices = getMultipleChoiceCorrectIndices(payload);
+    : null;
+  const payload = enPayload || greekPayload;
+  const correctIndices = (enPayload && (Array.isArray(enPayload.correctOptionIndices) && enPayload.correctOptionIndices.length > 0 || typeof enPayload.correctOptionIndex === 'number'))
+    ? getMultipleChoiceCorrectIndices(enPayload)
+    : getMultipleChoiceCorrectIndices(greekPayload);
   const isMultiple = correctIndices.length > 1;
 
   // Selected indices array
