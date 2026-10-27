@@ -38,7 +38,12 @@ import {
   Camera,
   QrCode,
   Puzzle,
-  Award
+  Award,
+  ChevronUp,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  GripVertical
 } from 'lucide-react';
 import { Question, Team, Submission, QuestionType } from '../types/game';
 import {
@@ -68,6 +73,8 @@ interface AdminConsoleProps {
   synthesisNotes: any[];
   onClose: () => void;
   onToggleLang?: (newLang: 'el' | 'en') => void;
+  taskOrder?: string[];
+  onUpdateTaskOrder?: (newOrder: string[]) => void;
 }
 
 export const AdminConsole: React.FC<AdminConsoleProps> = ({
@@ -83,7 +90,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   onRestoreStateFromJson,
   synthesisNotes,
   onClose,
-  onToggleLang
+  onToggleLang,
+  taskOrder,
+  onUpdateTaskOrder
 }) => {
   const isEl = lang === 'el';
 
@@ -194,8 +203,21 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     storageService.setAdminAuthenticated(false);
   };
 
-  // Compute stats with custom task overrides
-  const allTasks = useMemo(() => getAllTasks(customQuestions), [customQuestions]);
+  // Current custom sequence order
+  const [currentOrder, setCurrentOrder] = useState<string[]>(() => {
+    return taskOrder && taskOrder.length > 0 ? taskOrder : storageService.getTaskOrder();
+  });
+
+  useEffect(() => {
+    if (taskOrder && taskOrder.length > 0) {
+      setCurrentOrder(taskOrder);
+    }
+  }, [taskOrder]);
+
+  // Compute stats with custom task overrides & custom sequential order
+  const allTasks = useMemo(() => {
+    return getAllTasks(customQuestions, currentOrder);
+  }, [customQuestions, currentOrder]);
   const activeCount = useMemo(() => {
     return allTasks.filter((t) => isTaskActive(t, taskOverrides)).length;
   }, [allTasks, taskOverrides]);
@@ -319,6 +341,55 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
       return true;
     });
   }, [allTasks, taskOverrides, poolFilterStatus, selectedGroup, selectedType, searchQuery]);
+
+  // Reorder task sequence: move task up or down within current visible list
+  const handleShiftTaskOrder = (taskId: string, direction: 'up' | 'down') => {
+    const listIndex = filteredTasks.findIndex((t) => t.id === taskId);
+    if (listIndex === -1) return;
+    if (direction === 'up' && listIndex === 0) return;
+    if (direction === 'down' && listIndex === filteredTasks.length - 1) return;
+
+    const neighborTask = filteredTasks[direction === 'up' ? listIndex - 1 : listIndex + 1];
+    if (!neighborTask) return;
+
+    // Build the updated master order of all tasks
+    const fullIds = allTasks.map((t) => t.id);
+    const withoutTarget = fullIds.filter((id) => id !== taskId);
+    const neighborIndex = withoutTarget.indexOf(neighborTask.id);
+
+    if (neighborIndex === -1) return;
+
+    const insertIndex = direction === 'up' ? neighborIndex : neighborIndex + 1;
+    const newFullOrder = [...withoutTarget];
+    newFullOrder.splice(insertIndex, 0, taskId);
+
+    // Save immediately to state and storage
+    setCurrentOrder(newFullOrder);
+    storageService.saveTaskOrder(newFullOrder);
+    if (onUpdateTaskOrder) {
+      onUpdateTaskOrder(newFullOrder);
+    }
+
+    showNotification(
+      isEl
+        ? `Η σειρά της αποστολής ενημερώθηκε επιτυχώς!`
+        : `Task sequence order updated successfully!`
+    );
+  };
+
+  // Reset task sequence back to default
+  const handleResetTaskOrder = () => {
+    setCurrentOrder([]);
+    storageService.resetTaskOrder();
+    if (onUpdateTaskOrder) {
+      onUpdateTaskOrder([]);
+    }
+    showNotification(
+      isEl
+        ? 'Η σειρά αποστολών επανήλθε στην αρχική προεπιλεγμένη.'
+        : 'Task sequence reset to default curriculum order.'
+    );
+  };
 
   // Master Lobby / Start Toggle
   const handleToggleGameStart = () => {
@@ -846,8 +917,27 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                     className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>{isEl ? 'Επαναφορά' : 'Reset'}</span>
+                    <span>{isEl ? 'Επαναφορά Ενεργών' : 'Reset Active'}</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleResetTaskOrder}
+                    disabled={currentOrder.length === 0}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                      currentOrder.length > 0
+                        ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40 cursor-pointer shadow-sm'
+                        : 'bg-slate-850 text-slate-600 border-slate-800 cursor-not-allowed opacity-50'
+                    }`}
+                    title={isEl ? 'Επαναφορά της σειράς αποστολών στην αρχική' : 'Reset task sequence to default'}
+                  >
+                    <ArrowDown className="w-3.5 h-3.5 rotate-180" />
+                    <span>{isEl ? 'Επαναφορά Σειράς' : 'Reset Order'}</span>
+                  </button>
+                  {currentOrder.length > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold">
+                      ⚡ {isEl ? 'Προσαρμοσμένη Σειρά' : 'Custom Order'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -924,9 +1014,44 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       }`}
                     >
                       <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div className="flex items-start gap-3 flex-1 min-w-[280px]">
+                        <div className="flex items-start gap-3.5 flex-1 min-w-[280px]">
+                          {/* Reordering Controls: Up & Down Arrows + Sequence Number */}
+                          <div className="flex flex-col items-center justify-center shrink-0 bg-slate-950/90 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => handleShiftTaskOrder(task.id, 'up')}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                idx === 0
+                                  ? 'text-slate-700 cursor-not-allowed opacity-30'
+                                  : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800 active:scale-90 cursor-pointer shadow-sm'
+                              }`}
+                              title={isEl ? 'Μετακίνηση αποστολής πάνω' : 'Move task up'}
+                            >
+                              <ChevronUp className="w-4 h-4 stroke-[2.5]" />
+                            </button>
+
+                            <div className="py-0.5 px-1 font-mono text-[11px] font-black text-amber-400 select-none">
+                              #{idx + 1}
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={idx === filteredTasks.length - 1}
+                              onClick={() => handleShiftTaskOrder(task.id, 'down')}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                idx === filteredTasks.length - 1
+                                  ? 'text-slate-700 cursor-not-allowed opacity-30'
+                                  : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800 active:scale-90 cursor-pointer shadow-sm'
+                              }`}
+                              title={isEl ? 'Μετακίνηση αποστολής κάτω' : 'Move task down'}
+                            >
+                              <ChevronDown className="w-4 h-4 stroke-[2.5]" />
+                            </button>
+                          </div>
+
                           {/* Active Toggle Switch */}
-                          <div className="flex flex-col items-center gap-1.5 shrink-0 pt-0.5">
+                          <div className="flex flex-col items-center gap-1.5 shrink-0 pt-1.5">
                             <button
                               type="button"
                               onClick={() => handleToggleTask(task.id)}
@@ -941,7 +1066,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                                 }`}
                               />
                             </button>
-                            <span className="text-[10px] font-mono text-slate-500">#{idx + 1}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                              {active ? (isEl ? 'ΕΝΕΡΓΗ' : 'ON') : (isEl ? 'OFF' : 'OFF')}
+                            </span>
                           </div>
 
                           {/* Task Content */}

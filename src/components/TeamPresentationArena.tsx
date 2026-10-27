@@ -49,6 +49,7 @@ interface Props {
   synthesisNotes: any[];
   onGoBack?: () => void;
   onSelectTeamMissions?: (teamIndex: number) => void;
+  taskOrder?: string[];
 }
 
 // Curated authentic scientific Wow-Moments per Cyprus Vulture Group
@@ -359,10 +360,11 @@ export const TeamPresentationArena: React.FC<Props> = ({
   customQuestions = {},
   synthesisNotes,
   onGoBack,
-  onSelectTeamMissions
+  onSelectTeamMissions,
+  taskOrder
 }) => {
   const isEl = lang === 'el';
-  const allPoolTasks = useMemo(() => getAllTasks(customQuestions), [customQuestions]);
+  const allPoolTasks = useMemo(() => getAllTasks(customQuestions, taskOrder), [customQuestions, taskOrder]);
 
   // Display Mode: 'spotlight' vs 'grid'
   const [viewMode, setViewMode] = useState<'spotlight' | 'grid'>('spotlight');

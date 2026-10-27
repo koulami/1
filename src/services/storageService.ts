@@ -22,7 +22,8 @@ export const STORAGE_KEYS = {
   GAME_START_TIMESTAMP: 'boundpad_game_start_ts_v10',
   GROUP_TIMERS: 'boundpad_group_timers_v10',
   TASK_TIMERS: 'boundpad_task_timers_v10',
-  TEAM_REFLECTIONS: 'boundpad_team_reflections_v10'
+  TEAM_REFLECTIONS: 'boundpad_team_reflections_v10',
+  TASK_ORDER: 'boundpad_task_order_v10'
 } as const;
 
 // In-memory fallback cache in case localStorage is disabled, private, or quota-exceeded
@@ -279,7 +280,8 @@ export const storageService = {
           ? JSON.parse(safeGetItem(STORAGE_KEYS.TEAM_TASK_INDEXES) || '{}')
           : {},
         synthesisNotes: this.getSynthesisNotes(),
-        language: this.getLanguage()
+        language: this.getLanguage(),
+        taskOrder: this.getTaskOrder()
       };
       return JSON.stringify(data, null, 2);
     } catch (e) {
@@ -307,6 +309,9 @@ export const storageService = {
       }
       if (parsed.language === 'el' || parsed.language === 'en') {
         safeSetItem(STORAGE_KEYS.LANGUAGE, parsed.language);
+      }
+      if (Array.isArray(parsed.taskOrder)) {
+        this.saveTaskOrder(parsed.taskOrder);
       }
       return true;
     } catch (e) {
@@ -368,6 +373,54 @@ export const storageService = {
       safeRemoveItem(STORAGE_KEYS.TASK_ACTIVE_OVERRIDES);
     } catch (e) {
       console.warn('[StorageService] Error resetting task active overrides:', e);
+    }
+  },
+
+  /**
+   * Load custom reordered sequence of tasks (array of task IDs)
+   */
+  getTaskOrder(): string[] {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.TASK_ORDER);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item).trim()).filter(Boolean);
+      }
+      return [];
+    } catch (e) {
+      console.warn('[StorageService] Error loading task order:', e);
+      return [];
+    }
+  },
+
+  /**
+   * Save custom reordered sequence of tasks immediately to localStorage
+   */
+  saveTaskOrder(order: string[]): boolean {
+    try {
+      const success = safeSetItem(STORAGE_KEYS.TASK_ORDER, JSON.stringify(order));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:taskOrder', { detail: { order } }));
+      }
+      return success;
+    } catch (e) {
+      console.warn('[StorageService] Error saving task order:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Reset task sequence to default curriculum order
+   */
+  resetTaskOrder(): void {
+    try {
+      safeRemoveItem(STORAGE_KEYS.TASK_ORDER);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:taskOrder', { detail: { order: [] } }));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error resetting task order:', e);
     }
   },
 

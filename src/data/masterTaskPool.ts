@@ -2501,10 +2501,33 @@ export function mergeCustomQuestions(
 }
 
 /**
- * Return all tasks in the master pool, optionally with custom edits
+ * Order tasks based on custom sequential task ID order
  */
-export function getAllTasks(customOverrides?: Record<string, Question>): Question[] {
-  return mergeCustomQuestions(masterTaskPool, customOverrides);
+export function applyTaskOrder(tasks: Question[], customOrder?: string[]): Question[] {
+  if (!customOrder || customOrder.length === 0) {
+    return tasks;
+  }
+  const orderMap = new Map<string, number>();
+  customOrder.forEach((id, index) => {
+    orderMap.set(id, index);
+  });
+
+  return [...tasks].sort((a, b) => {
+    const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999999;
+    const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999999;
+    return orderA - orderB;
+  });
+}
+
+/**
+ * Return all tasks in the master pool, optionally with custom edits and custom sequence order
+ */
+export function getAllTasks(
+  customOverrides?: Record<string, Question>,
+  customOrder?: string[]
+): Question[] {
+  const merged = mergeCustomQuestions(masterTaskPool, customOverrides);
+  return applyTaskOrder(merged, customOrder);
 }
 
 /**
@@ -2518,7 +2541,7 @@ export function isTaskActive(task: Question, overrides?: Record<string, boolean>
 }
 
 /**
- * Dynamically filter ONLY designated active real questions for a specific group.
+ * Dynamically filter ONLY designated active real questions for a specific group in sequential order.
  * Group 1 -> team-alpha
  * Group 2 -> team-beta
  * Group 3 -> team-gamma
@@ -2527,9 +2550,10 @@ export function isTaskActive(task: Question, overrides?: Record<string, boolean>
 export function getActiveTasksForTeam(
   teamId: string,
   overrides?: Record<string, boolean>,
-  customOverrides?: Record<string, Question>
+  customOverrides?: Record<string, Question>,
+  customOrder?: string[]
 ): Question[] {
-  const pool = mergeCustomQuestions(masterTaskPool, customOverrides);
+  const pool = getAllTasks(customOverrides, customOrder);
   return pool.filter((task) => {
     if (!isTaskActive(task, overrides)) return false;
     if (!task.assignedTeamIds || task.assignedTeamIds.length === 0) return true;
@@ -2543,9 +2567,10 @@ export function getActiveTasksForTeam(
 export function getCheckpointsForTeam(
   teamId: string,
   overrides?: Record<string, boolean>,
-  customOverrides?: Record<string, Question>
+  customOverrides?: Record<string, Question>,
+  customOrder?: string[]
 ): Question[] {
-  const teamTasks = getActiveTasksForTeam(teamId, overrides, customOverrides);
+  const teamTasks = getActiveTasksForTeam(teamId, overrides, customOverrides, customOrder);
   return teamTasks.filter((t) => isCheckpointTask(t.id));
 }
 
@@ -2566,9 +2591,10 @@ export function computeTeamTaskStats(
   team: Team,
   submissions: Record<string, Submission>,
   overrides?: Record<string, boolean>,
-  customOverrides?: Record<string, Question>
+  customOverrides?: Record<string, Question>,
+  customOrder?: string[]
 ): TeamTaskStats {
-  const activeTasks = getActiveTasksForTeam(team.id, overrides, customOverrides);
+  const activeTasks = getActiveTasksForTeam(team.id, overrides, customOverrides, customOrder);
   let totalScore = 0;
   let completedTasks = 0;
 

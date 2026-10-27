@@ -204,6 +204,26 @@ export default function App() {
   const [customQuestions, setCustomQuestions] = useState<Record<string, Question>>(() => {
     return storageService.getCustomQuestions();
   });
+  const [taskOrder, setTaskOrder] = useState<string[]>(() => {
+    return storageService.getTaskOrder();
+  });
+
+  useEffect(() => {
+    const handleTaskOrderChange = () => {
+      setTaskOrder(storageService.getTaskOrder());
+    };
+    window.addEventListener('boundpad:taskOrder', handleTaskOrderChange);
+    window.addEventListener('storage', handleTaskOrderChange);
+    return () => {
+      window.removeEventListener('boundpad:taskOrder', handleTaskOrderChange);
+      window.removeEventListener('storage', handleTaskOrderChange);
+    };
+  }, []);
+
+  const handleUpdateTaskOrder = (newOrder: string[]) => {
+    setTaskOrder(newOrder);
+    storageService.saveTaskOrder(newOrder);
+  };
 
   const handleUpdateTaskOverrides = (newOverrides: Record<string, boolean>) => {
     setTaskOverrides(newOverrides);
@@ -257,6 +277,7 @@ export default function App() {
         setSynthesisNotes(storageService.getSynthesisNotes(DEFAULT_SYNTHESIS_NOTES));
         setTaskOverrides(storageService.getTaskActiveOverrides());
         setCustomQuestions(storageService.getCustomQuestions());
+        setTaskOrder(storageService.getTaskOrder());
         return true;
       }
     } catch (err) {
@@ -307,16 +328,16 @@ export default function App() {
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteTeam, setNewNoteTeam] = useState<string>('team-alpha');
 
-  // Compute live team stats dynamically from master pool with task overrides and custom question edits
+  // Compute live team stats dynamically from master pool with task overrides, custom edits & task order
   const allTeamStats: TeamTaskStats[] = useMemo(() => {
     try {
       return masterTeamsPool.map((team) =>
-        computeTeamTaskStats(team, submissions, taskOverrides, customQuestions)
+        computeTeamTaskStats(team, submissions, taskOverrides, customQuestions, taskOrder)
       );
     } catch {
       return [];
     }
-  }, [submissions, taskOverrides, customQuestions]);
+  }, [submissions, taskOverrides, customQuestions, taskOrder]);
 
   // Tab mapping for the 4 groups
   const teamTabs: { tab: ValidTab; teamIndex: number; icon: any }[] = [
@@ -562,6 +583,7 @@ export default function App() {
                 submissions={submissions}
                 taskOverrides={taskOverrides}
                 customQuestions={customQuestions}
+                taskOrder={taskOrder}
                 gameStarted={gameStarted}
                 onStartGame={toggleGameStarted}
                 onSaveSubmission={saveSubmission}
@@ -578,6 +600,7 @@ export default function App() {
                 submissions={submissions}
                 taskOverrides={taskOverrides}
                 customQuestions={customQuestions}
+                taskOrder={taskOrder}
                 gameStarted={gameStarted}
                 onStartGame={toggleGameStarted}
                 onSaveSubmission={saveSubmission}
@@ -594,6 +617,7 @@ export default function App() {
                 submissions={submissions}
                 taskOverrides={taskOverrides}
                 customQuestions={customQuestions}
+                taskOrder={taskOrder}
                 gameStarted={gameStarted}
                 onStartGame={toggleGameStarted}
                 onSaveSubmission={saveSubmission}
@@ -610,6 +634,7 @@ export default function App() {
                 submissions={submissions}
                 taskOverrides={taskOverrides}
                 customQuestions={customQuestions}
+                taskOrder={taskOrder}
                 gameStarted={gameStarted}
                 onStartGame={toggleGameStarted}
                 onSaveSubmission={saveSubmission}
@@ -625,6 +650,7 @@ export default function App() {
                 submissions={submissions}
                 taskOverrides={taskOverrides}
                 customQuestions={customQuestions}
+                taskOrder={taskOrder}
                 synthesisNotes={synthesisNotes}
                 onGoBack={() => safeSetActiveTab('home')}
                 onSelectTeamMissions={(teamIdx) => safeSetActiveTab(`group-${teamIdx + 1}` as ValidTab)}
@@ -642,6 +668,8 @@ export default function App() {
           submissions={submissions}
           taskOverrides={taskOverrides}
           customQuestions={customQuestions}
+          taskOrder={taskOrder}
+          onUpdateTaskOrder={handleUpdateTaskOrder}
           onUpdateTaskOverrides={handleUpdateTaskOverrides}
           onSaveCustomQuestion={handleSaveCustomQuestion}
           onResetCustomQuestion={handleResetCustomQuestion}
@@ -1080,6 +1108,7 @@ interface GroupMissionsViewProps {
   submissions: Record<string, Submission>;
   taskOverrides: Record<string, boolean>;
   customQuestions?: Record<string, Question>;
+  taskOrder?: string[];
   gameStarted?: boolean;
   onStartGame?: () => void;
   onSaveSubmission: (submission: Submission) => void;
@@ -1092,6 +1121,7 @@ function GroupMissionsView({
   submissions,
   taskOverrides,
   customQuestions = {},
+  taskOrder,
   gameStarted = false,
   onStartGame,
   onSaveSubmission,
@@ -1099,32 +1129,32 @@ function GroupMissionsView({
 }: GroupMissionsViewProps) {
   const team = masterTeamsPool[teamIndex] || masterTeamsPool[0];
 
-  // Query ONLY active tasks for this team dynamically from Master Pool with custom overrides
+  // Query ONLY active tasks for this team dynamically from Master Pool with custom overrides & task order
   const tasks = useMemo(() => {
     try {
-      return getActiveTasksForTeam(team.id, taskOverrides, customQuestions) || [];
+      return getActiveTasksForTeam(team.id, taskOverrides, customQuestions, taskOrder) || [];
     } catch {
       return [];
     }
-  }, [team.id, taskOverrides, customQuestions]);
+  }, [team.id, taskOverrides, customQuestions, taskOrder]);
 
   // Designated checkpoints for this group
   const checkpoints = useMemo(() => {
     try {
-      return getCheckpointsForTeam(team.id, taskOverrides, customQuestions) || [];
+      return getCheckpointsForTeam(team.id, taskOverrides, customQuestions, taskOrder) || [];
     } catch {
       return [];
     }
-  }, [team.id, taskOverrides, customQuestions]);
+  }, [team.id, taskOverrides, customQuestions, taskOrder]);
 
   // Compute stats safely
   const { totalScore, completedTasks, totalActiveTasks } = useMemo(() => {
     try {
-      return computeTeamTaskStats(team, submissions, taskOverrides, customQuestions);
+      return computeTeamTaskStats(team, submissions, taskOverrides, customQuestions, taskOrder);
     } catch {
       return { totalScore: 0, completedTasks: 0, totalActiveTasks: tasks.length };
     }
-  }, [team, submissions, taskOverrides, customQuestions, tasks.length]);
+  }, [team, submissions, taskOverrides, customQuestions, taskOrder, tasks.length]);
 
   // View Mode: 'single' (Focus Mode, 1 task at a time) is DEFAULT
   const [viewStyle, setViewStyle] = useState<'single' | 'accordion'>('single');
