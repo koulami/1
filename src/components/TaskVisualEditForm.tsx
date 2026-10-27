@@ -39,8 +39,11 @@ import {
   PhotoUploadPayload,
   TaskPayload,
   QrScanPayload,
-  PuzzlePayload
+  PuzzlePayload,
+  FieldSpotInfo
 } from '../types/game';
+import { ScannableQrImage } from './ScannableQrImage';
+import { generateDefaultSpotCode } from '../utils/qrMediaHelper';
 
 interface Props {
   task: Question;
@@ -235,14 +238,34 @@ export const TaskVisualEditForm: React.FC<Props> = ({
     return p?.completionPrompt || (isEl ? 'Σημειώσεις & Συμπεράσματα Ομάδας:' : 'Team Findings & Notes:');
   });
 
-  // 8. QR Scan
+  // 8. QR Scan & Universal Field Spot Trigger
   const [qrTargetCode, setQrTargetCode] = useState<string>(() => {
     const p = task.payload as QrScanPayload;
-    return p?.targetCode || 'VULTURE-PARK-STATION-56';
+    return task.fieldSpot?.spotCode || p?.targetCode || 'VULTURE-PARK-STATION-56';
   });
   const [qrLocationHint, setQrLocationHint] = useState<string>(() => {
     const p = task.payload as QrScanPayload;
-    return p?.locationHint || (isEl ? 'Σταθμός QR Πεδίου' : 'Field QR Station');
+    return task.fieldSpot?.spotName || p?.locationHint || (isEl ? 'Σταθμός QR Πεδίου' : 'Field QR Station');
+  });
+
+  // Universal Field Spot & Media Trigger (Can be attached to ANY task)
+  const [enableFieldSpot, setEnableFieldSpot] = useState<boolean>(() => {
+    return Boolean(task.fieldSpot?.spotCode || task.type === 'qr_scan');
+  });
+  const [fieldSpotCode, setFieldSpotCode] = useState<string>(() => {
+    return task.fieldSpot?.spotCode || (task.type === 'qr_scan' ? (task.payload as QrScanPayload)?.targetCode || '' : generateDefaultSpotCode(task));
+  });
+  const [fieldSpotName, setFieldSpotName] = useState<string>(() => {
+    return task.fieldSpot?.spotName || (task.type === 'qr_scan' ? (task.payload as QrScanPayload)?.locationHint || '' : task.title);
+  });
+  const [fieldSpotMediaType, setFieldSpotMediaType] = useState<'video' | 'image'>(() => {
+    return task.fieldSpot?.mediaType || (task.videoUrl ? 'video' : 'image');
+  });
+  const [fieldSpotMediaUrl, setFieldSpotMediaUrl] = useState<string>(() => {
+    return task.fieldSpot?.mediaUrl || (task.type === 'qr_scan' ? (task.payload as QrScanPayload)?.unlockedMedia?.url || (task.payload as QrScanPayload)?.unlockedVideoUrl || (task.payload as QrScanPayload)?.unlockedImageUrl || '' : (task.videoUrl || task.imageUrl || ''));
+  });
+  const [fieldSpotCaption, setFieldSpotCaption] = useState<string>(() => {
+    return task.fieldSpot?.caption || (task.type === 'qr_scan' ? (task.payload as QrScanPayload)?.unlockedMedia?.caption || '' : task.description);
   });
 
   // Re-initialize state when a different task is selected
@@ -363,13 +386,24 @@ export const TaskVisualEditForm: React.FC<Props> = ({
         };
         break;
 
-      case 'qr_scan':
+      case 'qr_scan': {
+        const target = (enableFieldSpot && fieldSpotCode.trim()) ? fieldSpotCode.trim().toUpperCase() : qrTargetCode.trim().toUpperCase();
+        const hint = (enableFieldSpot && fieldSpotName.trim()) ? fieldSpotName.trim() : qrLocationHint.trim();
+        const mediaUrl = (enableFieldSpot && fieldSpotMediaUrl.trim()) ? fieldSpotMediaUrl.trim() : (videoUrl.trim() || imageUrl.trim());
         builtPayload = {
-          targetCode: qrTargetCode.trim().toUpperCase(),
-          locationHint: qrLocationHint.trim(),
-          unlockedMedia: (task.payload as any)?.unlockedMedia
+          targetCode: target || 'VULTURE-PARK-STATION-56',
+          locationHint: hint || 'Σταθμός QR Πεδίου',
+          unlockedMedia: mediaUrl ? {
+            type: fieldSpotMediaType,
+            url: mediaUrl,
+            title: title.trim(),
+            caption: fieldSpotCaption.trim() || description.trim()
+          } : (task.payload as any)?.unlockedMedia,
+          unlockedVideoUrl: fieldSpotMediaType === 'video' ? mediaUrl : undefined,
+          unlockedImageUrl: fieldSpotMediaType === 'image' ? mediaUrl : undefined
         };
         break;
+      }
 
       default:
         builtPayload = task.payload || {};
@@ -384,6 +418,15 @@ export const TaskVisualEditForm: React.FC<Props> = ({
     const finalVideoUrl =
       (mediaTypeTab === 'video' && videoUrl.trim()) ? videoUrl.trim() : (videoUrl.trim() || undefined);
 
+    const finalFieldSpot: FieldSpotInfo | undefined = (enableFieldSpot || type === 'qr_scan') && (fieldSpotCode.trim() || qrTargetCode.trim()) ? {
+      spotCode: (fieldSpotCode.trim() || qrTargetCode.trim()).toUpperCase(),
+      spotName: fieldSpotName.trim() || qrLocationHint.trim() || title.trim(),
+      mediaType: fieldSpotMediaType,
+      mediaUrl: fieldSpotMediaUrl.trim() || finalVideoUrl || finalImageUrl,
+      mediaTitle: title.trim(),
+      caption: fieldSpotCaption.trim() || description.trim()
+    } : undefined;
+
     const updatedTask: Question = {
       ...task,
       title: title.trim(),
@@ -395,6 +438,7 @@ export const TaskVisualEditForm: React.FC<Props> = ({
       imageUrl: finalImageUrl,
       videoUrl: finalVideoUrl,
       explanation: explanation.trim(),
+      fieldSpot: finalFieldSpot,
       payload: builtPayload
     };
 
@@ -1470,42 +1514,221 @@ export const TaskVisualEditForm: React.FC<Props> = ({
         </div>
       )}
 
-      {/* 8. QR CODE SCAN BUILDER */}
-      {type === 'qr_scan' && (
-        <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
-          <label className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
-            <QrCode className="w-3.5 h-3.5 text-purple-400" />
-            <span>{isEl ? 'Παράμετροι Σταθμού QR:' : 'QR Station Parameters:'}</span>
-          </label>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* 8. UNIVERSAL FIELD SPOT & QR TRIGGER BUILDER */}
+      <div className={`p-4 rounded-2xl border transition-all ${
+        type === 'qr_scan' || enableFieldSpot
+          ? 'bg-purple-950/20 border-purple-500/50 shadow-lg'
+          : 'bg-slate-900/60 border-slate-800'
+      } space-y-4`}>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/40">
+              <QrCode className="w-4 h-4" />
+            </span>
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">
-                {isEl ? 'Κωδικός Στόχος (Target QR Code):' : 'Target Code:'}
-              </label>
-              <input
-                type="text"
-                value={qrTargetCode}
-                onChange={(e) => setQrTargetCode(e.target.value.toUpperCase())}
-                placeholder="π.χ. VULTURE-PARK-STATION-56"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono uppercase"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-slate-400 block mb-1">
-                {isEl ? 'Υπόδειξη Τοποθεσίας / Ονομασία Σταθμού:' : 'Location Hint / Station Name:'}
-              </label>
-              <input
-                type="text"
-                value={qrLocationHint}
-                onChange={(e) => setQrLocationHint(e.target.value)}
-                placeholder="π.χ. Σταθμός 56 - Ταΐστρα"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
-              />
+              <h5 className="text-xs font-black text-purple-300 uppercase tracking-wider">
+                {isEl ? 'Σταθμός Πεδίου & Κωδικός QR (Field Spot & QR Trigger)' : 'Field Spot & QR Code Trigger'}
+              </h5>
+              <p className="text-[11px] text-slate-400">
+                {isEl
+                  ? 'Ορίστε ή δημιουργήστε κωδικό QR για αυτή την αποστολή ώστε να αναπαράγει άμεσα το συνδεδεμένο βίντεο ή φωτογραφία πεδίου.'
+                  : 'Define or generate a QR trigger for this task to instantly play the associated field video or high-res photo.'}
+              </p>
             </div>
           </div>
+
+          {type !== 'qr_scan' && (
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-300 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-purple-500/50">
+              <input
+                type="checkbox"
+                checked={enableFieldSpot}
+                onChange={(e) => {
+                  setEnableFieldSpot(e.target.checked);
+                  if (e.target.checked && !fieldSpotCode) {
+                    setFieldSpotCode(generateDefaultSpotCode(task));
+                  }
+                }}
+                className="rounded accent-purple-500 w-4 h-4"
+              />
+              <span>{isEl ? 'Ενεργοποίηση QR Σταθμού για αυτή την Αποστολή' : 'Enable QR Trigger for this Task'}</span>
+            </label>
+          )}
         </div>
-      )}
+
+        {(type === 'qr_scan' || enableFieldSpot) && (
+          <div className="space-y-4 pt-2 border-t border-slate-800/80">
+            {/* Row 1: Code and Auto-generate */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-300 block">
+                    {isEl ? 'Κωδικός Στόχος / Trigger QR:' : 'Target QR Trigger Code:'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoCode = generateDefaultSpotCode(task);
+                      setFieldSpotCode(autoCode);
+                      setQrTargetCode(autoCode);
+                    }}
+                    className="text-[10px] text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>{isEl ? '⚡ Αυτόματη Δημιουργία' : '⚡ Auto Generate'}</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={fieldSpotCode || qrTargetCode}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    setFieldSpotCode(val);
+                    setQrTargetCode(val);
+                  }}
+                  placeholder="π.χ. SPOT-VULTURE-FEEDING-56"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono uppercase focus:outline-none focus:border-purple-400"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-300 block">
+                  {isEl ? 'Ονομασία Σταθμού / Υπόδειξη Τοποθεσίας:' : 'Station Name / Location Hint:'}
+                </label>
+                <input
+                  type="text"
+                  value={fieldSpotName || qrLocationHint}
+                  onChange={(e) => {
+                    setFieldSpotName(e.target.value);
+                    setQrLocationHint(e.target.value);
+                  }}
+                  placeholder={isEl ? 'π.χ. Σταθμός 56: Ταΐστρα Όρνιων' : 'e.g. Station 56: Feeding Shelter'}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400"
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Media Type & URL with Live Local Upload */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                  <Film className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{isEl ? 'Συνδεδεμένο Πολυμέσο Πεδίου (Βίντεο ή Φωτογραφία Υψηλής Ευκρίνειας):' : 'Associated Field Media (Video or High-Res Photo):'}</span>
+                </label>
+
+                {/* Media Type Toggle */}
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setFieldSpotMediaType('video')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      fieldSpotMediaType === 'video'
+                        ? 'bg-purple-500 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Film className="w-3.5 h-3.5" />
+                    <span>{isEl ? 'Βίντεο' : 'Video'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFieldSpotMediaType('image')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      fieldSpotMediaType === 'image'
+                        ? 'bg-purple-500 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>{isEl ? 'Φωτογραφία' : 'Photo'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="url"
+                  value={fieldSpotMediaUrl}
+                  onChange={(e) => setFieldMediaUrl(e.target.value)}
+                  placeholder={
+                    fieldSpotMediaType === 'video'
+                      ? 'URL YouTube / Vimeo / MP4 (π.χ. https://www.youtube.com/watch?v=...)'
+                      : 'URL Φωτογραφίας Υψηλής Ευκρίνειας ή επιλέξτε αρχείο...'
+                  }
+                  className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-purple-400"
+                />
+
+                <label className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0">
+                  <Upload className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{isEl ? 'Επιλογή' : 'Browse'}</span>
+                  <input
+                    type="file"
+                    accept={fieldSpotMediaType === 'video' ? 'video/*' : 'image/*'}
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const res = await processLocalFile(file, 1200, 0.85);
+                        setFieldMediaUrl(res.url);
+                      } catch (err) {
+                        console.error(err);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Row 3: Educational Caption / Field Note */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-300 block">
+                {isEl ? 'Επιστημονική Σημείωση / Οδηγός Παρατήρησης Πεδίου:' : 'Field Observation Guide / Caption:'}
+              </label>
+              <textarea
+                rows={2}
+                value={fieldSpotCaption}
+                onChange={(e) => setFieldSpotCaption(e.target.value)}
+                placeholder={isEl ? 'Σημειώσεις και στοιχεία που θα διαβάσουν οι μαθητές κατά την προβολή...' : 'Observation points and notes shown during playback...'}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-400"
+              />
+            </div>
+
+            {/* Live Scannable QR Code Card Preview */}
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-purple-500/30 flex items-center gap-4 flex-wrap sm:flex-nowrap">
+              <div className="p-1.5 bg-white rounded-xl shrink-0 shadow-md">
+                <ScannableQrImage
+                  value={fieldSpotCode || qrTargetCode || 'VULTURE-QR'}
+                  size={96}
+                />
+              </div>
+
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-purple-300 uppercase">
+                    {isEl ? 'Προεπισκόπηση Εκτυπώσιμου QR Σταθμού' : 'Live Scannable QR Preview'}
+                  </span>
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-800 text-amber-400 font-bold">
+                    {fieldSpotCode || qrTargetCode}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  {isEl
+                    ? 'Όταν ο μαθητής σκανάρει αυτόν τον κωδικό, θα ανοίξει αμέσως το αναδυόμενο παράθυρο προβολής του βίντεο / φωτογραφίας.'
+                    : 'When students scan this QR code, the clean modal view will instantly pop up playing the media.'}
+                </p>
+                {fieldSpotMediaUrl && (
+                  <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <span>{isEl ? 'Πολυμέσο συνδεδεμένο επιτυχώς' : 'Media connected successfully'}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Scientific Explanation */}
       <div className="space-y-1">

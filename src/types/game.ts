@@ -107,6 +107,18 @@ export interface ResearchPayload {
   requiresEvidencePhoto?: boolean; // Whether teams may upload notes or evidence photo
 }
 
+export interface FieldSpotInfo {
+  spotCode?: string; // QR code string or trigger value (e.g. "VULTURE-PARK-STATION-56")
+  spotName?: string; // Station/spot name (e.g. "Σταθμός #56: Ταΐστρα Όρνιων")
+  spotName_en?: string;
+  mediaType?: 'video' | 'image';
+  mediaUrl?: string; // High-res photo URL or field video URL
+  mediaTitle?: string;
+  mediaTitle_en?: string;
+  caption?: string; // Educational observation field notes
+  caption_en?: string;
+}
+
 export interface Question {
   id: string;
   title: string;
@@ -117,6 +129,7 @@ export interface Question {
   videoUrl?: string; // Optional video for multiple_choice, task, etc.
   assignedTeamIds?: string[]; // If empty or undefined, applies to all teams
   isActive?: boolean; // If false, question is temporarily disabled/hidden
+  fieldSpot?: FieldSpotInfo; // Optional field spot & QR trigger metadata
   payload:
     | MultipleChoicePayload
     | TrueFalsePayload

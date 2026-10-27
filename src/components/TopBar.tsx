@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutGrid, Users, MonitorPlay, ShieldCheck, QrCode, Clock, Play, Pause, Radio, Undo2, CheckCircle2, Github, Printer, FileText } from 'lucide-react';
+import { LayoutGrid, Users, MonitorPlay, ShieldCheck, QrCode, Clock, Play, Pause, Radio, Undo2, CheckCircle2, Github, Printer, FileText, Camera } from 'lucide-react';
 import { ViewMode, Language, TimerState, GamePhase } from '../types/game';
 import { translations } from '../locales/translations';
 
@@ -12,6 +12,7 @@ interface Props {
   phase: GamePhase;
   onToggleTimer?: () => void;
   onOpenJoinQr?: () => void;
+  onOpenFieldScanner?: () => void;
   onOpenGitHubSync?: () => void;
   onOpenPrintPdf?: () => void;
   onSimultaneousStart?: () => void;
@@ -28,6 +29,7 @@ export const TopBar: React.FC<Props> = ({
   phase,
   onToggleTimer,
   onOpenJoinQr,
+  onOpenFieldScanner,
   onOpenGitHubSync,
   onOpenPrintPdf,
   onSimultaneousStart,

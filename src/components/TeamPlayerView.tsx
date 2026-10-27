@@ -4,10 +4,14 @@ import {
   Puzzle, QrCode, SplitSquareVertical, MessageSquare, Sparkles, Radio, ArrowRight,
   Lock, Target, Film, Search
 } from 'lucide-react';
-import { GameState, Language, Team, Question, Submission, TeamSynthesisNote } from '../types/game';
+import { GameState, Language, Team, Question, Submission, TeamSynthesisNote, FieldSpotInfo } from '../types/game';
 import { translations } from '../locales/translations';
 import { QuestSolverModal } from './QuestSolverModal';
 import { TeamSynthesisPadlet } from './TeamSynthesisPadlet';
+import { FieldQrScannerModal } from './FieldQrScannerModal';
+import { FieldMediaPlaybackModal } from './FieldMediaPlaybackModal';
+import { TaskQrCodeModal } from './TaskQrCodeModal';
+import { getQuestionFieldSpot } from '../utils/qrMediaHelper';
 import { getTeamOrderedQuestions, isTeamSequentialProgression, getQuestionStepInfo } from '../utils/questOrder';
 
 interface Props {
@@ -48,6 +52,11 @@ export const TeamPlayerView: React.FC<Props> = ({
     stepNumber: number;
     previousQuestTitle?: string;
   } | null>(null);
+
+  // Field QR Scanner & Media Playback Modal states
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState<boolean>(false);
+  const [qrModalTask, setQrModalTask] = useState<Question | null>(null);
+  const [mediaModalInfo, setMediaModalInfo] = useState<{ question: Question; fieldSpot: FieldSpotInfo } | null>(null);
 
   // Filter & sort questions in the exact order configured for this team
   const visibleQuestions = getTeamOrderedQuestions(
@@ -309,6 +318,17 @@ export const TeamPlayerView: React.FC<Props> = ({
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping absolute top-2 right-3" />
           )}
         </button>
+
+        <button
+          type="button"
+          onClick={() => setIsQrScannerOpen(true)}
+          className="py-2.5 px-3.5 sm:px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md shadow-purple-600/20 active:scale-95 cursor-pointer shrink-0"
+          title={lang === 'el' ? 'Σάρωση QR Code Σταθμού Πεδίου & Άμεση Αναπαραγωγή' : 'Scan Field Station QR Code & Instant Playback'}
+        >
+          <Camera className="w-3.5 h-3.5 text-purple-200" />
+          <span className="hidden sm:inline">{lang === 'el' ? '📱 Σάρωση QR Σταθμού' : '📱 Scan Field QR'}</span>
+          <span className="sm:hidden">{lang === 'el' ? '📱 QR' : '📱 QR'}</span>
+        </button>
       </div>
 
       {/* TAB 1: QUESTS LIST */}
@@ -539,25 +559,40 @@ export const TeamPlayerView: React.FC<Props> = ({
                         </div>
                       )}
 
-                      <button
-                        type="button"
-                        className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-colors ${
-                          isDone
-                            ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            : stepInfo.isLocked
-                            ? 'bg-slate-800/80 text-slate-400 hover:bg-slate-800 border border-slate-700/60'
-                            : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/10'
-                        }`}
-                      >
-                        <span>
-                          {isDone
-                            ? t.viewSubmission
-                            : stepInfo.isLocked
-                            ? t.questLocked
-                            : t.solveNow}
-                        </span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQrModalTask(quest);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl bg-purple-950/70 hover:bg-purple-900 border border-purple-500/40 text-purple-300 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                          title={lang === 'el' ? 'Προβολή QR Code Σταθμού & Πολυμέσων' : 'View Station QR & Media'}
+                        >
+                          <QrCode className="w-3.5 h-3.5 text-purple-400" />
+                          <span className="hidden sm:inline">{lang === 'el' ? 'QR' : 'QR'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-colors ${
+                            isDone
+                              ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                              : stepInfo.isLocked
+                              ? 'bg-slate-800/80 text-slate-400 hover:bg-slate-800 border border-slate-700/60'
+                              : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/10'
+                          }`}
+                        >
+                          <span>
+                            {isDone
+                              ? t.viewSubmission
+                              : stepInfo.isLocked
+                              ? t.questLocked
+                              : t.solveNow}
+                          </span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -666,6 +701,56 @@ export const TeamPlayerView: React.FC<Props> = ({
             if (selectedQuest.type !== 'qr_scan') {
               setSelectedQuest(null);
             }
+          }}
+        />
+      )}
+
+      {/* Field QR Scanner Modal */}
+      {isQrScannerOpen && (
+        <FieldQrScannerModal
+          questions={gameState.questions || []}
+          lang={lang}
+          onClose={() => setIsQrScannerOpen(false)}
+          onScanSuccess={(scannedQuestion, fs) => {
+            setIsQrScannerOpen(false);
+            setMediaModalInfo({ question: scannedQuestion, fieldSpot: fs });
+            // If QR scan task, auto-submit the code
+            if (scannedQuestion.type === 'qr_scan') {
+              onSubmitQuest(scannedQuestion.id, activeTeam.id, {
+                status: 'correct',
+                scoreEarned: scannedQuestion.points,
+                answerData: { decodedCode: fs.spotCode || scannedQuestion.id }
+              });
+            }
+          }}
+        />
+      )}
+
+      {/* Task QR Code Generator & Placard Modal */}
+      {qrModalTask && (
+        <TaskQrCodeModal
+          question={qrModalTask}
+          lang={lang}
+          onClose={() => setQrModalTask(null)}
+          onTriggerMedia={(q, fs) => {
+            setQrModalTask(null);
+            setMediaModalInfo({ question: q, fieldSpot: fs });
+          }}
+        />
+      )}
+
+      {/* Clean Field Media Playback Modal */}
+      {mediaModalInfo && (
+        <FieldMediaPlaybackModal
+          question={mediaModalInfo.question}
+          fieldSpot={mediaModalInfo.fieldSpot}
+          lang={lang}
+          activeTeam={activeTeam}
+          isTaskCompleted={Boolean(gameState.submissions[`${activeTeam.id}_${mediaModalInfo.question.id}`])}
+          onClose={() => setMediaModalInfo(null)}
+          onSolveTask={(q) => {
+            setMediaModalInfo(null);
+            setSelectedQuest(q);
           }}
         />
       )}

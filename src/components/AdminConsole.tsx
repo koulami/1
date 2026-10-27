@@ -58,6 +58,9 @@ import { storageService } from '../services/storageService';
 import { exportService } from '../services/exportService';
 import { TaskVisualEditForm } from './TaskVisualEditForm';
 import { processLocalFile } from '../utils/fileUploadHelper';
+import { TaskQrCodeModal } from './TaskQrCodeModal';
+import { FieldMediaPlaybackModal } from './FieldMediaPlaybackModal';
+import { FieldSpotInfo } from '../types/game';
 
 interface AdminConsoleProps {
   lang: 'el' | 'en';
@@ -207,6 +210,10 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   const [currentOrder, setCurrentOrder] = useState<string[]>(() => {
     return taskOrder && taskOrder.length > 0 ? taskOrder : storageService.getTaskOrder();
   });
+
+  // Modal states for QR Generation & Instant Media Playback
+  const [qrModalTask, setQrModalTask] = useState<Question | null>(null);
+  const [mediaModalInfo, setMediaModalInfo] = useState<{ question: Question; fieldSpot: FieldSpotInfo } | null>(null);
 
   useEffect(() => {
     if (taskOrder && taskOrder.length > 0) {
@@ -1039,6 +1046,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                 <span>{taskSubmissions.length}</span>
               </span>
             )}
+
+            {/* QR Code Definition & Playback Button */}
+            <button
+              type="button"
+              onClick={() => setQrModalTask(task)}
+              className="px-2.5 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900 border border-purple-500/40 hover:border-purple-400 text-purple-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              title={isEl ? 'Προβολή & Εκτύπωση QR Code Σταθμού / Δοκιμή Πολυμέσων' : 'View & Print Station QR / Test Media'}
+            >
+              <QrCode className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">{isEl ? 'QR Σταθμού' : 'Station QR'}</span>
+            </button>
 
             <button
               type="button"
@@ -2989,6 +3007,29 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
           </div>
         )}
       </main>
+
+      {/* Task QR Code Generator & Placard Print Modal */}
+      {qrModalTask && (
+        <TaskQrCodeModal
+          question={qrModalTask}
+          lang={lang}
+          onClose={() => setQrModalTask(null)}
+          onTriggerMedia={(q, fs) => {
+            setQrModalTask(null);
+            setMediaModalInfo({ question: q, fieldSpot: fs });
+          }}
+        />
+      )}
+
+      {/* Clean Field Media Playback Modal */}
+      {mediaModalInfo && (
+        <FieldMediaPlaybackModal
+          question={mediaModalInfo.question}
+          fieldSpot={mediaModalInfo.fieldSpot}
+          lang={lang}
+          onClose={() => setMediaModalInfo(null)}
+        />
+      )}
     </div>
   );
 };
