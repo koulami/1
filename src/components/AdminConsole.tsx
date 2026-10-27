@@ -309,6 +309,31 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   };
 
   // Filtered Tasks
+  // Helper to check if a task is specifically assigned to a group
+  const isTaskAssignedToGroup = (task: Question, groupId: string) => {
+    return Boolean(task.assignedTeamIds && task.assignedTeamIds.includes(groupId));
+  };
+
+  // Helper to check if a task is unassigned (available to be picked)
+  const isTaskUnassigned = (task: Question) => {
+    return !task.assignedTeamIds || task.assignedTeamIds.length === 0;
+  };
+
+  const matchesSearchAndType = (task: Question) => {
+    if (selectedType !== 'all' && task.type !== selectedType) {
+      return false;
+    }
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const titleMatch = (task.title || '').toLowerCase().includes(query) || (task.title_en || '').toLowerCase().includes(query);
+      const descMatch = (task.description || '').toLowerCase().includes(query);
+      const idMatch = task.id.toLowerCase().includes(query);
+      if (!titleMatch && !descMatch && !idMatch) return false;
+    }
+    return true;
+  };
+
+  // Filtered Tasks for All Groups Master View
   const filteredTasks = useMemo(() => {
     return allTasks.filter((task) => {
       const active = isTaskActive(task, taskOverrides);
@@ -319,37 +344,46 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
 
       // Group filter
       if (selectedGroup !== 'all') {
-        if (!task.assignedTeamIds || !task.assignedTeamIds.includes(selectedGroup)) {
+        if (!isTaskAssignedToGroup(task, selectedGroup)) {
           return false;
         }
       }
 
-      // Type filter
-      if (selectedType !== 'all' && task.type !== selectedType) {
-        return false;
-      }
-
-      // Search Query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const titleMatch = (task.title || '').toLowerCase().includes(query) || (task.title_en || '').toLowerCase().includes(query);
-        const descMatch = (task.description || '').toLowerCase().includes(query);
-        const idMatch = task.id.toLowerCase().includes(query);
-        if (!titleMatch && !descMatch && !idMatch) return false;
-      }
-
-      return true;
+      return matchesSearchAndType(task);
     });
   }, [allTasks, taskOverrides, poolFilterStatus, selectedGroup, selectedType, searchQuery]);
 
-  // Reorder task sequence: move task up or down within current visible list
-  const handleShiftTaskOrder = (taskId: string, direction: 'up' | 'down') => {
-    const listIndex = filteredTasks.findIndex((t) => t.id === taskId);
+  // For Individual Group Management View:
+  // Strictly only the active tasks specifically assigned to this group
+  const groupActiveTasks = useMemo(() => {
+    if (selectedGroup === 'all') return [];
+    return allTasks.filter((task) => {
+      if (!matchesSearchAndType(task)) return false;
+      const active = isTaskActive(task, taskOverrides);
+      const assigned = isTaskAssignedToGroup(task, selectedGroup);
+      return active && assigned;
+    });
+  }, [allTasks, taskOverrides, selectedGroup, selectedType, searchQuery]);
+
+  // Unassigned / Available tasks in the Master Pool (tasks not currently assigned to any group)
+  const unassignedTasks = useMemo(() => {
+    return allTasks.filter((task) => {
+      if (!matchesSearchAndType(task)) return false;
+      if (poolFilterStatus === 'active' && !isTaskActive(task, taskOverrides)) return false;
+      if (poolFilterStatus === 'inactive' && isTaskActive(task, taskOverrides)) return false;
+      return isTaskUnassigned(task);
+    });
+  }, [allTasks, taskOverrides, poolFilterStatus, selectedType, searchQuery]);
+
+  // Reorder task sequence: move task up or down within current visible or group list
+  const handleShiftTaskOrder = (taskId: string, direction: 'up' | 'down', contextList?: Question[]) => {
+    const list = contextList || (selectedGroup !== 'all' ? groupActiveTasks : filteredTasks);
+    const listIndex = list.findIndex((t) => t.id === taskId);
     if (listIndex === -1) return;
     if (direction === 'up' && listIndex === 0) return;
-    if (direction === 'down' && listIndex === filteredTasks.length - 1) return;
+    if (direction === 'down' && listIndex === list.length - 1) return;
 
-    const neighborTask = filteredTasks[direction === 'up' ? listIndex - 1 : listIndex + 1];
+    const neighborTask = list[direction === 'up' ? listIndex - 1 : listIndex + 1];
     if (!neighborTask) return;
 
     // Build the updated master order of all tasks
@@ -374,6 +408,76 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
       isEl
         ? `Η σειρά της αποστολής ενημερώθηκε επιτυχώς!`
         : `Task sequence order updated successfully!`
+    );
+  };
+
+  // Quick 1-click assign and activate for individual group
+  const handleAssignAndActivateForGroup = (task: Question, targetGroupId: string) => {
+    // 1. Ensure assigned to targetGroupId
+    const current = task.assignedTeamIds || [];
+    let updatedTask = task;
+    if (current.length > 0 && !current.includes(targetGroupId)) {
+      const newAssigned = [...current, targetGroupId];
+      updatedTask = {
+        ...task,
+        assignedTeamIds: newAssigned
+      };
+      if (onSaveCustomQuestion) {
+        onSaveCustomQuestion(updatedTask);
+      }
+      storageService.saveCustomQuestion(updatedTask);
+    }
+    // 2. Ensure active
+    if (!isTaskActive(task, taskOverrides)) {
+      const newOverrides = {
+        ...taskOverrides,
+        [task.id]: true
+      };
+      onUpdateTaskOverrides(newOverrides);
+      storageService.saveTaskActiveOverride(task.id, true);
+    }
+    showNotification(
+      isEl
+        ? `Η αποστολή "${task.title}" ενεργοποιήθηκε και ανατέθηκε στην ομάδα!`
+        : `Task "${task.title}" assigned and activated for group!`,
+      'success'
+    );
+  };
+
+  // Quick 1-click unassign from an individual group
+  const handleUnassignFromGroup = (task: Question, targetGroupId: string) => {
+    const current = task.assignedTeamIds || [];
+    const newAssigned = current.filter((id) => id !== targetGroupId);
+    const updatedTask: Question = {
+      ...task,
+      assignedTeamIds: newAssigned
+    };
+    if (onSaveCustomQuestion) {
+      onSaveCustomQuestion(updatedTask);
+    }
+    storageService.saveCustomQuestion(updatedTask);
+    showNotification(
+      isEl
+        ? `Η αποστολή αφαιρέθηκε από την ομάδα και μεταφέρθηκε στις Διαθέσιμες / Unassigned.`
+        : `Task removed from group and moved to Unassigned / Available tasks.`,
+      'info'
+    );
+  };
+
+  // Quick activate all tasks assigned to the current group
+  const handleActivateAllForCurrentGroup = (groupId: string) => {
+    const newOverrides: Record<string, boolean> = { ...taskOverrides };
+    const groupTasks = allTasks.filter((t) => isTaskAssignedToGroup(t, groupId));
+    for (const t of groupTasks) {
+      newOverrides[t.id] = true;
+      storageService.saveTaskActiveOverride(t.id, true);
+    }
+    onUpdateTaskOverrides(newOverrides);
+    showNotification(
+      isEl
+        ? 'Όλες οι ανατεθειμένες αποστολές της ομάδας ενεργοποιήθηκαν!'
+        : 'All assigned tasks for this group were activated!',
+      'success'
     );
   };
 
@@ -664,6 +768,332 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     );
   }
 
+  const selectedTeamMeta = useMemo(() => {
+    return masterTeamsPool.find((t) => t.id === selectedGroup);
+  }, [selectedGroup]);
+
+  // Reusable Task Card Renderer for both Master Pool and Individual Group views
+  const renderTaskCard = (
+    task: Question,
+    idx: number,
+    list: Question[],
+    isGroupView: boolean = false,
+    isActiveSection: boolean = true
+  ) => {
+    const active = isTaskActive(task, taskOverrides);
+    const isExpanded = expandedTaskId === task.id;
+    const cpMeta = getCheckpointMetadata(task, lang);
+    const taskSubmissions = Object.values(submissions).filter(
+      (s) => s.questionId === task.id && s.status === 'correct'
+    );
+    const isAssignedToThisGroup = selectedGroup !== 'all' ? isTaskAssignedToGroup(task, selectedGroup) : true;
+
+    return (
+      <div
+        key={task.id}
+        className={`p-4 rounded-2xl border transition-all ${
+          active && (!isGroupView || isActiveSection)
+            ? 'bg-slate-900 border-slate-800 hover:border-slate-700 shadow-sm'
+            : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700/80 opacity-90'
+        }`}
+      >
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-3.5 flex-1 min-w-[280px]">
+            {/* Reordering Controls: shown in Active sections */}
+            {isActiveSection ? (
+              <div className="flex flex-col items-center justify-center shrink-0 bg-slate-950/90 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={() => handleShiftTaskOrder(task.id, 'up', list)}
+                  className={`p-1.5 rounded-lg transition-all ${
+                    idx === 0
+                      ? 'text-slate-700 cursor-not-allowed opacity-30'
+                      : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800 active:scale-90 cursor-pointer shadow-sm'
+                  }`}
+                  title={isEl ? 'Μετακίνηση αποστολής πάνω' : 'Move task up'}
+                >
+                  <ChevronUp className="w-4 h-4 stroke-[2.5]" />
+                </button>
+
+                <div className="py-0.5 px-1 font-mono text-[11px] font-black text-amber-400 select-none">
+                  #{idx + 1}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={idx === list.length - 1}
+                  onClick={() => handleShiftTaskOrder(task.id, 'down', list)}
+                  className={`p-1.5 rounded-lg transition-all ${
+                    idx === list.length - 1
+                      ? 'text-slate-700 cursor-not-allowed opacity-30'
+                      : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800 active:scale-90 cursor-pointer shadow-sm'
+                  }`}
+                  title={isEl ? 'Μετακίνηση αποστολής κάτω' : 'Move task down'}
+                >
+                  <ChevronDown className="w-4 h-4 stroke-[2.5]" />
+                </button>
+              </div>
+            ) : (
+              /* Placement badge in inactive section */
+              <div className="flex flex-col items-center justify-center shrink-0 bg-slate-900/80 p-2 rounded-2xl border border-slate-800">
+                <span className="text-base select-none">⏸️</span>
+                <span className="font-mono text-[9px] text-slate-500 font-bold uppercase">Pool</span>
+              </div>
+            )}
+
+            {/* Active Toggle Switch */}
+            <div className="flex flex-col items-center gap-1.5 shrink-0 pt-1.5">
+              <button
+                type="button"
+                onClick={() => handleToggleTask(task.id)}
+                className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer focus:outline-none ${
+                  active ? 'bg-emerald-500' : 'bg-slate-700'
+                }`}
+                title={
+                  active
+                    ? isEl
+                      ? 'Κάντε κλικ για απενεργοποίηση'
+                      : 'Click to deactivate'
+                    : isEl
+                    ? 'Κάντε κλικ για ενεργοποίηση'
+                    : 'Click to activate'
+                }
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    active ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                {active ? (isEl ? 'ΕΝΕΡΓΗ' : 'ON') : (isEl ? 'OFF' : 'OFF')}
+              </span>
+            </div>
+
+            {/* Task Content */}
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-xs text-amber-400 font-bold">{task.id}</span>
+
+                <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] font-semibold text-slate-300 uppercase">
+                  {task.type.replace('_', ' ')}
+                </span>
+
+                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                  +{task.points} pts
+                </span>
+
+                {task.timeLimitMinutes && task.timeLimitMinutes > 0 && (
+                  <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>{task.timeLimitMinutes} min</span>
+                  </span>
+                )}
+
+                {cpMeta.isCheckpoint && (
+                  <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center gap-1">
+                    🚩 <span>{cpMeta.badge}</span>
+                  </span>
+                )}
+
+                {/* Specific status badges for inactive/unassigned section in group view */}
+                {isGroupView && !isActiveSection && (
+                  <>
+                    {!active && (
+                      <span className="px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-400 border border-slate-700 text-[10px] font-bold flex items-center gap-1">
+                        ⏸️ <span>{isEl ? 'Ανενεργή στο Pool' : 'Inactive in Pool'}</span>
+                      </span>
+                    )}
+                    {!isAssignedToThisGroup && (
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1">
+                        ➕ <span>{isEl ? 'Μη Ανατεθειμένη στην Ομάδα' : 'Unassigned to Group'}</span>
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <h4 className="text-sm font-bold text-white leading-snug">
+                {isEl ? task.title : task.title_en || task.title}
+              </h4>
+
+              <p className="text-xs text-slate-400 line-clamp-2">
+                {isEl ? task.description : task.description_en || task.description}
+              </p>
+
+              {/* Group Assignment Controls */}
+              <div className="pt-1.5 flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] font-bold text-slate-400 mr-1">
+                  {isEl ? 'Ανάθεση:' : 'Assign:'}
+                </span>
+                {[
+                  { id: 'team-alpha', label: 'G1', color: '#10b981' },
+                  { id: 'team-beta', label: 'G2', color: '#06b6d4' },
+                  { id: 'team-gamma', label: 'G3', color: '#f59e0b' },
+                  { id: 'team-delta', label: 'G4', color: '#8b5cf6' }
+                ].map((grp) => {
+                  const isAssigned = (task.assignedTeamIds || []).includes(grp.id);
+                  return (
+                    <button
+                      key={grp.id}
+                      type="button"
+                      onClick={() => handleToggleTaskGroup(task, grp.id)}
+                      style={{
+                        borderColor: isAssigned ? grp.color : '#334155',
+                        backgroundColor: isAssigned ? `${grp.color}25` : 'transparent',
+                        color: isAssigned ? '#ffffff' : '#94a3b8'
+                      }}
+                      className="px-2 py-0.5 rounded-md border text-[10px] font-bold cursor-pointer transition-all hover:scale-105"
+                      title={
+                        isAssigned
+                          ? isEl
+                            ? 'Αφαιρέστε από την ομάδα'
+                            : 'Remove from group'
+                          : isEl
+                          ? 'Αναθέστε στην ομάδα'
+                          : 'Assign to group'
+                      }
+                    >
+                      {grp.label} {isAssigned && '✓'}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => handleToggleTaskGroup(task, 'all')}
+                  className={`px-2 py-0.5 rounded-md border text-[10px] font-bold cursor-pointer transition-all ${
+                    !task.assignedTeamIds || task.assignedTeamIds.length === 0
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'text-slate-500 border-slate-800 hover:text-slate-300'
+                  }`}
+                  title={isEl ? 'Κοινή για όλες τις ομάδες' : 'Shared across all groups'}
+                >
+                  {isEl ? 'Όλες' : 'All'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right side Actions */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+            {/* Quick action buttons for Group View */}
+            {isGroupView && !isActiveSection && (
+              <>
+                {!isAssignedToThisGroup && !active ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAssignAndActivateForGroup(task, selectedGroup)}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer transition-all hover:scale-105"
+                    title={
+                      isEl
+                        ? 'Ανάθεση και άμεση ενεργοποίηση για αυτή την ομάδα'
+                        : 'Assign and activate immediately for this group'
+                    }
+                  >
+                    <Zap className="w-3.5 h-3.5 fill-slate-950" />
+                    <span>{isEl ? 'Ανάθεση & Ενεργοποίηση' : 'Assign & Activate'}</span>
+                  </button>
+                ) : !isAssignedToThisGroup ? (
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTaskGroup(task, selectedGroup)}
+                    className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isEl ? 'Ανάθεση στην Ομάδα' : 'Assign to Group'}</span>
+                  </button>
+                ) : !active ? (
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTask(task.id)}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-white" />
+                    <span>{isEl ? 'Ενεργοποίηση' : 'Activate'}</span>
+                  </button>
+                ) : null}
+              </>
+            )}
+
+            {isGroupView && isActiveSection && (
+              <button
+                type="button"
+                onClick={() => handleUnassignFromGroup(task, selectedGroup)}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-rose-950/60 hover:text-rose-300 text-slate-400 border border-slate-700/60 text-xs font-medium transition-colors cursor-pointer"
+                title={isEl ? 'Αφαίρεση από αυτή την ομάδα' : 'Remove from this group'}
+              >
+                <span>{isEl ? 'Αφαίρεση' : 'Remove'}</span>
+              </button>
+            )}
+
+            {Boolean(customQuestions[task.id]) && (
+              <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/40 text-[10px] font-bold">
+                ✏️ {isEl ? 'Τροποποιημένη' : 'Custom'}
+              </span>
+            )}
+
+            {taskSubmissions.length > 0 && (
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" />
+                <span>{taskSubmissions.length}</span>
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isExpanded
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
+              }`}
+            >
+              <span>{isExpanded ? '✕' : '✏️'}</span>
+              <span className="hidden sm:inline">
+                {isExpanded ? (isEl ? 'Κλείσιμο' : 'Close') : (isEl ? 'Επεξεργασία' : 'Edit')}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Visual Edit Form */}
+        {isExpanded && (
+          <div className="mt-4 pt-4 border-t border-slate-800">
+            <TaskVisualEditForm
+              task={task}
+              lang={lang}
+              isCustomized={Boolean(customQuestions[task.id])}
+              onSave={(updated) => {
+                if (onSaveCustomQuestion) {
+                  onSaveCustomQuestion(updated);
+                }
+                storageService.saveCustomQuestion(updated);
+                setExpandedTaskId(null);
+                showNotification(
+                  isEl
+                    ? `Η αποστολή "${updated.title}" αποθηκεύτηκε επιτυχώς!`
+                    : `Task "${updated.title}" saved successfully!`
+                );
+              }}
+              onResetToDefault={() => {
+                if (onResetCustomQuestion) {
+                  onResetCustomQuestion(task.id);
+                }
+                storageService.resetCustomQuestion(task.id);
+                setExpandedTaskId(null);
+                showNotification(
+                  isEl ? 'Επαναφορά στις αρχικές ρυθμίσεις.' : 'Reset to defaults.'
+                );
+              }}
+              onCancel={() => setExpandedTaskId(null)}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // =========================================================================
   // VIEW: AUTHENTICATED ADMIN CONSOLE
   // =========================================================================
@@ -850,376 +1280,675 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
         {/* TAB 1: MASTER POOL MANAGEMENT & GROUP REASSIGNMENT                */}
         {/* ================================================================= */}
         {activeTab === 'pool' && (
-          <div className="space-y-5">
-            {/* Control Bar: Status Filter + Bulk Actions */}
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                {/* Active / Inactive / All Tabs */}
-                <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className="space-y-6">
+            {/* Quick Group Switcher Bar */}
+            <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center gap-2 overflow-x-auto shadow-md">
+              <span className="text-[10px] font-black uppercase text-slate-400 px-2 shrink-0">
+                {isEl ? 'Ομάδα:' : 'Group:'}
+              </span>
+
+              {/* Master Pool button */}
+              <button
+                type="button"
+                onClick={() => setSelectedGroup('all')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shrink-0 ${
+                  selectedGroup === 'all'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20 scale-[1.02]'
+                    : 'bg-slate-950/80 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>{isEl ? 'Master Pool (Όλες)' : 'Master Pool (All)'}</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-slate-900/60 text-[10px] font-mono">
+                  {allTasks.length}
+                </span>
+              </button>
+
+              {/* 4 Group Buttons */}
+              {masterTeamsPool.map((team) => {
+                const isSelected = selectedGroup === team.id;
+                const teamActiveCount = allTasks.filter(
+                  (t) => isTaskActive(t, taskOverrides) && isTaskAssignedToGroup(t, team.id)
+                ).length;
+
+                return (
                   <button
+                    key={team.id}
                     type="button"
-                    onClick={() => setPoolFilterStatus('all')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      poolFilterStatus === 'all'
-                        ? 'bg-amber-500 text-slate-950'
-                        : 'text-slate-400 hover:text-white'
+                    onClick={() => setSelectedGroup(team.id)}
+                    style={{
+                      borderColor: isSelected ? team.color : undefined,
+                      backgroundColor: isSelected ? `${team.color}25` : undefined
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shrink-0 ${
+                      isSelected
+                        ? 'text-white border-2 shadow-md font-black ring-1 ring-white/20 scale-[1.02]'
+                        : 'bg-slate-950/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
                     }`}
                   >
-                    {isEl ? `Όλες (${allTasks.length})` : `All (${allTasks.length})`}
+                    <span className="text-sm">{team.avatar}</span>
+                    <span>
+                      {isEl ? team.name.split(':')[0] : team.name_en ? team.name_en.split(':')[0] : team.name}
+                    </span>
+                    <span
+                      style={{ backgroundColor: `${team.color}40`, color: '#ffffff' }}
+                      className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold"
+                    >
+                      {teamActiveCount}
+                    </span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setPoolFilterStatus('active')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      poolFilterStatus === 'active'
-                        ? 'bg-emerald-500 text-slate-950'
-                        : 'text-emerald-400 hover:text-emerald-300'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span>{isEl ? `Ενεργές (${activeCount})` : `Active (${activeCount})`}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPoolFilterStatus('inactive')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      poolFilterStatus === 'inactive'
-                        ? 'bg-slate-700 text-white'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                    <span>{isEl ? `Αποθετήριο Pool (${inactiveCount})` : `Pool (${inactiveCount})`}</span>
-                  </button>
+                );
+              })}
+            </div>
+
+            {/* If an Individual Group is selected: Team View displays ONLY active tasks specifically assigned to this group */}
+            {selectedGroup !== 'all' && selectedTeamMeta ? (
+              <div className="space-y-6">
+                {/* Group Header Banner */}
+                <div
+                  style={{
+                    borderColor: `${selectedTeamMeta.color}60`,
+                    background: `linear-gradient(135deg, ${selectedTeamMeta.color}18 0%, rgba(15,23,42,0.95) 100%)`
+                  }}
+                  className="p-5 sm:p-6 rounded-3xl border-2 shadow-xl space-y-4"
+                >
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3.5">
+                      <div
+                        style={{ borderColor: `${selectedTeamMeta.color}80` }}
+                        className="w-14 h-14 rounded-2xl bg-slate-900 border-2 flex items-center justify-center text-3xl shadow-lg shrink-0"
+                      >
+                        {selectedTeamMeta.avatar}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-xl sm:text-2xl font-black text-white">
+                            {isEl ? selectedTeamMeta.name : selectedTeamMeta.name_en || selectedTeamMeta.name}
+                          </h2>
+                          <span
+                            style={{
+                              backgroundColor: `${selectedTeamMeta.color}25`,
+                              color: selectedTeamMeta.color,
+                              borderColor: `${selectedTeamMeta.color}60`
+                            }}
+                            className="px-2.5 py-0.5 rounded-full text-xs font-black border uppercase"
+                          >
+                            {selectedTeamMeta.id.replace('team-', 'GROUP ')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-300 mt-0.5">
+                          {isEl ? selectedTeamMeta.slogan : selectedTeamMeta.slogan_en || selectedTeamMeta.slogan}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleActivateAllForCurrentGroup(selectedGroup)}
+                        className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer transition-all active:scale-95"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>{isEl ? 'Ενεργοποίηση Όλων της Ομάδας' : 'Activate All for Group'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGroup('all')}
+                        className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer transition-colors"
+                      >
+                        <span>{isEl ? '← Όλες οι Ομάδες (Master Pool)' : '← All Groups (Master Pool)'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Group Metrics Row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800/80">
+                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                      <div className="text-[11px] font-bold text-slate-400 uppercase">
+                        {isEl ? 'Ενεργές Αποστολές Ομάδας' : 'Active Tasks for Group'}
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-0.5">
+                        {groupActiveTasks.length}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                      <div className="text-[11px] font-bold text-slate-400 uppercase">
+                        {isEl ? 'Συνολικοί Πόντοι Ομάδας' : 'Total Group Points'}
+                      </div>
+                      <div className="text-xl font-black text-amber-400 mt-0.5">
+                        {groupActiveTasks.reduce((acc, t) => acc + (t.points || 0), 0)} pts
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                      <div className="text-[11px] font-bold text-slate-400 uppercase">
+                        {isEl ? 'Σειρά Εκτέλεσης' : 'Sequence Order'}
+                      </div>
+                      <div className="text-xs font-bold text-amber-300 mt-1 flex items-center gap-1">
+                        <span>⚡ {isEl ? 'Εξατομικευμένη (Βέλη)' : 'Customizable (Arrows)'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filter & Search Bar within Group View */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={
+                          isEl
+                            ? `Αναζήτηση στις ενεργές αποστολές της ${selectedTeamMeta.name}...`
+                            : `Search active tasks in ${selectedTeamMeta.name}...`
+                        }
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                    <select
+                      value={selectedType}
+                      onChange={(e) => setSelectedType(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="all">{isEl ? 'Όλοι οι Τύποι Αποστολών' : 'All Quest Types'}</option>
+                      <option value="multiple_choice">{isEl ? 'Πολλαπλής Επιλογής' : 'Multiple Choice'}</option>
+                      <option value="true_false">{isEl ? 'Σωστό / Λάθος' : 'True / False'}</option>
+                      <option value="text_match">{isEl ? 'Αντιστοίχιση Κειμένου' : 'Text Matching'}</option>
+                      <option value="image_match">{isEl ? 'Αντιστοίχιση Εικόνας' : 'Image Matching'}</option>
+                      <option value="puzzle">{isEl ? 'Παζλ (Puzzle)' : 'Puzzle'}</option>
+                      <option value="qr_scan">{isEl ? 'Σάρωση QR Code' : 'QR Scan'}</option>
+                      <option value="photo_upload">{isEl ? 'Μεταφόρτωση Τεκμηρίου (Photo/Video)' : 'Evidence Upload'}</option>
+                      <option value="task">{isEl ? 'Αποστολή / Checkpoint Task' : 'Task / Checklist'}</option>
+                    </select>
+                  </div>
                 </div>
 
-                {/* Bulk Actions */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleActivateAll}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{isEl ? 'Ενεργοποίηση Όλων' : 'Activate All'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeactivateAll}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <EyeOff className="w-3.5 h-3.5" />
-                    <span>{isEl ? 'Μεταφορά Όλων στο Pool' : 'Deactivate All'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetDefaults}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>{isEl ? 'Επαναφορά Ενεργών' : 'Reset Active'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetTaskOrder}
-                    disabled={currentOrder.length === 0}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                      currentOrder.length > 0
-                        ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40 cursor-pointer shadow-sm'
-                        : 'bg-slate-850 text-slate-600 border-slate-800 cursor-not-allowed opacity-50'
-                    }`}
-                    title={isEl ? 'Επαναφορά της σειράς αποστολών στην αρχική' : 'Reset task sequence to default'}
-                  >
-                    <ArrowDown className="w-3.5 h-3.5 rotate-180" />
-                    <span>{isEl ? 'Επαναφορά Σειράς' : 'Reset Order'}</span>
-                  </button>
-                  {currentOrder.length > 0 && (
-                    <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold">
-                      ⚡ {isEl ? 'Προσαρμοσμένη Σειρά' : 'Custom Order'}
-                    </span>
+                {/* Team View: Strictly displays ONLY the active tasks specifically assigned to that group */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      <div>
+                        <h3 className="text-sm sm:text-base font-black text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                          <span>{isEl ? 'Ενεργές Αποστολές Ομάδας' : 'Active Tasks Specifically Assigned to Group'}</span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-xs font-black">
+                            {groupActiveTasks.length}
+                          </span>
+                        </h3>
+                        <p className="text-xs text-slate-300 mt-0.5">
+                          {isEl
+                            ? 'Αποστολές που θα εμφανιστούν στην οθόνη των μαθητών αυτής της ομάδας, κατά σειρά εκτέλεσης (#1, #2, #3...). Χρησιμοποιήστε τα βέλη για αναδιάταξη.'
+                            : 'Missions unlocked in arena for this team, in sequence order (#1, #2, #3...). Use up/down arrows to reorder.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {currentOrder.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleResetTaskOrder}
+                        className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>{isEl ? 'Επαναφορά Σειράς' : 'Reset Sequence'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {groupActiveTasks.length === 0 ? (
+                    <div className="p-8 rounded-2xl bg-slate-900 border border-dashed border-emerald-500/40 text-center space-y-3">
+                      <div className="text-3xl">📭</div>
+                      <p className="text-sm font-bold text-emerald-300">
+                        {isEl
+                          ? 'Δεν υπάρχουν ενεργές αποστολές ανατεθειμένες σε αυτή την ομάδα.'
+                          : 'No active tasks specifically assigned to this group.'}
+                      </p>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto">
+                        {isEl
+                          ? 'Επιστρέψτε στο Master Pool για να επιλέξετε και να αναθέσετε αποστολές στην ομάδα αυτή με ένα κλικ.'
+                          : 'Return to Master Pool to pick and assign tasks to this team with 1 click.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGroup('all')}
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-colors cursor-pointer"
+                      >
+                        {isEl ? 'Μετάβαση στο Master Pool για Ανάθεση' : 'Go to Master Pool to Assign Tasks'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {groupActiveTasks.map((task, idx) =>
+                        renderTaskCard(task, idx, groupActiveTasks, true, true)
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
+            ) : (
+              /* ========================================================================= */
+              /* MASTER POOL / ADMIN OVERVIEW: Organized Clearly into Groups + Unassigned  */
+              /* ========================================================================= */
+              <div className="space-y-6">
+                {/* Control Bar: Status Filter + Bulk Actions */}
+                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    {/* Active / Inactive / All Tabs */}
+                    <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setPoolFilterStatus('all')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          poolFilterStatus === 'all'
+                            ? 'bg-amber-500 text-slate-950 font-black'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {isEl ? `Όλες (${allTasks.length})` : `All (${allTasks.length})`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPoolFilterStatus('active')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          poolFilterStatus === 'active'
+                            ? 'bg-emerald-500 text-slate-950 font-black'
+                            : 'text-emerald-400 hover:text-emerald-300'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span>{isEl ? `Ενεργές (${activeCount})` : `Active (${activeCount})`}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPoolFilterStatus('inactive')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          poolFilterStatus === 'inactive'
+                            ? 'bg-slate-700 text-white font-black'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                        <span>{isEl ? `Αποθετήριο Pool (${inactiveCount})` : `Pool (${inactiveCount})`}</span>
+                      </button>
+                    </div>
 
-              {/* Filters & Search */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800/80">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={isEl ? 'Αναζήτηση αποστολής...' : 'Search task...'}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                {/* Group Filter */}
-                <select
-                  value={selectedGroup}
-                  onChange={(e) => setSelectedGroup(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
-                >
-                  <option value="all">{isEl ? 'Όλες οι Ομάδες (All Groups)' : 'All Groups'}</option>
-                  <option value="team-alpha">{isEl ? 'Ομάδα 1: Ταυτότητα & Βασικά' : 'Group 1: Identity & Basics'}</option>
-                  <option value="team-beta">{isEl ? 'Ομάδα 2: Περιβάλλον & Πτήση' : 'Group 2: Habitat & Flight'}</option>
-                  <option value="team-gamma">{isEl ? 'Ομάδα 3: Διατροφή & Βιολογία' : 'Group 3: Diet & Biology'}</option>
-                  <option value="team-delta">{isEl ? 'Ομάδα 4: Απειλές & Προστασία' : 'Group 4: Threats & Conservation'}</option>
-                </select>
-
-                {/* Type Filter */}
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
-                >
-                  <option value="all">{isEl ? 'Όλοι οι Τύποι Αποστολών' : 'All Quest Types'}</option>
-                  <option value="multiple_choice">{isEl ? 'Πολλαπλής Επιλογής' : 'Multiple Choice'}</option>
-                  <option value="true_false">{isEl ? 'Σωστό / Λάθος' : 'True / False'}</option>
-                  <option value="text_match">{isEl ? 'Αντιστοίχιση Κειμένου' : 'Text Matching'}</option>
-                  <option value="image_match">{isEl ? 'Αντιστοίχιση Εικόνας' : 'Image Matching'}</option>
-                  <option value="puzzle">{isEl ? 'Παζλ (Puzzle)' : 'Puzzle'}</option>
-                  <option value="qr_scan">{isEl ? 'Σάρωση QR Code' : 'QR Scan'}</option>
-                  <option value="photo_upload">{isEl ? 'Μεταφόρτωση Τεκμηρίου (Photo/Video)' : 'Evidence Upload'}</option>
-                  <option value="task">{isEl ? 'Αποστολή / Checkpoint Task' : 'Task / Checklist'}</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Task Cards List */}
-            <div className="space-y-3">
-              {filteredTasks.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-2">
-                  <div className="text-3xl">🔍</div>
-                  <p className="text-sm font-bold text-slate-300">
-                    {isEl ? 'Δεν βρέθηκαν αποστολές με τα επιλεγμένα κριτήρια.' : 'No tasks match the selected filters.'}
-                  </p>
-                </div>
-              ) : (
-                filteredTasks.map((task, idx) => {
-                  const active = isTaskActive(task, taskOverrides);
-                  const isExpanded = expandedTaskId === task.id;
-                  const cpMeta = getCheckpointMetadata(task, lang);
-                  const taskSubmissions = Object.values(submissions).filter(
-                    (s) => s.questionId === task.id && s.status === 'correct'
-                  );
-
-                  return (
-                    <div
-                      key={task.id}
-                      className={`p-4 rounded-2xl border transition-all ${
-                        active
-                          ? 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                          : 'bg-slate-950/80 border-slate-800/60 opacity-80'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div className="flex items-start gap-3.5 flex-1 min-w-[280px]">
-                          {/* Reordering Controls: Up & Down Arrows + Sequence Number */}
-                          <div className="flex flex-col items-center justify-center shrink-0 bg-slate-950/90 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
-                            <button
-                              type="button"
-                              disabled={idx === 0}
-                              onClick={() => handleShiftTaskOrder(task.id, 'up')}
-                              className={`p-1.5 rounded-lg transition-all ${
-                                idx === 0
-                                  ? 'text-slate-700 cursor-not-allowed opacity-30'
-                                  : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800 active:scale-90 cursor-pointer shadow-sm'
-                              }`}
-                              title={isEl ? 'Μετακίνηση αποστολής πάνω' : 'Move task up'}
-                            >
-                              <ChevronUp className="w-4 h-4 stroke-[2.5]" />
-                            </button>
-
-                            <div className="py-0.5 px-1 font-mono text-[11px] font-black text-amber-400 select-none">
-                              #{idx + 1}
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={idx === filteredTasks.length - 1}
-                              onClick={() => handleShiftTaskOrder(task.id, 'down')}
-                              className={`p-1.5 rounded-lg transition-all ${
-                                idx === filteredTasks.length - 1
-                                  ? 'text-slate-700 cursor-not-allowed opacity-30'
-                                  : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800 active:scale-90 cursor-pointer shadow-sm'
-                              }`}
-                              title={isEl ? 'Μετακίνηση αποστολής κάτω' : 'Move task down'}
-                            >
-                              <ChevronDown className="w-4 h-4 stroke-[2.5]" />
-                            </button>
-                          </div>
-
-                          {/* Active Toggle Switch */}
-                          <div className="flex flex-col items-center gap-1.5 shrink-0 pt-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleTask(task.id)}
-                              className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer focus:outline-none ${
-                                active ? 'bg-emerald-500' : 'bg-slate-700'
-                              }`}
-                              title={active ? 'Ενεργή' : 'Ανενεργή'}
-                            >
-                              <span
-                                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                                  active ? 'translate-x-6' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                              {active ? (isEl ? 'ΕΝΕΡΓΗ' : 'ON') : (isEl ? 'OFF' : 'OFF')}
-                            </span>
-                          </div>
-
-                          {/* Task Content */}
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono text-xs text-amber-400 font-bold">{task.id}</span>
-
-                              <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] font-semibold text-slate-300 uppercase">
-                                {task.type.replace('_', ' ')}
-                              </span>
-
-                              <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold">
-                                +{task.points} pts
-                              </span>
-
-                              {task.timeLimitMinutes && task.timeLimitMinutes > 0 && (
-                                <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  <span>{task.timeLimitMinutes} min</span>
-                                </span>
-                              )}
-
-                              {cpMeta.isCheckpoint && (
-                                <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center gap-1">
-                                  🚩 <span>{cpMeta.badge}</span>
-                                </span>
-                              )}
-                            </div>
-
-                            <h4 className="text-sm font-bold text-white leading-snug">
-                              {isEl ? task.title : task.title_en || task.title}
-                            </h4>
-
-                            <p className="text-xs text-slate-400 line-clamp-2">
-                              {isEl ? task.description : task.description_en || task.description}
-                            </p>
-
-                            {/* Quick Group Assignment Controls on Row */}
-                            <div className="pt-2 flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[10px] font-bold text-slate-400 mr-1">
-                                {isEl ? 'Ανάθεση:' : 'Assign:'}
-                              </span>
-                              {[
-                                { id: 'team-alpha', label: 'G1', color: '#10b981' },
-                                { id: 'team-beta', label: 'G2', color: '#06b6d4' },
-                                { id: 'team-gamma', label: 'G3', color: '#f59e0b' },
-                                { id: 'team-delta', label: 'G4', color: '#8b5cf6' }
-                              ].map((grp) => {
-                                const isAssigned = (task.assignedTeamIds || []).includes(grp.id);
-                                return (
-                                  <button
-                                    key={grp.id}
-                                    type="button"
-                                    onClick={() => handleToggleTaskGroup(task, grp.id)}
-                                    style={{
-                                      borderColor: isAssigned ? grp.color : '#334155',
-                                      backgroundColor: isAssigned ? `${grp.color}25` : 'transparent',
-                                      color: isAssigned ? '#ffffff' : '#94a3b8'
-                                    }}
-                                    className="px-2 py-0.5 rounded-md border text-[10px] font-bold cursor-pointer transition-all hover:scale-105"
-                                    title={isAssigned ? 'Αφαιρέστε από την ομάδα' : 'Αναθέστε στην ομάδα'}
-                                  >
-                                    {grp.label} {isAssigned && '✓'}
-                                  </button>
-                                );
-                              })}
-                              <button
-                                type="button"
-                                onClick={() => handleToggleTaskGroup(task, 'all')}
-                                className={`px-2 py-0.5 rounded-md border text-[10px] font-bold cursor-pointer transition-all ${
-                                  !task.assignedTeamIds || task.assignedTeamIds.length === 0
-                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                                    : 'text-slate-500 border-slate-800 hover:text-slate-300'
-                                }`}
-                              >
-                                {isEl ? 'Όλες' : 'All'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right side Actions */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          {Boolean(customQuestions[task.id]) && (
-                            <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/40 text-[10px] font-bold">
-                              ✏️ {isEl ? 'Τροποποιημένη' : 'Custom'}
-                            </span>
-                          )}
-
-                          {taskSubmissions.length > 0 && (
-                            <span className="px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1">
-                              <Check className="w-3.5 h-3.5" />
-                              <span>{taskSubmissions.length}</span>
-                            </span>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                              isExpanded
-                                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
-                            }`}
-                          >
-                            <span>{isExpanded ? '✕' : '✏️'}</span>
-                            <span className="hidden sm:inline">
-                              {isExpanded ? (isEl ? 'Κλείσιμο' : 'Close') : (isEl ? 'Επεξεργασία' : 'Edit')}
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Visual Edit Form */}
-                      {isExpanded && (
-                        <div className="mt-4 pt-4 border-t border-slate-800">
-                          <TaskVisualEditForm
-                            task={task}
-                            lang={lang}
-                            isCustomized={Boolean(customQuestions[task.id])}
-                            onSave={(updated) => {
-                              if (onSaveCustomQuestion) {
-                                onSaveCustomQuestion(updated);
-                              }
-                              storageService.saveCustomQuestion(updated);
-                              setExpandedTaskId(null);
-                              showNotification(
-                                isEl
-                                  ? `Η αποστολή "${updated.title}" αποθηκεύτηκε επιτυχώς!`
-                                  : `Task "${updated.title}" saved successfully!`
-                              );
-                            }}
-                            onResetToDefault={() => {
-                              if (onResetCustomQuestion) {
-                                onResetCustomQuestion(task.id);
-                              }
-                              storageService.resetCustomQuestion(task.id);
-                              setExpandedTaskId(null);
-                              showNotification(
-                                isEl ? 'Επαναφορά στις αρχικές ρυθμίσεις.' : 'Reset to defaults.'
-                              );
-                            }}
-                            onCancel={() => setExpandedTaskId(null)}
-                          />
-                        </div>
+                    {/* Bulk Actions */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleActivateAll}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{isEl ? 'Ενεργοποίηση Όλων' : 'Activate All'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeactivateAll}
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <EyeOff className="w-3.5 h-3.5" />
+                        <span>{isEl ? 'Μεταφορά Όλων στο Pool' : 'Deactivate All'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResetDefaults}
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>{isEl ? 'Επαναφορά Ενεργών' : 'Reset Active'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResetTaskOrder}
+                        disabled={currentOrder.length === 0}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                          currentOrder.length > 0
+                            ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40 cursor-pointer shadow-sm'
+                            : 'bg-slate-850 text-slate-600 border-slate-800 cursor-not-allowed opacity-50'
+                        }`}
+                        title={isEl ? 'Επαναφορά της σειράς αποστολών στην αρχική' : 'Reset task sequence to default'}
+                      >
+                        <ArrowDown className="w-3.5 h-3.5 rotate-180" />
+                        <span>{isEl ? 'Επαναφορά Σειράς' : 'Reset Order'}</span>
+                      </button>
+                      {currentOrder.length > 0 && (
+                        <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold">
+                          ⚡ {isEl ? 'Προσαρμοσμένη Σειρά' : 'Custom Order'}
+                        </span>
                       )}
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  </div>
+
+                  {/* Filters & Search */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={isEl ? 'Αναζήτηση σε όλες τις αποστολές...' : 'Search across all tasks...'}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+
+                    {/* Type Filter */}
+                    <select
+                      value={selectedType}
+                      onChange={(e) => setSelectedType(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="all">{isEl ? 'Όλοι οι Τύποι Αποστολών' : 'All Quest Types'}</option>
+                      <option value="multiple_choice">{isEl ? 'Πολλαπλής Επιλογής' : 'Multiple Choice'}</option>
+                      <option value="true_false">{isEl ? 'Σωστό / Λάθος' : 'True / False'}</option>
+                      <option value="text_match">{isEl ? 'Αντιστοίχιση Κειμένου' : 'Text Matching'}</option>
+                      <option value="image_match">{isEl ? 'Αντιστοίχιση Εικόνας' : 'Image Matching'}</option>
+                      <option value="puzzle">{isEl ? 'Παζλ (Puzzle)' : 'Puzzle'}</option>
+                      <option value="qr_scan">{isEl ? 'Σάρωση QR Code' : 'QR Scan'}</option>
+                      <option value="photo_upload">{isEl ? 'Μεταφόρτωση Τεκμηρίου (Photo/Video)' : 'Evidence Upload'}</option>
+                      <option value="task">{isEl ? 'Αποστολή / Checkpoint Task' : 'Task / Checklist'}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* ======================================================================= */}
+                {/* 1. TASKS ORGANIZED CLEARLY BY GROUP (SHOWING WHICH BELONG TO WHICH TEAM)*/}
+                {/* ======================================================================= */}
+                <div className="space-y-6">
+                  {masterTeamsPool.map((team) => {
+                    const teamTasks = allTasks.filter((t) => {
+                      if (!matchesSearchAndType(t)) return false;
+                      if (poolFilterStatus === 'active' && !isTaskActive(t, taskOverrides)) return false;
+                      if (poolFilterStatus === 'inactive' && isTaskActive(t, taskOverrides)) return false;
+                      return isTaskAssignedToGroup(t, team.id);
+                    });
+
+                    const activeInTeamCount = teamTasks.filter((t) => isTaskActive(t, taskOverrides)).length;
+                    const teamPoints = teamTasks
+                      .filter((t) => isTaskActive(t, taskOverrides))
+                      .reduce((acc, t) => acc + (t.points || 0), 0);
+
+                    return (
+                      <div
+                        key={team.id}
+                        style={{ borderColor: `${team.color}45` }}
+                        className="rounded-3xl border bg-slate-900/70 p-4 sm:p-5 space-y-3 shadow-lg"
+                      >
+                        {/* Team Section Header */}
+                        <div className="flex items-center justify-between gap-3 flex-wrap pb-3 border-b border-slate-800">
+                          <div className="flex items-center gap-3">
+                            <span
+                              style={{ borderColor: `${team.color}70` }}
+                              className="w-10 h-10 rounded-xl bg-slate-950 border flex items-center justify-center text-2xl shadow-inner shrink-0"
+                            >
+                              {team.avatar}
+                            </span>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-sm sm:text-base font-black text-white">
+                                  {isEl ? team.name : team.name_en || team.name}
+                                </h3>
+                                <span
+                                  style={{
+                                    backgroundColor: `${team.color}25`,
+                                    color: team.color,
+                                    borderColor: `${team.color}50`
+                                  }}
+                                  className="px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase"
+                                >
+                                  {team.id.replace('team-', 'GROUP ')}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                {isEl ? team.slogan : team.slogan_en || team.slogan}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-300">
+                              <span className="text-emerald-400 font-mono font-black">{activeInTeamCount}</span>
+                              <span className="text-slate-500">/{teamTasks.length} {isEl ? 'ενεργές' : 'active'}</span>
+                              <span className="text-amber-400 font-mono ml-2 font-black">+{teamPoints} pts</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedGroup(team.id)}
+                              style={{ borderColor: `${team.color}60` }}
+                              className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                            >
+                              <span>{isEl ? 'Προβολή Ομάδας →' : 'View Team →'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Team Tasks List */}
+                        {teamTasks.length === 0 ? (
+                          <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/60 text-center">
+                            <p className="text-xs text-slate-500 italic">
+                              {isEl
+                                ? 'Δεν υπάρχουν αποστολές για αυτή την ομάδα με τα επιλεγμένα φίλτρα.'
+                                : 'No tasks match for this group under the selected filters.'}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5">
+                            {teamTasks.map((task, idx) =>
+                              renderTaskCard(task, idx, teamTasks, true, true)
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* ======================================================================= */}
+                {/* 2. DEDICATED DISTINCT SECTION FOR UNASSIGNED / AVAILABLE TASKS          */}
+                {/* ======================================================================= */}
+                <div className="p-5 sm:p-6 rounded-3xl border-2 border-dashed border-amber-500/50 bg-slate-900/90 shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-2xl font-black shrink-0">
+                        📦
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base sm:text-lg font-black text-amber-400 uppercase tracking-wide">
+                            {isEl ? 'Μη Ανατεθειμένες / Διαθέσιμες Αποστολές' : 'Unassigned / Available Tasks'}
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black">
+                            {unassignedTasks.length} {isEl ? 'διαθέσιμες' : 'available'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-300 mt-0.5">
+                          {isEl
+                            ? 'Αποστολές του αποθετηρίου που δεν έχουν ανατεθεί σε καμία ομάδα. Πατήστε στο κουμπί της αντίστοιχης ομάδας (G1, G2, G3, G4) για να τις αναθέσετε άμεσα!'
+                            : 'Tasks not currently assigned to any group. Click any group button (G1, G2, G3, G4) to assign them immediately!'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {unassignedTasks.length === 0 ? (
+                    <div className="p-8 rounded-2xl bg-slate-950/70 border border-slate-800 text-center space-y-2">
+                      <div className="text-3xl">✨</div>
+                      <p className="text-sm font-bold text-slate-300">
+                        {isEl
+                          ? 'Όλες οι αποστολές του Master Pool είναι αυτή τη στιγμή ανατεθειμένες σε ομάδες!'
+                          : 'All tasks in the Master Pool are currently assigned to groups!'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {isEl
+                          ? 'Αν αφαιρέσετε μια αποστολή από κάποια ομάδα, θα εμφανιστεί αυτόματα εδώ.'
+                          : 'If you remove a task from any group, it will automatically appear here.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {unassignedTasks.map((task) => {
+                        const active = isTaskActive(task, taskOverrides);
+                        const isExpanded = expandedTaskId === task.id;
+                        const cpMeta = getCheckpointMetadata(task, lang);
+
+                        return (
+                          <div
+                            key={task.id}
+                            className={`p-4 rounded-2xl border transition-all ${
+                              active
+                                ? 'bg-slate-950/90 border-slate-800 hover:border-amber-500/40 shadow-sm'
+                                : 'bg-slate-950/60 border-slate-800/60 opacity-80'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-4 flex-wrap">
+                              <div className="flex items-start gap-3.5 flex-1 min-w-[280px]">
+                                {/* Available Badge Icon */}
+                                <div className="flex flex-col items-center justify-center shrink-0 bg-amber-500/10 p-2 rounded-2xl border border-amber-500/30 text-amber-400">
+                                  <span className="text-lg">📦</span>
+                                  <span className="font-mono text-[9px] font-bold uppercase mt-0.5">Pool</span>
+                                </div>
+
+                                {/* Active Toggle Switch */}
+                                <div className="flex flex-col items-center gap-1.5 shrink-0 pt-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleTask(task.id)}
+                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer focus:outline-none ${
+                                      active ? 'bg-emerald-500' : 'bg-slate-700'
+                                    }`}
+                                    title={active ? 'Ενεργή' : 'Ανενεργή'}
+                                  >
+                                    <span
+                                      className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                                        active ? 'translate-x-6' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                                    {active ? (isEl ? 'ΕΝΕΡΓΗ' : 'ON') : (isEl ? 'OFF' : 'OFF')}
+                                  </span>
+                                </div>
+
+                                {/* Task Details */}
+                                <div className="flex-1 min-w-0 space-y-1.5">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-mono text-xs text-amber-400 font-bold">{task.id}</span>
+                                    <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] font-semibold text-slate-300 uppercase">
+                                      {task.type.replace('_', ' ')}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                                      +{task.points} pts
+                                    </span>
+                                    {task.timeLimitMinutes && task.timeLimitMinutes > 0 && (
+                                      <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        <span>{task.timeLimitMinutes} min</span>
+                                      </span>
+                                    )}
+                                    {cpMeta.isCheckpoint && (
+                                      <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center gap-1">
+                                        🚩 <span>{cpMeta.badge}</span>
+                                      </span>
+                                    )}
+                                    <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                                      {isEl ? 'Μη Ανατεθειμένη' : 'Unassigned'}
+                                    </span>
+                                  </div>
+
+                                  <h4 className="text-sm font-bold text-white leading-snug">
+                                    {isEl ? task.title : task.title_en || task.title}
+                                  </h4>
+                                  <p className="text-xs text-slate-400 line-clamp-2">
+                                    {isEl ? task.description : task.description_en || task.description}
+                                  </p>
+
+                                  {/* 1-Click Pick / Assign Buttons */}
+                                  <div className="pt-2 flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-bold text-amber-300 mr-1">
+                                      {isEl ? '➕ Ανάθεση σε Ομάδα:' : '➕ Pick for Group:'}
+                                    </span>
+                                    {masterTeamsPool.map((team) => (
+                                      <button
+                                        key={team.id}
+                                        type="button"
+                                        onClick={() => handleToggleTaskGroup(task, team.id)}
+                                        style={{
+                                          borderColor: team.color,
+                                          backgroundColor: `${team.color}18`,
+                                          color: team.color
+                                        }}
+                                        className="px-2.5 py-1 rounded-xl border text-xs font-bold flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-sm hover:brightness-125"
+                                        title={isEl ? `Ανάθεση στην ${team.name}` : `Assign to ${team.name}`}
+                                      >
+                                        <span>{team.avatar}</span>
+                                        <span>+ {team.name.split(':')[0]}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Edit button */}
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                    isExpanded
+                                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
+                                  }`}
+                                >
+                                  <span>{isExpanded ? '✕' : '✏️'}</span>
+                                  <span className="hidden sm:inline">
+                                    {isExpanded ? (isEl ? 'Κλείσιμο' : 'Close') : (isEl ? 'Επεξεργασία' : 'Edit')}
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Visual Edit Form */}
+                            {isExpanded && (
+                              <div className="mt-4 pt-4 border-t border-slate-800">
+                                <TaskVisualEditForm
+                                  task={task}
+                                  lang={lang}
+                                  isCustomized={Boolean(customQuestions[task.id])}
+                                  onSave={(updated) => {
+                                    if (onSaveCustomQuestion) {
+                                      onSaveCustomQuestion(updated);
+                                    }
+                                    storageService.saveCustomQuestion(updated);
+                                    setExpandedTaskId(null);
+                                    showNotification(
+                                      isEl
+                                        ? `Η αποστολή "${updated.title}" αποθηκεύτηκε επιτυχώς!`
+                                        : `Task "${updated.title}" saved successfully!`
+                                    );
+                                  }}
+                                  onResetToDefault={() => {
+                                    if (onResetCustomQuestion) {
+                                      onResetCustomQuestion(task.id);
+                                    }
+                                    storageService.resetCustomQuestion(task.id);
+                                    setExpandedTaskId(null);
+                                    showNotification(
+                                      isEl ? 'Επαναφορά στις αρχικές ρυθμίσεις.' : 'Reset to defaults.'
+                                    );
+                                  }}
+                                  onCancel={() => setExpandedTaskId(null)}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

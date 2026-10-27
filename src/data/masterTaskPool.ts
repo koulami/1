@@ -2556,8 +2556,7 @@ export function getActiveTasksForTeam(
   const pool = getAllTasks(customOverrides, customOrder);
   return pool.filter((task) => {
     if (!isTaskActive(task, overrides)) return false;
-    if (!task.assignedTeamIds || task.assignedTeamIds.length === 0) return true;
-    return task.assignedTeamIds.includes(teamId);
+    return Boolean(task.assignedTeamIds && task.assignedTeamIds.includes(teamId));
   });
 }
 

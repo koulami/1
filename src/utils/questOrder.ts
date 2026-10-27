@@ -16,8 +16,7 @@ export function getTeamOrderedQuestions(
   // 1. Filter questions that are assigned to this team (and active if includeInactive is false)
   const visible = validQuestions.filter((q) => {
     if (!includeInactive && q.isActive === false) return false;
-    if (!q.assignedTeamIds || q.assignedTeamIds.length === 0) return true;
-    return q.assignedTeamIds.includes(team.id);
+    return Boolean(q.assignedTeamIds && q.assignedTeamIds.includes(team.id));
   });
 
   // 2. Determine defined sequence of question IDs
