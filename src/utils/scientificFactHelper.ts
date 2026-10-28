@@ -51,7 +51,11 @@ function deriveFactIconAndBadge(quest: Question, isMistake: boolean): { icon: st
   let badge = 'Επιστημονικό Γεγονός';
   let badge_en = 'Scientific Fact';
 
-  if (quest.id.includes('reflection') || t.includes('αναστοχασμ') || t.includes('reflection') || t.includes('wow moment')) {
+  if (quest.type === 'survey' || t.includes('δημοσκόπησ') || t.includes('poll') || t.includes('survey')) {
+    icon = '📊';
+    badge = 'Δημοσκόπηση & Επιλογή Ομάδας';
+    badge_en = 'Opinion Poll & Team Consensus';
+  } else if (quest.id.includes('reflection') || t.includes('αναστοχασμ') || t.includes('reflection') || t.includes('wow moment')) {
     icon = '💬';
     badge = 'Αναστοχασμός Ομάδας & Wow Moment';
     badge_en = 'Team Reflection & Wow Moment';
@@ -176,6 +180,23 @@ export function extractScientificFact(
       } else {
         correctAnswerText = (quest.payload as any)?.completionPrompt || (quest.payload as any)?.instructions || quest.title;
         correctAnswerText_en = quest.title_en || quest.title;
+      }
+      break;
+    }
+
+    case 'survey': {
+      const chosen = teamAnswerData?.selectedOptions || [];
+      const chosen_en = teamAnswerData?.selectedOptions_en || chosen;
+      if (chosen.length > 0) {
+        correctAnswerText = `Ψήφος Ομάδας: ${chosen.join(' • ')}`;
+        correctAnswerText_en = `Team Vote: ${chosen_en.join(' • ')}`;
+        if (teamAnswerData?.reason) {
+          correctAnswerText += ` («${teamAnswerData.reason}»)`;
+          correctAnswerText_en += ` (“${teamAnswerData.reason}”)`;
+        }
+      } else {
+        correctAnswerText = 'Ολοκλήρωση Δημοσκόπησης & Καταγραφή Γνώμης';
+        correctAnswerText_en = 'Completed Opinion Poll & Consensus Vote';
       }
       break;
     }

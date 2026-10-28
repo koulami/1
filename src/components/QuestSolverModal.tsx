@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Award, HelpCircle } from 'lucide-react';
 import { Question, Team, Submission, Language } from '../types/game';
 import { translations } from '../locales/translations';
+import { getLocalizedTeamName, getTeamEffectiveLanguage } from '../data/masterTaskPool';
 import { MultipleChoiceQuest } from './quests/MultipleChoiceQuest';
 import { TrueFalseQuest } from './quests/TrueFalseQuest';
 import { TextMatchQuest } from './quests/TextMatchQuest';
@@ -11,6 +12,7 @@ import { PhotoUploadQuest } from './quests/PhotoUploadQuest';
 import { PuzzleQuest } from './quests/PuzzleQuest';
 import { TaskQuest } from './quests/TaskQuest';
 import { ResearchQuest } from './quests/ResearchQuest';
+import { SurveyQuest } from './quests/SurveyQuest';
 
 interface Props {
   question: Question;
@@ -31,7 +33,10 @@ export const QuestSolverModal: React.FC<Props> = ({
   onSubmit,
   readOnly = false
 }) => {
-  const t = translations[lang];
+  const effectiveLang = getTeamEffectiveLanguage(team, lang);
+  const t = translations[effectiveLang];
+  const title = effectiveLang === 'en' ? (question.title_en || question.title) : question.title;
+  const teamDisplayName = getLocalizedTeamName(team, effectiveLang);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
@@ -47,7 +52,7 @@ export const QuestSolverModal: React.FC<Props> = ({
                 className="w-2.5 h-2.5 rounded-full"
                 style={{ backgroundColor: team.color }}
               />
-              <span className="font-semibold text-slate-200">{team.name}</span>
+              <span className="font-semibold text-slate-200">{teamDisplayName}</span>
               <span className="text-slate-500">·</span>
               <span className="text-amber-400 font-bold flex items-center gap-1">
                 <Award className="w-3.5 h-3.5" />
@@ -55,7 +60,7 @@ export const QuestSolverModal: React.FC<Props> = ({
               </span>
             </div>
             <h2 className="text-base sm:text-lg font-bold text-slate-100 leading-snug">
-              {question.title}
+              {title}
             </h2>
           </div>
 
@@ -75,7 +80,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <MultipleChoiceQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onSubmit={(res) => {
                 onSubmit({
@@ -94,7 +99,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <TrueFalseQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onSubmit={(res) => {
                 onSubmit({
@@ -110,7 +115,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <TextMatchQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onSubmit={(res) => {
                 onSubmit({
@@ -126,7 +131,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <ImageMatchQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onSubmit={(res) => {
                 onSubmit({
@@ -142,7 +147,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <QrScanQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onClose={onClose}
               onSubmit={(res) => {
@@ -159,7 +164,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <PhotoUploadQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onSubmit={(res) => {
                 onSubmit({
@@ -176,7 +181,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <PuzzleQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onSubmit={(res) => {
                 onSubmit({
@@ -196,7 +201,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <TaskQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onSubmit={(res) => {
                 onSubmit({
@@ -217,7 +222,7 @@ export const QuestSolverModal: React.FC<Props> = ({
             <ResearchQuest
               question={question}
               existingSubmission={existingSubmission}
-              lang={lang}
+              lang={effectiveLang}
               readOnly={readOnly}
               onSubmit={(res) => {
                 onSubmit({
@@ -229,6 +234,28 @@ export const QuestSolverModal: React.FC<Props> = ({
                     sourcesConsulted: res.sourcesConsulted,
                     answeredQuestions: res.answeredQuestions,
                     photoUrl: res.photoUrl
+                  }
+                });
+              }}
+            />
+          )}
+
+          {question.type === 'survey' && (
+            <SurveyQuest
+              question={question}
+              existingSubmission={existingSubmission}
+              lang={effectiveLang}
+              readOnly={readOnly}
+              onSubmit={(res) => {
+                onSubmit({
+                  status: 'correct',
+                  scoreEarned: res.points,
+                  reflectionText: res.reason,
+                  answerData: {
+                    selectedIndices: res.selectedIndices,
+                    selectedOptions: res.selectedOptions,
+                    selectedOptions_en: res.selectedOptions_en,
+                    reason: res.reason
                   }
                 });
               }}

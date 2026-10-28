@@ -43,16 +43,24 @@ import {
   ChevronDown,
   ArrowUp,
   ArrowDown,
-  GripVertical
+  GripVertical,
+  Edit3,
+  Users
 } from 'lucide-react';
-import { Question, Team, Submission, QuestionType } from '../types/game';
+import { Question, Team, Submission, QuestionType, CustomTeamTitleRecord, CoreTrackId } from '../types/game';
 import {
   masterTeamsPool,
   isTaskActive,
   isCheckpointTask,
   getCheckpointMetadata,
   getAllTasks,
-  computeTeamTaskStats
+  computeTeamTaskStats,
+  getTeamsWithCustomTitles,
+  getLocalizedTeamName,
+  getLocalizedTeamSlogan,
+  getTeamEffectiveLanguage,
+  resolveTeamTrackId,
+  CORE_THEMATIC_TRACKS
 } from '../data/masterTaskPool';
 import { storageService } from '../services/storageService';
 import { exportService } from '../services/exportService';
@@ -78,6 +86,10 @@ interface AdminConsoleProps {
   onToggleLang?: (newLang: 'el' | 'en') => void;
   taskOrder?: string[];
   onUpdateTaskOrder?: (newOrder: string[]) => void;
+  customTeamTitles?: Record<string, CustomTeamTitleRecord>;
+  onUpdateCustomTeamTitles?: (newTitles: Record<string, CustomTeamTitleRecord>) => void;
+  subgroups?: Team[];
+  onUpdateSubgroups?: (subgroups: Team[]) => void;
 }
 
 export const AdminConsole: React.FC<AdminConsoleProps> = ({
@@ -95,7 +107,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   onClose,
   onToggleLang,
   taskOrder,
-  onUpdateTaskOrder
+  onUpdateTaskOrder,
+  customTeamTitles,
+  onUpdateCustomTeamTitles,
+  subgroups: subgroupsProp,
+  onUpdateSubgroups
 }) => {
   const isEl = lang === 'el';
 
@@ -115,6 +131,214 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   const [selectedType, setSelectedType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+
+  // Subgroups list state
+  const [subgroupsList, setSubgroupsList] = useState<Team[]>(() => subgroupsProp || storageService.getSubgroups());
+
+  useEffect(() => {
+    if (subgroupsProp) {
+      setSubgroupsList(subgroupsProp);
+    }
+  }, [subgroupsProp]);
+
+  useEffect(() => {
+    const handleSubgroupsSync = () => {
+      setSubgroupsList(storageService.getSubgroups());
+    };
+    window.addEventListener('boundpad:subgroups', handleSubgroupsSync);
+    window.addEventListener('storage', handleSubgroupsSync);
+    return () => {
+      window.removeEventListener('boundpad:subgroups', handleSubgroupsSync);
+      window.removeEventListener('storage', handleSubgroupsSync);
+    };
+  }, []);
+
+  // Active teams with custom Greek/English titles and slogans merged
+  const activeTeams = useMemo(() => {
+    return getTeamsWithCustomTitles(customTeamTitles, subgroupsList);
+  }, [customTeamTitles, subgroupsList]);
+
+  // Subgroup Management State & Handlers
+  const [showAddSubgroupModal, setShowAddSubgroupModal] = useState<boolean>(false);
+  const [newSubTrackId, setNewSubTrackId] = useState<CoreTrackId>('team-delta');
+  const [newSubNameEl, setNewSubNameEl] = useState<string>('');
+  const [newSubNameEn, setNewSubNameEn] = useState<string>('');
+  const [newSubSloganEl, setNewSubSloganEl] = useState<string>('');
+  const [newSubSloganEn, setNewSubSloganEn] = useState<string>('');
+  const [newSubLang, setNewSubLang] = useState<'el' | 'en'>('en');
+  const [newSubAvatar, setNewSubAvatar] = useState<string>('🦅');
+
+  const handleCreateSubgroup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubNameEl.trim() && !newSubNameEn.trim()) return;
+
+    const baseTrack = masterTeamsPool.find((t) => t.id === newSubTrackId) || masterTeamsPool[0];
+    const newId = `sub-${newSubTrackId}-${Date.now().toString(36)}`;
+    const newTeam: Team = {
+      id: newId,
+      name: newSubNameEl.trim() || newSubNameEn.trim(),
+      name_en: newSubNameEn.trim() || newSubNameEl.trim(),
+      slogan: newSubSloganEl.trim() || baseTrack.slogan,
+      slogan_en: newSubSloganEn.trim() || baseTrack.slogan_en || baseTrack.slogan,
+      color: baseTrack.color,
+      avatar: newSubAvatar || baseTrack.avatar,
+      trackId: newSubTrackId,
+      language: newSubLang
+    };
+
+    const updated = storageService.addSubgroup(newTeam);
+    setSubgroupsList(updated);
+    if (onUpdateSubgroups) onUpdateSubgroups(updated);
+
+    showNotification(
+      isEl
+        ? `Η νέα υποομάδα "${newTeam.name}" δημιουργήθηκε και ανατέθηκε στον θεματικό πυλώνα!`
+        : `New subgroup "${newTeam.name_en || newTeam.name}" created and assigned to the thematic track!`,
+      'success'
+    );
+
+    setNewSubNameEl('');
+    setNewSubNameEn('');
+    setNewSubSloganEl('');
+    setNewSubSloganEn('');
+    setShowAddSubgroupModal(false);
+  };
+
+  const handleToggleSubgroupLang = (subgroupId: string) => {
+    const target = subgroupsList.find((t) => t.id === subgroupId);
+    const nextLang: 'el' | 'en' = target?.language === 'en' ? 'el' : 'en';
+    const updated = storageService.updateSubgroup(subgroupId, { language: nextLang });
+    setSubgroupsList(updated);
+    if (onUpdateSubgroups) onUpdateSubgroups(updated);
+
+    showNotification(
+      isEl
+        ? `Η γλώσσα της υποομάδας άλλαξε σε ${nextLang === 'el' ? 'Ελληνικά (🇬🇷)' : 'English (🇬🇧)'}`
+        : `Subgroup language switched to ${nextLang === 'el' ? 'Greek (🇬🇷)' : 'English (🇬🇧)'}`,
+      'info'
+    );
+  };
+
+  const handleDeleteSubgroup = (subgroupId: string, name: string) => {
+    const confirm = window.confirm(
+      isEl
+        ? `Είστε βέβαιοι ότι θέλετε να διαγράψετε την υποομάδα "${name}";`
+        : `Are you sure you want to delete subgroup "${name}"?`
+    );
+    if (!confirm) return;
+
+    const updated = storageService.deleteSubgroup(subgroupId);
+    setSubgroupsList(updated);
+    if (onUpdateSubgroups) onUpdateSubgroups(updated);
+
+    showNotification(
+      isEl
+        ? `Η υποομάδα "${name}" διαγράφηκε.`
+        : `Subgroup "${name}" deleted.`,
+      'info'
+    );
+  };
+
+  const handleResetSubgroupsToDefault = () => {
+    const confirm = window.confirm(
+      isEl
+        ? 'Επαναφορά όλων των υποομάδων στις 4 αρχικές ομάδες του προγράμματος;'
+        : 'Reset all subgroups back to the original 4 default teams?'
+    );
+    if (!confirm) return;
+
+    const updated = storageService.resetSubgroupsToDefault();
+    setSubgroupsList(updated);
+    if (onUpdateSubgroups) onUpdateSubgroups(updated);
+
+    showNotification(
+      isEl
+        ? 'Οι υποομάδες επανήλθαν στις 4 αρχικές.'
+        : 'Subgroups reset to 4 default teams.',
+      'info'
+    );
+  };
+
+  // Draft state for team titles in Admin
+  const [teamTitleDrafts, setTeamTitleDrafts] = useState<Record<string, CustomTeamTitleRecord>>(() => {
+    return customTeamTitles || storageService.getCustomTeamTitles();
+  });
+
+  useEffect(() => {
+    if (customTeamTitles) {
+      setTeamTitleDrafts(customTeamTitles);
+    }
+  }, [customTeamTitles]);
+
+  // Quick Rename Team Modal state (for Tab 1 individual group banner)
+  const [quickRenameTeam, setQuickRenameTeam] = useState<Team | null>(null);
+
+  const handleUpdateDraftField = (teamId: string, field: keyof CustomTeamTitleRecord, val: string) => {
+    setTeamTitleDrafts((prev) => ({
+      ...prev,
+      [teamId]: {
+        ...prev[teamId],
+        [field]: val
+      }
+    }));
+  };
+
+  const handleSaveTeamTitle = (teamId: string) => {
+    const draft = teamTitleDrafts[teamId] || {};
+    storageService.saveCustomTeamTitle(teamId, draft);
+    const updated = storageService.getCustomTeamTitles();
+    setTeamTitleDrafts(updated);
+    if (onUpdateCustomTeamTitles) {
+      onUpdateCustomTeamTitles(updated);
+    }
+    showNotification(
+      isEl
+        ? 'Ο τίτλος και το σύνθημα της ομάδας αποθηκεύτηκαν επιτυχώς!'
+        : 'Team title and slogan saved successfully!',
+      'success'
+    );
+    if (quickRenameTeam && quickRenameTeam.id === teamId) {
+      setQuickRenameTeam(null);
+    }
+  };
+
+  const handleResetTeamTitle = (teamId: string) => {
+    storageService.resetCustomTeamTitle(teamId);
+    const updated = storageService.getCustomTeamTitles();
+    setTeamTitleDrafts(updated);
+    if (onUpdateCustomTeamTitles) {
+      onUpdateCustomTeamTitles(updated);
+    }
+    showNotification(
+      isEl
+        ? 'Επαναφορά προεπιλεγμένου τίτλου και συνθήματος ομάδας.'
+        : 'Reset team title and slogan to default curriculum names.',
+      'info'
+    );
+    if (quickRenameTeam && quickRenameTeam.id === teamId) {
+      setQuickRenameTeam(null);
+    }
+  };
+
+  const handleResetAllTeamTitles = () => {
+    const confirm = window.confirm(
+      isEl
+        ? 'Θέλετε να επαναφέρετε τα ονόματα και τα συνθήματα ΟΛΩΝ των ομάδων στις προεπιλογές του αναλυτικού προγράμματος;'
+        : 'Reset titles and slogans for ALL groups back to default curriculum names?'
+    );
+    if (!confirm) return;
+    storageService.resetAllCustomTeamTitles();
+    setTeamTitleDrafts({});
+    if (onUpdateCustomTeamTitles) {
+      onUpdateCustomTeamTitles({});
+    }
+    showNotification(
+      isEl
+        ? 'Όλοι οι τίτλοι ομάδων επανήλθαν στις αρχικές ρυθμίσεις.'
+        : 'All team titles reset to default curriculum names.',
+      'info'
+    );
+  };
 
   // Lobby and Timers state
   const [isGameStarted, setIsGameStarted] = useState<boolean>(() => {
@@ -172,6 +396,28 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     'https://images.unsplash.com/photo-1549608276-5786777e6587?auto=format&fit=crop&w=1200&q=80'
   );
   const [newPuzzlePieces, setNewPuzzlePieces] = useState<4 | 6 | 9>(6);
+
+  // Survey / Poll creation state
+  const [newSurveyOptions, setNewSurveyOptions] = useState<string[]>([
+    isEl ? 'Εξάλειψη δηλητηριασμένων δολωμάτων (Ομάδες Ανίχνευσης K9)' : 'Elimination of poison baits (Anti-poison K9 units)',
+    isEl ? 'Δίκτυο ασφαλών σταθμών σίτισης (Ταΐστρες)' : 'Network of secure feeding stations',
+    isEl ? 'Ενίσχυση πληθυσμού με μεταφορά γυπών από Ισπανία' : 'Restocking population with Griffon vultures from Spain',
+    isEl ? 'Μόνωση εναέριων γραμμών μεταφοράς ρεύματος' : 'Insulation of aerial power lines'
+  ]);
+  const [newSurveyOptionsEn, setNewSurveyOptionsEn] = useState<string[]>([
+    'Elimination of poison baits (Anti-poison K9 units)',
+    'Network of secure feeding stations',
+    'Restocking population with Griffon vultures from Spain',
+    'Insulation of aerial power lines'
+  ]);
+  const [newSurveyAllowMultiple, setNewSurveyAllowMultiple] = useState<boolean>(false);
+  const [newSurveyAllowReason, setNewSurveyAllowReason] = useState<boolean>(true);
+  const [newSurveyReasonPrompt, setNewSurveyReasonPrompt] = useState<string>(
+    isEl ? 'Αιτιολογήστε την επιλογή σας (Ποια κριτήρια λάβατε υπόψη;):' : 'Justify your decision (What criteria guided your choice?):'
+  );
+  const [newSurveyReasonPromptEn, setNewSurveyReasonPromptEn] = useState<string>(
+    'Justify your decision (What criteria guided your choice?):'
+  );
 
   // Status notifications
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -315,10 +561,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     );
   };
 
-  // Filtered Tasks
-  // Helper to check if a task is specifically assigned to a group
+  // Helper to check if a task is specifically assigned to a group or its core track
   const isTaskAssignedToGroup = (task: Question, groupId: string) => {
-    return Boolean(task.assignedTeamIds && task.assignedTeamIds.includes(groupId));
+    if (!task.assignedTeamIds || task.assignedTeamIds.length === 0) return true;
+    const trackId = resolveTeamTrackId(groupId, activeTeams);
+    return task.assignedTeamIds.includes(groupId) || task.assignedTeamIds.includes(trackId);
   };
 
   // Helper to check if a task is unassigned (available to be picked)
@@ -583,6 +830,19 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
           gridPieces: newPuzzlePieces
         };
         break;
+      case 'survey': {
+        const cleanOpts = newSurveyOptions.map((o) => o.trim()).filter(Boolean);
+        const cleanOptsEn = newSurveyOptionsEn.map((o) => o.trim()).filter(Boolean);
+        payload = {
+          options: cleanOpts.length > 0 ? cleanOpts : ['Επιλογή 1', 'Επιλογή 2'],
+          options_en: cleanOptsEn.length > 0 ? cleanOptsEn : undefined,
+          allowMultiple: newSurveyAllowMultiple,
+          allowCustomReason: newSurveyAllowReason,
+          reasonPrompt: newSurveyReasonPrompt.trim() || undefined,
+          reasonPrompt_en: newSurveyReasonPromptEn.trim() || undefined
+        };
+        break;
+      }
       default:
         payload = {};
         break;
@@ -776,8 +1036,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   }
 
   const selectedTeamMeta = useMemo(() => {
-    return masterTeamsPool.find((t) => t.id === selectedGroup);
-  }, [selectedGroup]);
+    return activeTeams.find((t) => t.id === selectedGroup);
+  }, [selectedGroup, activeTeams]);
 
   // Reusable Task Card Renderer for both Master Pool and Individual Group views
   const renderTaskCard = (
@@ -1323,7 +1583,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
               </button>
 
               {/* 4 Group Buttons */}
-              {masterTeamsPool.map((team) => {
+              {activeTeams.map((team) => {
                 const isSelected = selectedGroup === team.id;
                 const teamActiveCount = allTasks.filter(
                   (t) => isTaskActive(t, taskOverrides) && isTaskAssignedToGroup(t, team.id)
@@ -1346,7 +1606,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                   >
                     <span className="text-sm">{team.avatar}</span>
                     <span>
-                      {isEl ? team.name.split(':')[0] : team.name_en ? team.name_en.split(':')[0] : team.name}
+                      {getLocalizedTeamName(team, lang).split(':')[0]}
                     </span>
                     <span
                       style={{ backgroundColor: `${team.color}40`, color: '#ffffff' }}
@@ -1381,7 +1641,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h2 className="text-xl sm:text-2xl font-black text-white">
-                            {isEl ? selectedTeamMeta.name : selectedTeamMeta.name_en || selectedTeamMeta.name}
+                            {getLocalizedTeamName(selectedTeamMeta, lang)}
                           </h2>
                           <span
                             style={{
@@ -1394,13 +1654,24 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                             {selectedTeamMeta.id.replace('team-', 'GROUP ')}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-300 mt-0.5">
-                          {isEl ? selectedTeamMeta.slogan : selectedTeamMeta.slogan_en || selectedTeamMeta.slogan}
+                        <p className="text-xs text-slate-300 mt-0.5 italic">
+                          «{getLocalizedTeamSlogan(selectedTeamMeta, lang)}»
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
+                      {/* Quick Rename Team Button */}
+                      <button
+                        type="button"
+                        onClick={() => setQuickRenameTeam(selectedTeamMeta)}
+                        className="px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shadow-sm"
+                        title={isEl ? `Μετονομασία τίτλου και συνθήματος για την ${selectedTeamMeta.name}` : `Rename title and slogan for ${selectedTeamMeta.name}`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{isEl ? 'Μετονομασία Ομάδας' : 'Rename Team'}</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => handleActivateAllForCurrentGroup(selectedGroup)}
@@ -1408,6 +1679,29 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         <span>{isEl ? 'Ενεργοποίηση Όλων της Ομάδας' : 'Activate All for Group'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const confirm = window.confirm(
+                            isEl
+                              ? `Θέλετε να μηδενίσετε όλες τις απαντήσεις, τα σκορ και τα τεκμήρια για την ${selectedTeamMeta.name};`
+                              : `Reset all answers, scores and photos for ${selectedTeamMeta.name}?`
+                          );
+                          if (confirm) {
+                            onResetTeamSubmissions(selectedGroup);
+                            showNotification(
+                              isEl
+                                ? `Οι απαντήσεις και το σκορ για την ${selectedTeamMeta.name} μηδενίστηκαν επιτυχώς.`
+                                : `Submissions and scores for ${selectedTeamMeta.name} reset successfully.`
+                            );
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95"
+                        title={isEl ? `Μηδενισμός απαντήσεων και σκορ ${selectedTeamMeta.name}` : `Reset submissions and scores for ${selectedTeamMeta.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                        <span>{isEl ? 'Μηδενισμός Ομάδας' : 'Reset Team'}</span>
                       </button>
                       <button
                         type="button"
@@ -1666,6 +1960,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       <option value="qr_scan">{isEl ? 'Σάρωση QR Code' : 'QR Scan'}</option>
                       <option value="photo_upload">{isEl ? 'Μεταφόρτωση Τεκμηρίου (Photo/Video)' : 'Evidence Upload'}</option>
                       <option value="task">{isEl ? 'Αποστολή / Checkpoint Task' : 'Task / Checklist'}</option>
+                      <option value="survey">{isEl ? 'Δημοσκόπηση / Γνώμη (Survey)' : 'Survey / Opinion Poll'}</option>
                     </select>
                   </div>
                 </div>
@@ -2023,6 +2318,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                   <option value="task">{isEl ? '6. Checkpoint Αποστολή (Task Checklist)' : '6. Task Checklist'}</option>
                   <option value="qr_scan">{isEl ? '7. Σάρωση QR Code (QR Scan)' : '7. QR Scan'}</option>
                   <option value="puzzle">{isEl ? '8. Παζλ Παρατήρησης (Puzzle)' : '8. Puzzle'}</option>
+                  <option value="survey">{isEl ? '9. Δημοσκόπηση & Επιλογή Γνώμης (Survey / Poll)' : '9. Opinion Poll / Survey'}</option>
                 </select>
               </div>
 
@@ -2628,6 +2924,129 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Survey / Opinion Poll Options */}
+              {newType === 'survey' && (
+                <div className="p-4 rounded-2xl bg-purple-950/20 border border-purple-500/40 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <label className="text-xs font-black text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                      <span>📊</span>
+                      <span>{isEl ? 'Επιλογές Δημοσκόπησης / Ψηφοφορίας (Survey Options)' : 'Survey / Poll Choices'}</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewSurveyOptions([...newSurveyOptions, `${isEl ? 'Νέα Επιλογή' : 'New Option'} ${newSurveyOptions.length + 1}`]);
+                        setNewSurveyOptionsEn([...newSurveyOptionsEn, `New Option ${newSurveyOptionsEn.length + 1}`]);
+                      }}
+                      className="text-xs text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{isEl ? 'Προσθήκη Επιλογής' : 'Add Choice'}</span>
+                    </button>
+                  </div>
+
+                  {/* Options List */}
+                  <div className="space-y-3">
+                    {newSurveyOptions.map((opt, oIdx) => (
+                      <div key={oIdx} className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                          <span>{isEl ? `Επιλογή #${oIdx + 1}` : `Choice #${oIdx + 1}`}</span>
+                          {newSurveyOptions.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewSurveyOptions(newSurveyOptions.filter((_, i) => i !== oIdx));
+                                setNewSurveyOptionsEn(newSurveyOptionsEn.filter((_, i) => i !== oIdx));
+                              }}
+                              className="text-rose-400 hover:text-rose-300 text-xs cursor-pointer flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>{isEl ? 'Διαγραφή' : 'Delete'}</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-[10px] text-slate-500 block mb-0.5">{isEl ? 'Ελληνικά:' : 'Greek:'}</span>
+                            <input
+                              type="text"
+                              value={opt}
+                              onChange={(e) => {
+                                const updated = [...newSurveyOptions];
+                                updated[oIdx] = e.target.value;
+                                setNewSurveyOptions(updated);
+                              }}
+                              placeholder={isEl ? 'Κείμενο επιλογής...' : 'Option text in Greek...'}
+                              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block mb-0.5">English:</span>
+                            <input
+                              type="text"
+                              value={newSurveyOptionsEn[oIdx] || ''}
+                              onChange={(e) => {
+                                const updated = [...newSurveyOptionsEn];
+                                updated[oIdx] = e.target.value;
+                                setNewSurveyOptionsEn(updated);
+                              }}
+                              placeholder="Option text in English..."
+                              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Settings: Multi-select & Reasoning */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-purple-500/20">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={newSurveyAllowMultiple}
+                        onChange={(e) => setNewSurveyAllowMultiple(e.target.checked)}
+                        className="rounded border-slate-700 text-purple-500 focus:ring-purple-400"
+                      />
+                      <span>{isEl ? 'Επιτρέπεται πολλαπλή επιλογή (Checkboxes)' : 'Allow multiple selections'}</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={newSurveyAllowReason}
+                        onChange={(e) => setNewSurveyAllowReason(e.target.checked)}
+                        className="rounded border-slate-700 text-purple-500 focus:ring-purple-400"
+                      />
+                      <span>{isEl ? 'Πεδίο αιτιολόγησης σκέψης ομάδας' : 'Require team written reasoning'}</span>
+                    </label>
+                  </div>
+
+                  {newSurveyAllowReason && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">{isEl ? 'Προτροπή Αιτιολόγησης (Ελληνικά):' : 'Reason Prompt (Greek):'}</label>
+                        <input
+                          type="text"
+                          value={newSurveyReasonPrompt}
+                          onChange={(e) => setNewSurveyReasonPrompt(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">{isEl ? 'Προτροπή Αιτιολόγησης (English):' : 'Reason Prompt (English):'}</label>
+                        <input
+                          type="text"
+                          value={newSurveyReasonPromptEn}
+                          onChange={(e) => setNewSurveyReasonPromptEn(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Row 6: Scientific Explanation */}
@@ -2777,8 +3196,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-                {masterTeamsPool.map((team, tIdx) => {
+                {activeTeams.map((team, tIdx) => {
                   const currentMins = groupTimers[team.id] ?? 20;
+                  const localizedName = getLocalizedTeamName(team, lang);
                   return (
                     <div
                       key={team.id}
@@ -2792,7 +3212,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                             {isEl ? `Ομάδα ${tIdx + 1}` : `Group ${tIdx + 1}`}
                           </div>
                           <div className="text-[10px] text-slate-400 truncate">
-                            {isEl ? team.name.split(':')[1] : team.name_en?.split(':')[1]}
+                            {localizedName.includes(':') ? localizedName.split(':')[1]?.trim() : localizedName}
                           </div>
                         </div>
                       </div>
@@ -2913,100 +3333,568 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
         )}
 
         {/* ================================================================= */}
-        {/* TAB 5: TEAMS & SUBMISSIONS                                        */}
+        {/* TAB 5: TEAMS & SUBMISSIONS + TEAM TITLE EDITING                   */}
         {/* ================================================================= */}
         {activeTab === 'teams' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {masterTeamsPool.map((team, idx) => {
-                const teamSubs = Object.values(submissions).filter((s) => s.teamId === team.id);
-                const correctSubs = teamSubs.filter((s) => s.status === 'correct');
-                const totalScore = correctSubs.reduce((acc, s) => acc + (s.scoreEarned || 0), 0);
+          <div className="space-y-8">
+            {/* Section 1: Team Title Editing & Bilingual Renaming */}
+            {/* Section 1: Subgroup Architecture & Multilingual Management */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-6 shadow-xl">
+              <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-2xl font-bold shrink-0">
+                    <Users className="w-6 h-6 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white flex items-center gap-2">
+                      <span>{isEl ? 'Μαθητικές Υποομάδες & Ανάθεση σε Θεματικούς Πυλώνες' : 'Student Subgroups & Track Architecture'}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold">
+                        {isEl ? 'Πολλαπλές Ομάδες ανά Πυλώνα' : 'Multiple Groups per Track'}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                      {isEl
+                        ? 'Δυνατότητα ανάθεσης πολλαπλών μαθητικών υποομάδων στον ίδιο θεματικό πυλώνα (π.χ. 2 ομάδες στις «Απειλές» ή «Περιβάλλον»), με ανεξάρτητη επιλογή γλώσσας (Ελληνικά ή English), μοιραζόμενες το ίδιο σώμα ερωτήσεων.'
+                        : 'Assign multiple student subgroups to the same core thematic track with independent language preferences (Greek or English), sharing the exact same core curriculum questions.'}
+                    </p>
+                  </div>
+                </div>
 
-                return (
-                  <div
-                    key={team.id}
-                    style={{ borderColor: `${team.color}50` }}
-                    className="p-5 rounded-3xl bg-slate-900 border space-y-3"
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleResetSubgroupsToDefault}
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">{team.avatar}</span>
-                        <div>
-                          <h4 className="font-bold text-white text-sm">
-                            {isEl ? team.name : team.name_en || team.name}
-                          </h4>
-                          <span className="text-xs text-slate-400">
-                            {correctSubs.length} {isEl ? 'σωστές απαντήσεις' : 'correct answers'}
-                          </span>
+                    <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{isEl ? 'Επαναφορά στις 4 Αρχικές' : 'Reset to 4 Default Groups'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAddSubgroupModal(true)}
+                    className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-cyan-500/20 transition-all cursor-pointer hover:scale-102 active:scale-95"
+                  >
+                    <Plus className="w-4 h-4 stroke-[3]" />
+                    <span>{isEl ? '➕ Προσθήκη Νέας Υποομάδας' : '➕ Add New Subgroup'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Subgroups Grouped by Thematic Track */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {CORE_THEMATIC_TRACKS.map((track) => {
+                  const trackId = (track.trackId || track.id) as CoreTrackId;
+                  const trackSubs = activeTeams.filter((t) => (t.trackId || t.id) === trackId);
+                  return (
+                    <div key={trackId} className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="font-bold text-xs text-white flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: track.color }} />
+                          <span>{isEl ? track.title : track.title_en}</span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          {trackSubs.length} {isEl ? 'υποομάδες' : 'groups'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {trackSubs.map((sub) => {
+                          const subLang = sub.language || 'el';
+                          const isDefault = ['team-alpha', 'team-beta', 'team-gamma', 'team-delta'].includes(sub.id);
+                          const subSubs = Object.values(submissions).filter((s) => s.teamId === sub.id);
+                          const correctCount = subSubs.filter((s) => s.status === 'correct').length;
+                          const totalScore = subSubs.filter((s) => s.status === 'correct').reduce((a, s) => a + (s.scoreEarned || 0), 0);
+
+                          return (
+                            <div
+                              key={sub.id}
+                              style={{ borderColor: `${sub.color}35` }}
+                              className="p-3 rounded-xl bg-slate-900 border flex items-center justify-between gap-3 flex-wrap shadow-xs"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="text-2xl">{sub.avatar}</span>
+                                <div className="min-w-0">
+                                  <div className="font-bold text-xs text-white truncate">
+                                    {getLocalizedTeamName(sub, lang)}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                    <span style={{ color: sub.color }} className="font-black font-mono">
+                                      {totalScore} pts
+                                    </span>
+                                    <span>•</span>
+                                    <span>{correctCount} {isEl ? 'σωστές' : 'solved'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                {/* 1-Click Language Toggle */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSubgroupLang(sub.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                                  title={isEl ? 'Εναλλαγή γλώσσας υποομάδας' : 'Toggle subgroup language'}
+                                >
+                                  <span>{subLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}</span>
+                                  <span className="text-[10px] text-amber-400">⇄</span>
+                                </button>
+
+                                {/* Delete Subgroup if custom */}
+                                {!isDefault && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSubgroup(sub.id, sub.name)}
+                                    className="p-1 rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/50 cursor-pointer transition-colors"
+                                    title={isEl ? 'Διαγραφή υποομάδας' : 'Delete subgroup'}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Section 2: Team Title & Slogan Editing */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-6 shadow-xl">
+              <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-2xl font-bold shrink-0">
+                    <Edit3 className="w-6 h-6 text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white flex items-center gap-2">
+                      <span>{isEl ? 'Επεξεργασία & Μετονομασία Τίτλων Ομάδων' : 'Edit & Rename Team Titles'}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                        {isEl ? 'Δίγλωσση Υποστήριξη (EL / EN)' : 'Bilingual Support (EL / EN)'}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                      {isEl
+                        ? 'Επεξεργαστείτε τον τίτλο και το σύνθημα κάθε ομάδας/υποομάδας. Οι αλλαγές εφαρμόζονται αυτόματα σε ολόκληρη την εφαρμογή (καρτέλες πλοήγησης, αποστολές, αρχική οθόνη και ψηφιακά πόστερ/αρένα) σε Ελληνικά και Αγγλικά.'
+                        : 'Rename each team title and slogan. Custom names automatically update across navigation tabs, group missions, home screen, and final presentation posters in both Greek and English.'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetAllTeamTitles}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title={isEl ? 'Επαναφορά όλων των τίτλων ομάδων στις αρχικές τιμές' : 'Reset all team titles and slogans to default'}
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{isEl ? 'Επαναφορά Όλων των Τίτλων' : 'Reset All Team Titles'}</span>
+                </button>
+              </div>
+
+              {/* Team Title Editor Cards Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {activeTeams.map((team, tIdx) => {
+                  const draft = teamTitleDrafts[team.id] || {};
+                  const defaultTeam = masterTeamsPool[tIdx] || team;
+                  const currentNameEl = draft.name !== undefined ? draft.name : (customTeamTitles?.[team.id]?.name || defaultTeam.name);
+                  const currentNameEn = draft.name_en !== undefined ? draft.name_en : (customTeamTitles?.[team.id]?.name_en || defaultTeam.name_en || defaultTeam.name);
+                  const currentSloganEl = draft.slogan !== undefined ? draft.slogan : (customTeamTitles?.[team.id]?.slogan || defaultTeam.slogan);
+                  const currentSloganEn = draft.slogan_en !== undefined ? draft.slogan_en : (customTeamTitles?.[team.id]?.slogan_en || defaultTeam.slogan_en || defaultTeam.slogan);
+
+                  const isCustomized = Boolean(
+                    customTeamTitles?.[team.id]?.name ||
+                    customTeamTitles?.[team.id]?.name_en ||
+                    customTeamTitles?.[team.id]?.slogan ||
+                    customTeamTitles?.[team.id]?.slogan_en
+                  );
+
+                  return (
+                    <div
+                      key={team.id}
+                      style={{ borderColor: `${team.color}50` }}
+                      className="p-5 rounded-3xl bg-slate-950/80 border-2 space-y-4 shadow-lg flex flex-col justify-between"
+                    >
+                      <div className="space-y-4">
+                        {/* Team Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span
+                              style={{ backgroundColor: `${team.color}25` }}
+                              className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl border border-current/30 shadow-inner"
+                            >
+                              {team.avatar}
+                            </span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  style={{ backgroundColor: `${team.color}20`, color: team.color }}
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border border-current/30"
+                                >
+                                  {isEl ? `Ομάδα ${tIdx + 1}` : `Group ${tIdx + 1}`}
+                                </span>
+                                {isCustomized && (
+                                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold">
+                                    {isEl ? 'Προσαρμοσμένο' : 'Customized'}
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="font-black text-white text-sm mt-0.5">
+                                {isEl ? team.name : team.name_en || team.name}
+                              </h4>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{ backgroundColor: team.color }}
+                            className="w-3 h-3 rounded-full ring-2 ring-white/20"
+                            title={`Team Color: ${team.color}`}
+                          />
+                        </div>
+
+                        {/* Live Preview Box */}
+                        <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1.5 text-xs">
+                          <div className="text-[10px] font-bold uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3 text-amber-400" />
+                            <span>{isEl ? 'Προεπισκόπηση Εμφάνισης (Live Preview):' : 'Live Preview:'}</span>
+                          </div>
+                          <div className="text-white font-bold truncate">
+                            <span className="text-emerald-400 font-mono text-[11px] mr-1.5">[EL]</span>
+                            {currentNameEl || defaultTeam.name}
+                          </div>
+                          <div className="text-white font-bold truncate">
+                            <span className="text-cyan-400 font-mono text-[11px] mr-1.5">[EN]</span>
+                            {currentNameEn || defaultTeam.name_en || defaultTeam.name}
+                          </div>
+                          <div className="text-slate-400 text-[11px] italic truncate pt-0.5 border-t border-slate-800/80">
+                            «{lang === 'el' ? (currentSloganEl || defaultTeam.slogan) : (currentSloganEn || defaultTeam.slogan_en || defaultTeam.slogan)}»
+                          </div>
+                        </div>
+
+                        {/* Form Inputs Grid */}
+                        <div className="space-y-3">
+                          {/* Greek Title */}
+                          <div>
+                            <label className="text-xs font-bold text-slate-300 block mb-1">
+                              {isEl ? 'Τίτλος Ομάδας (Ελληνικά):' : 'Team Title (Greek):'}
+                            </label>
+                            <input
+                              type="text"
+                              value={currentNameEl}
+                              onChange={(e) => handleUpdateDraftField(team.id, 'name', e.target.value)}
+                              placeholder={defaultTeam.name}
+                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                            />
+                          </div>
+
+                          {/* English Title */}
+                          <div>
+                            <label className="text-xs font-bold text-slate-300 block mb-1">
+                              {isEl ? 'Team Title (English) • Αγγλικός Τίτλος:' : 'Team Title (English):'}
+                            </label>
+                            <input
+                              type="text"
+                              value={currentNameEn}
+                              onChange={(e) => handleUpdateDraftField(team.id, 'name_en', e.target.value)}
+                              placeholder={defaultTeam.name_en || defaultTeam.name}
+                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                            />
+                          </div>
+
+                          {/* Greek Slogan */}
+                          <div>
+                            <label className="text-xs font-bold text-slate-300 block mb-1">
+                              {isEl ? 'Σύνθημα / Περιγραφή (Ελληνικά):' : 'Team Slogan (Greek):'}
+                            </label>
+                            <input
+                              type="text"
+                              value={currentSloganEl}
+                              onChange={(e) => handleUpdateDraftField(team.id, 'slogan', e.target.value)}
+                              placeholder={defaultTeam.slogan}
+                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                            />
+                          </div>
+
+                          {/* English Slogan */}
+                          <div>
+                            <label className="text-xs font-bold text-slate-300 block mb-1">
+                              {isEl ? 'Team Slogan (English) • Αγγλικό Σύνθημα:' : 'Team Slogan (English):'}
+                            </label>
+                            <input
+                              type="text"
+                              value={currentSloganEn}
+                              onChange={(e) => handleUpdateDraftField(team.id, 'slogan_en', e.target.value)}
+                              placeholder={defaultTeam.slogan_en || defaultTeam.slogan}
+                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                            />
+                          </div>
                         </div>
                       </div>
 
-                      <div className="text-right">
-                        <span className="text-xl font-black text-amber-400">{totalScore}</span>
-                        <span className="text-xs text-slate-400 ml-1">pts</span>
+                      {/* Card Action Buttons */}
+                      <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handleResetTeamTitle(team.id)}
+                          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                          title={isEl ? 'Επαναφορά στις αρχικές τιμές' : 'Reset to default curriculum title'}
+                        >
+                          <RotateCcw className="w-3 h-3 text-slate-400" />
+                          <span>{isEl ? 'Προεπιλογή' : 'Default'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSaveTeamTitle(team.id)}
+                          style={{
+                            backgroundColor: team.color,
+                            color: '#0f172a'
+                          }}
+                          className="px-4 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer hover:opacity-90 active:scale-95"
+                        >
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>{isEl ? 'Αποθήκευση Αλλαγών' : 'Save Changes'}</span>
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const confirm = window.confirm(
-                            isEl
-                              ? `Θέλετε να μηδενίσετε τις απαντήσεις για την ${team.name};`
-                              : `Reset all submissions for ${team.name}?`
-                          );
-                          if (confirm) {
-                            onResetTeamSubmissions(team.id);
-                            showNotification(isEl ? 'Οι απαντήσεις μηδενίστηκαν.' : 'Submissions reset.');
-                          }
-                        }}
-                        className="text-xs font-bold text-rose-400 hover:text-rose-300 flex items-center gap-1 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>{isEl ? 'Μηδενισμός Ομάδας' : 'Reset Team'}</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Global Reset Button */}
-            <div className="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/40 flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <h4 className="text-sm font-bold text-rose-300">
-                  {isEl ? 'Ολική Επαναφορά Όλων των Υποβολών' : 'Reset All Submissions'}
-                </h4>
-                <p className="text-xs text-slate-400">
-                  {isEl
-                    ? 'Διαγράφει όλες τις απαντήσεις και τα σκορ όλων των ομάδων για νέα σχολική χρονιά/τάξη.'
-                    : 'Clears all answers and scores across all 4 teams for a fresh session.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const confirm = window.confirm(
-                    isEl
-                      ? 'ΠΡΟΣΟΧΗ: Θέλετε να διαγράψετε όλες τις απαντήσεις όλων των ομάδων;'
-                      : 'WARNING: Clear all submissions for all teams?'
+            {/* Section 2: Submissions, Scores & Resets */}
+            <div className="space-y-4">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>{isEl ? 'Υποβολές, Βαθμολογία & Μηδενισμός Ομάδων' : 'Submissions, Scores & Team Resets'}</span>
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeTeams.map((team) => {
+                  const teamSubs = Object.values(submissions).filter((s) => s.teamId === team.id);
+                  const correctSubs = teamSubs.filter((s) => s.status === 'correct');
+                  const totalScore = correctSubs.reduce((acc, s) => acc + (s.scoreEarned || 0), 0);
+                  const localizedName = getLocalizedTeamName(team, lang);
+
+                  return (
+                    <div
+                      key={team.id}
+                      style={{ borderColor: `${team.color}50` }}
+                      className="p-5 rounded-3xl bg-slate-900 border space-y-3 shadow-md"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-3xl">{team.avatar}</span>
+                          <div>
+                            <h4 className="font-bold text-white text-sm">
+                              {localizedName}
+                            </h4>
+                            <span className="text-xs text-slate-400">
+                              {correctSubs.length} {isEl ? 'σωστές απαντήσεις' : 'correct answers'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-xl font-black text-amber-400">{totalScore}</span>
+                          <span className="text-xs text-slate-400 ml-1">pts</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const confirm = window.confirm(
+                              isEl
+                                ? `Θέλετε να μηδενίσετε όλες τις απαντήσεις, τα σκορ και τις φωτογραφίες για την ${localizedName};`
+                                : `Reset all answers, scores, photos and submissions for ${localizedName}?`
+                            );
+                            if (confirm) {
+                              onResetTeamSubmissions(team.id);
+                              showNotification(
+                                isEl
+                                  ? `Οι απαντήσεις και το σκορ για την ${localizedName} μηδενίστηκαν επιτυχώς.`
+                                  : `All submissions and scores for ${localizedName} have been cleared.`
+                              );
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-xs font-bold text-rose-300 hover:text-rose-100 flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                          <span>{isEl ? 'Μηδενισμός Ομάδας' : 'Reset Team'}</span>
+                        </button>
+                        <span className="text-[11px] text-slate-500 font-mono">
+                          {teamSubs.length} {isEl ? 'υποβολές' : 'submissions'}
+                        </span>
+                      </div>
+                    </div>
                   );
-                  if (confirm) {
-                    onResetAllSubmissions();
-                    showNotification(isEl ? 'Όλες οι υποβολές διαγράφηκαν.' : 'All submissions reset.');
-                  }
-                }}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>{isEl ? 'Ολικός Μηδενισμός' : 'Full Reset'}</span>
-              </button>
+                })}
+              </div>
+
+              {/* Global Reset Button */}
+              <div className="p-5 rounded-3xl bg-rose-950/30 border-2 border-rose-500/40 flex items-center justify-between gap-4 flex-wrap shadow-xl">
+                <div>
+                  <h4 className="text-sm font-black text-rose-300 flex items-center gap-2">
+                    <Trash2 className="w-4 h-4 text-rose-400" />
+                    <span>{isEl ? 'Ολική Επαναφορά Όλων των Υποβολών (Global Reset)' : 'Reset All Submissions Globally'}</span>
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                    {isEl
+                      ? 'Διαγράφει οριστικά όλες τις απαντήσεις, τα σκορ, τα ανεβασμένα τεκμήρια/φωτογραφίες και την πρόοδο όλων των ομάδων, επαναφέροντας την τάξη σε αρχική κατάσταση.'
+                      : 'Clears all student answers, total points, uploaded photos/videos, reflections, and progress across all teams.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const confirm = window.confirm(
+                      isEl
+                        ? 'ΠΡΟΣΟΧΗ: Θέλετε να μηδενίσετε ΟΛΕΣ τις απαντήσεις, τα σκορ και τα τεκμήρια ΟΛΩΝ των ομάδων;\n\nΗ ενέργεια αυτή δεν μπορεί να αναιρεθεί.'
+                        : 'WARNING: Clear ALL answers, scores, photos and progress across ALL 4 teams?\n\nThis action cannot be undone.'
+                    );
+                    if (confirm) {
+                      onResetAllSubmissions();
+                      showNotification(
+                        isEl
+                          ? 'Όλες οι υποβολές, τα σκορ και οι φωτογραφίες μηδενίστηκαν επιτυχώς!'
+                          : 'All submissions, scores and media have been reset successfully!'
+                      );
+                    }
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer shadow-lg shadow-rose-600/30 transition-all hover:scale-102 active:scale-95"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>{isEl ? 'Ολικός Μηδενισμός' : 'Full Reset'}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
       </main>
+
+      {/* Quick Team Rename Modal (Triggered from Tab 1 Group Banner) */}
+      {quickRenameTeam && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl p-1.5 rounded-xl bg-slate-800 border border-slate-700">
+                  {quickRenameTeam.avatar}
+                </span>
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <span>{isEl ? 'Μετονομασία Ομάδας' : 'Rename Team'}</span>
+                    <span
+                      style={{ backgroundColor: `${quickRenameTeam.color}25`, color: quickRenameTeam.color }}
+                      className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase border border-current/30"
+                    >
+                      {quickRenameTeam.id.replace('team-', 'GROUP ')}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {isEl ? 'Προσαρμόστε τίτλο και σύνθημα σε Ελληνικά & Αγγλικά' : 'Custom title & slogan in Greek and English'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickRenameTeam(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form inputs */}
+            <div className="space-y-3.5">
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  {isEl ? 'Τίτλος Ομάδας (Ελληνικά):' : 'Team Title (Greek):'}
+                </label>
+                <input
+                  type="text"
+                  value={teamTitleDrafts[quickRenameTeam.id]?.name ?? quickRenameTeam.name}
+                  onChange={(e) => handleUpdateDraftField(quickRenameTeam.id, 'name', e.target.value)}
+                  placeholder="π.χ. Ομάδα 1: Ερευνητές Φύσης"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  {isEl ? 'Team Title (English) • Αγγλικός Τίτλος:' : 'Team Title (English):'}
+                </label>
+                <input
+                  type="text"
+                  value={teamTitleDrafts[quickRenameTeam.id]?.name_en ?? quickRenameTeam.name_en ?? quickRenameTeam.name}
+                  onChange={(e) => handleUpdateDraftField(quickRenameTeam.id, 'name_en', e.target.value)}
+                  placeholder="e.g. Group 1: Nature Explorers"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  {isEl ? 'Σύνθημα Ομάδας (Ελληνικά):' : 'Team Slogan (Greek):'}
+                </label>
+                <input
+                  type="text"
+                  value={teamTitleDrafts[quickRenameTeam.id]?.slogan ?? quickRenameTeam.slogan}
+                  onChange={(e) => handleUpdateDraftField(quickRenameTeam.id, 'slogan', e.target.value)}
+                  placeholder="π.χ. Ανακαλύπτουμε τα πάντα!"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  {isEl ? 'Team Slogan (English) • Αγγλικό Σύνθημα:' : 'Team Slogan (English):'}
+                </label>
+                <input
+                  type="text"
+                  value={teamTitleDrafts[quickRenameTeam.id]?.slogan_en ?? quickRenameTeam.slogan_en ?? quickRenameTeam.slogan}
+                  onChange={(e) => handleUpdateDraftField(quickRenameTeam.id, 'slogan_en', e.target.value)}
+                  placeholder="e.g. Discovering everything!"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+            </div>
+
+            {/* Modal actions */}
+            <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => handleResetTeamTitle(quickRenameTeam.id)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                {isEl ? 'Επαναφορά Προεπιλογής' : 'Reset to Default'}
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuickRenameTeam(null)}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  {isEl ? 'Ακύρωση' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveTeamTitle(quickRenameTeam.id)}
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>{isEl ? 'Αποθήκευση' : 'Save'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Task QR Code Generator & Placard Print Modal */}
       {qrModalTask && (
@@ -3029,6 +3917,205 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
           lang={lang}
           onClose={() => setMediaModalInfo(null)}
         />
+      )}
+
+      {/* Modal: Create New Subgroup for Thematic Track */}
+      {showAddSubgroupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{newSubAvatar}</span>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    {isEl ? '➕ Προσθήκη Νέας Υποομάδας' : '➕ Add New Student Subgroup'}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {isEl
+                      ? 'Ανάθεση σε θεματικό πυλώνα με κοινές ερωτήσεις & ανεξάρτητη γλώσσα'
+                      : 'Assign to a thematic track with shared curriculum & independent language'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddSubgroupModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSubgroup} className="space-y-4 text-xs">
+              {/* Select Thematic Track */}
+              <div>
+                <label className="font-bold text-slate-200 block mb-1.5">
+                  {isEl ? '1. Επιλογή Θεματικού Πυλώνα (Κοινό Πρόγραμμα):' : '1. Select Thematic Track (Shared Pool):'}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {CORE_THEMATIC_TRACKS.map((track) => {
+                    const isSelected = newSubTrackId === track.id;
+                    return (
+                      <button
+                        key={track.id}
+                        type="button"
+                        onClick={() => setNewSubTrackId(track.id)}
+                        className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-2 ${
+                          isSelected
+                            ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                            : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <span className="text-xl">{track.avatar}</span>
+                        <div className="truncate">
+                          <p className="font-bold truncate text-[11px]">
+                            {isEl ? track.title_el : track.title_en}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {track.tasksCount} {isEl ? 'κοινές ερωτήσεις' : 'shared tasks'}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Select Language Mode */}
+              <div>
+                <label className="font-bold text-slate-200 block mb-1.5">
+                  {isEl ? '2. Γλώσσα Εργασίας Υποομάδας:' : '2. Subgroup Working Language:'}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewSubLang('el')}
+                    className={`py-2 px-3 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      newSubLang === 'el'
+                        ? 'bg-blue-500/20 border-blue-400 text-blue-300'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>🇬🇷</span>
+                    <span>Ελληνικά (Greek)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewSubLang('en')}
+                    className={`py-2 px-3 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      newSubLang === 'en'
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>🇬🇧</span>
+                    <span>English (International)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Subgroup Names */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-300 block mb-1">
+                    {isEl ? 'Όνομα Υποομάδας (Ελληνικά):' : 'Subgroup Name (Greek):'}
+                  </label>
+                  <input
+                    type="text"
+                    required={!newSubNameEn}
+                    value={newSubNameEl}
+                    onChange={(e) => setNewSubNameEl(e.target.value)}
+                    placeholder="π.χ. Ομάδα 4Β - Φύλακες"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3 py-2 text-white placeholder-slate-500"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300 block mb-1">
+                    {isEl ? 'Όνομα Υποομάδας (English):' : 'Subgroup Name (English):'}
+                  </label>
+                  <input
+                    type="text"
+                    required={!newSubNameEl}
+                    value={newSubNameEn}
+                    onChange={(e) => setNewSubNameEn(e.target.value)}
+                    placeholder="e.g. Team 4B - Guardians"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3 py-2 text-white placeholder-slate-500"
+                  />
+                </div>
+              </div>
+
+              {/* Slogans */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-300 block mb-1">
+                    {isEl ? 'Σύνθημα (Ελληνικά - προαιρετικό):' : 'Slogan (Greek - optional):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newSubSloganEl}
+                    onChange={(e) => setNewSubSloganEl(e.target.value)}
+                    placeholder="π.χ. Δράση για το περιβάλλον!"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3 py-2 text-white placeholder-slate-500"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300 block mb-1">
+                    {isEl ? 'Slogan (English - optional):' : 'Slogan (English - optional):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newSubSloganEn}
+                    onChange={(e) => setNewSubSloganEn(e.target.value)}
+                    placeholder="e.g. Taking action for wildlife!"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3 py-2 text-white placeholder-slate-500"
+                  />
+                </div>
+              </div>
+
+              {/* Avatar Selector */}
+              <div>
+                <label className="font-bold text-slate-300 block mb-1.5">
+                  {isEl ? 'Εικονίδιο / Avatar:' : 'Avatar Symbol:'}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {['🦅', '🦉', '🧭', '🔬', '🌿', '⛰️', '🛡️', '⭐', '🐾', '🌊', '🎯', '✨'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setNewSubAvatar(emoji)}
+                      className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center border transition-all cursor-pointer ${
+                        newSubAvatar === emoji
+                          ? 'bg-emerald-500/20 border-emerald-400 scale-110 shadow-sm'
+                          : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Form Buttons */}
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSubgroupModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold cursor-pointer"
+                >
+                  {isEl ? 'Ακύρωση' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newSubNameEl.trim() && !newSubNameEn.trim()}
+                  className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black cursor-pointer shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>{isEl ? 'Δημιουργία Υποομάδας' : 'Create Subgroup'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

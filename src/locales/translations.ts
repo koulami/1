@@ -80,6 +80,7 @@ export const translations = {
     photo_upload: 'Αποστολή Φωτογραφίας',
     puzzle: 'Παζλ Εικόνας',
     task: 'Αποστολή / Task',
+    survey: 'Δημοσκόπηση & Επιλογή Γνώμης',
     research: 'Δραστηριότητα Έρευνας',
     researchShort: 'Έρευνα',
 
@@ -368,6 +369,7 @@ export const translations = {
     photo_upload: 'Photo Mission Upload',
     puzzle: 'Jigsaw Puzzle Challenge',
     task: 'Mission / Task',
+    survey: 'Opinion Poll & Survey',
     research: 'Research & Inquiry Quest',
     researchShort: 'Research',
 

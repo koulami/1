@@ -281,6 +281,7 @@ export const PrintPdfModal: React.FC<Props> = ({
       photo_upload: 'Φωτογραφική Αποστολή',
       puzzle: 'Διαδραστικό Παζλ',
       task: 'Αποστολή Πεδίου / Δράση',
+      survey: 'Δημοσκόπηση & Επιλογή Γνώμης',
       research: 'Δραστηριότητα Έρευνας'
     };
     const mapEn: Record<QuestionType, string> = {
@@ -292,6 +293,7 @@ export const PrintPdfModal: React.FC<Props> = ({
       photo_upload: 'Photo Quest',
       puzzle: 'Interactive Puzzle',
       task: 'Field Task / Action',
+      survey: 'Opinion Poll & Survey',
       research: 'Research & Inquiry'
     };
     return language === 'en' ? mapEn[type] || type : mapEl[type] || type;

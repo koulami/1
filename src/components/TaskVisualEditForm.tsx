@@ -40,6 +40,7 @@ import {
   TaskPayload,
   QrScanPayload,
   PuzzlePayload,
+  SurveyPayload,
   FieldSpotInfo
 } from '../types/game';
 import { ScannableQrImage } from './ScannableQrImage';
@@ -268,6 +269,48 @@ export const TaskVisualEditForm: React.FC<Props> = ({
     return task.fieldSpot?.caption || (task.type === 'qr_scan' ? (task.payload as QrScanPayload)?.unlockedMedia?.caption || '' : task.description);
   });
 
+  // 9. Survey / Opinion Poll configuration
+  const [surveyOptions, setSurveyOptions] = useState<string[]>(() => {
+    const p = task.payload as SurveyPayload;
+    if (p && Array.isArray(p.options) && p.options.length > 0) {
+      return [...p.options];
+    }
+    return [
+      isEl ? 'Εξάλειψη δηλητηριασμένων δολωμάτων (Ομάδες Ανίχνευσης K9)' : 'Elimination of poison baits (Anti-poison K9 units)',
+      isEl ? 'Δίκτυο ασφαλών σταθμών σίτισης (Ταΐστρες)' : 'Network of secure feeding stations',
+      isEl ? 'Ενίσχυση πληθυσμού με μεταφορά γυπών από Ισπανία' : 'Restocking population with Griffon vultures from Spain',
+      isEl ? 'Μόνωση γραμμών μεταφοράς ρεύματος (Αποτροπή ηλεκτροπληξίας)' : 'Insulation of power lines (Preventing electrocution)'
+    ];
+  });
+  const [surveyOptionsEn, setSurveyOptionsEn] = useState<string[]>(() => {
+    const p = task.payload as SurveyPayload;
+    if (p && Array.isArray(p.options_en) && p.options_en.length > 0) {
+      return [...p.options_en];
+    }
+    return [
+      'Elimination of poison baits (Anti-poison K9 units)',
+      'Network of secure feeding stations',
+      'Restocking population with Griffon vultures from Spain',
+      'Insulation of power lines (Preventing electrocution)'
+    ];
+  });
+  const [surveyAllowMultiple, setSurveyAllowMultiple] = useState<boolean>(() => {
+    const p = task.payload as SurveyPayload;
+    return Boolean(p?.allowMultiple);
+  });
+  const [surveyAllowReason, setSurveyAllowReason] = useState<boolean>(() => {
+    const p = task.payload as SurveyPayload;
+    return p?.allowCustomReason !== false;
+  });
+  const [surveyReasonPrompt, setSurveyReasonPrompt] = useState<string>(() => {
+    const p = task.payload as SurveyPayload;
+    return p?.reasonPrompt || (isEl ? 'Αιτιολογήστε την επιλογή σας (Ποια κριτήρια λάβατε υπόψη;):' : 'Justify your decision (What factors did your team prioritize?):');
+  });
+  const [surveyReasonPromptEn, setSurveyReasonPromptEn] = useState<string>(() => {
+    const p = task.payload as SurveyPayload;
+    return p?.reasonPrompt_en || 'Justify your decision (What factors did your team prioritize?):';
+  });
+
   // Re-initialize state when a different task is selected
   useEffect(() => {
     setTitle(task.title || '');
@@ -303,6 +346,16 @@ export const TaskVisualEditForm: React.FC<Props> = ({
       if (puzzlePayload.gridPieces === 4 || puzzlePayload.gridPieces === 6 || puzzlePayload.gridPieces === 9) {
         setPuzzleGridPieces(puzzlePayload.gridPieces);
       }
+    }
+
+    const surveyPayload = task.payload as SurveyPayload;
+    if (surveyPayload && Array.isArray(surveyPayload.options)) {
+      setSurveyOptions([...surveyPayload.options]);
+      setSurveyOptionsEn(surveyPayload.options_en ? [...surveyPayload.options_en] : []);
+      setSurveyAllowMultiple(Boolean(surveyPayload.allowMultiple));
+      setSurveyAllowReason(surveyPayload.allowCustomReason !== false);
+      setSurveyReasonPrompt(surveyPayload.reasonPrompt || (isEl ? 'Αιτιολογήστε την επιλογή σας (Ποια κριτήρια λάβατε υπόψη;):' : 'Justify your decision:'));
+      setSurveyReasonPromptEn(surveyPayload.reasonPrompt_en || 'Justify your decision:');
     }
   }, [task.id]);
 
@@ -405,6 +458,20 @@ export const TaskVisualEditForm: React.FC<Props> = ({
         break;
       }
 
+      case 'survey': {
+        const cleanOpts = surveyOptions.map((o) => o.trim()).filter(Boolean);
+        const cleanOptsEn = surveyOptionsEn.map((o) => o.trim()).filter(Boolean);
+        builtPayload = {
+          options: cleanOpts.length > 0 ? cleanOpts : [isEl ? 'Πρώτη επιλογή' : 'Option 1', isEl ? 'Δεύτερη επιλογή' : 'Option 2'],
+          options_en: cleanOptsEn.length > 0 ? cleanOptsEn : undefined,
+          allowMultiple: surveyAllowMultiple,
+          allowCustomReason: surveyAllowReason,
+          reasonPrompt: surveyReasonPrompt.trim() || undefined,
+          reasonPrompt_en: surveyReasonPromptEn.trim() || undefined
+        };
+        break;
+      }
+
       default:
         builtPayload = task.payload || {};
         break;
@@ -497,6 +564,7 @@ export const TaskVisualEditForm: React.FC<Props> = ({
             <option value="photo_upload">{isEl ? '6. Αποστολή Μεταφόρτωσης Φωτογραφίας / Βίντεο (Photo/Video Upload Mission)' : '6. Photo/Video Upload Mission'}</option>
             <option value="task">{isEl ? '7. Αποστολή & Checkpoint Checklist (Task)' : '7. Task & Checklist'}</option>
             <option value="qr_scan">{isEl ? '8. Σάρωση QR Code Πεδίου (QR Code Scan)' : '8. QR Code Scan'}</option>
+            <option value="survey">{isEl ? '9. Δημοσκόπηση & Επιλογή Γνώμης (Survey / Poll)' : '9. Opinion Poll / Survey'}</option>
           </select>
         </div>
 
@@ -1514,6 +1582,138 @@ export const TaskVisualEditForm: React.FC<Props> = ({
         </div>
       )}
 
+      {/* 7b. SURVEY / OPINION POLL BUILDER */}
+      {type === 'survey' && (
+        <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-500/40 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                📊
+              </span>
+              <div>
+                <h5 className="text-xs font-black text-purple-300 uppercase tracking-wider">
+                  {isEl ? 'Ρυθμίσεις Δημοσκόπησης & Επιλογών Γνώμης' : 'Survey & Opinion Poll Settings'}
+                </h5>
+                <p className="text-[11px] text-slate-400">
+                  {isEl ? 'Ορίστε τις επιλογές στις οποίες θα κληθούν να ψηφίσουν οι μαθητικές υποομάδες.' : 'Configure the options student subgroups will vote on.'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSurveyOptions([...surveyOptions, `${isEl ? 'Νέα Επιλογή' : 'New Option'} ${surveyOptions.length + 1}`]);
+                setSurveyOptionsEn([...surveyOptionsEn, `New Option ${surveyOptionsEn.length + 1}`]);
+              }}
+              className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[11px] font-bold flex items-center gap-1 hover:bg-purple-500/30 transition-colors cursor-pointer"
+            >
+              <Plus className="w-3 h-3" />
+              <span>{isEl ? 'Προσθήκη Επιλογής' : 'Add Choice'}</span>
+            </button>
+          </div>
+
+          {/* Options list */}
+          <div className="space-y-3">
+            {surveyOptions.map((opt, idx) => (
+              <div key={idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                  <span>{isEl ? `Επιλογή #${idx + 1}` : `Choice #${idx + 1}`}</span>
+                  {surveyOptions.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSurveyOptions(surveyOptions.filter((_, i) => i !== idx));
+                        setSurveyOptionsEn(surveyOptionsEn.filter((_, i) => i !== idx));
+                      }}
+                      className="text-rose-400 hover:text-rose-300 text-xs cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{isEl ? 'Διαγραφή' : 'Delete'}</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-0.5">{isEl ? 'Κείμενο στα Ελληνικά:' : 'Greek Label:'}</label>
+                    <input
+                      type="text"
+                      value={opt}
+                      onChange={(e) => {
+                        const updated = [...surveyOptions];
+                        updated[idx] = e.target.value;
+                        setSurveyOptions(updated);
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-0.5">{isEl ? 'Κείμενο στα Αγγλικά (English):' : 'English Label:'}</label>
+                    <input
+                      type="text"
+                      value={surveyOptionsEn[idx] || ''}
+                      onChange={(e) => {
+                        const updated = [...surveyOptionsEn];
+                        updated[idx] = e.target.value;
+                        setSurveyOptionsEn(updated);
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Voting settings */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-purple-500/20">
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+              <input
+                type="checkbox"
+                checked={surveyAllowMultiple}
+                onChange={(e) => setSurveyAllowMultiple(e.target.checked)}
+                className="rounded border-slate-700 text-purple-500 focus:ring-purple-400"
+              />
+              <span>{isEl ? 'Επιτρέπεται πολλαπλή επιλογή (Checkboxes)' : 'Allow multiple selections'}</span>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+              <input
+                type="checkbox"
+                checked={surveyAllowReason}
+                onChange={(e) => setSurveyAllowReason(e.target.checked)}
+                className="rounded border-slate-700 text-purple-500 focus:ring-purple-400"
+              />
+              <span>{isEl ? 'Απαίτηση γραπτής αιτιολόγησης σκέψης' : 'Require written justification'}</span>
+            </label>
+          </div>
+
+          {surveyAllowReason && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-0.5">{isEl ? 'Προτροπή Αιτιολόγησης (Ελληνικά):' : 'Justification Prompt (Greek):'}</label>
+                <input
+                  type="text"
+                  value={surveyReasonPrompt}
+                  onChange={(e) => setSurveyReasonPrompt(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-400"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-0.5">{isEl ? 'Προτροπή Αιτιολόγησης (English):' : 'Justification Prompt (English):'}</label>
+                <input
+                  type="text"
+                  value={surveyReasonPromptEn}
+                  onChange={(e) => setSurveyReasonPromptEn(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-400"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 8. UNIVERSAL FIELD SPOT & QR TRIGGER BUILDER */}
       <div className={`p-4 rounded-2xl border transition-all ${
         type === 'qr_scan' || enableFieldSpot
@@ -1649,7 +1849,7 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                 <input
                   type="url"
                   value={fieldSpotMediaUrl}
-                  onChange={(e) => setFieldMediaUrl(e.target.value)}
+                  onChange={(e) => setFieldSpotMediaUrl(e.target.value)}
                   placeholder={
                     fieldSpotMediaType === 'video'
                       ? 'URL YouTube / Vimeo / MP4 (π.χ. https://www.youtube.com/watch?v=...)'
@@ -1670,7 +1870,7 @@ export const TaskVisualEditForm: React.FC<Props> = ({
                       if (!file) return;
                       try {
                         const res = await processLocalFile(file, 1200, 0.85);
-                        setFieldMediaUrl(res.url);
+                        setFieldSpotMediaUrl(res.url);
                       } catch (err) {
                         console.error(err);
                       }

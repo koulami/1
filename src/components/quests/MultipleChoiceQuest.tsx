@@ -23,12 +23,22 @@ export const MultipleChoiceQuest: React.FC<Props> = ({
   const t = translations[lang];
   const isEn = lang === 'en';
   const greekPayload = question.payload as MultipleChoicePayload;
-  const enPayload = (isEn && question.payload_en && Array.isArray((question.payload_en as MultipleChoicePayload).options) && (question.payload_en as MultipleChoicePayload).options.length > 0)
-    ? (question.payload_en as MultipleChoicePayload)
+  const enOptions = (isEn && question.payload_en && Array.isArray((question.payload_en as any).options) && (question.payload_en as any).options.length > 0)
+    ? (question.payload_en as any).options
+    : (isEn && (question.payload as any)?.options_en && Array.isArray((question.payload as any).options_en) && (question.payload as any).options_en.length > 0)
+    ? (question.payload as any).options_en
     : null;
-  const payload = enPayload || greekPayload;
-  const correctIndices = (enPayload && (Array.isArray(enPayload.correctOptionIndices) && enPayload.correctOptionIndices.length > 0 || typeof enPayload.correctOptionIndex === 'number'))
-    ? getMultipleChoiceCorrectIndices(enPayload)
+
+  const payload: MultipleChoicePayload = enOptions
+    ? {
+        options: enOptions,
+        correctOptionIndices: (question.payload_en as any)?.correctOptionIndices || greekPayload.correctOptionIndices,
+        correctOptionIndex: (question.payload_en as any)?.correctOptionIndex ?? greekPayload.correctOptionIndex
+      }
+    : greekPayload;
+
+  const correctIndices = (enOptions && (Array.isArray((question.payload_en as any)?.correctOptionIndices) || typeof (question.payload_en as any)?.correctOptionIndex === 'number'))
+    ? getMultipleChoiceCorrectIndices(question.payload_en as MultipleChoicePayload)
     : getMultipleChoiceCorrectIndices(greekPayload);
   const isMultiple = correctIndices.length > 1;
 

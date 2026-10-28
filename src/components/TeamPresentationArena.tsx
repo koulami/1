@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Trophy,
   Maximize,
@@ -27,15 +27,30 @@ import {
   ArrowRight,
   BookOpen,
   Quote,
-  Edit3
+  Edit3,
+  Crown,
+  TrendingUp,
+  Zap,
+  Radio,
+  Vote,
+  BarChart3,
+  Users,
+  Check,
+  Clock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Team, Question, Submission } from '../types/game';
+import { Team, Question, Submission, CustomTeamTitleRecord, CoreTrackId, ThematicTrackInfo } from '../types/game';
 import {
   masterTeamsPool,
   isTaskActive,
   isCheckpointTask,
-  getAllTasks
+  getAllTasks,
+  getTeamsWithCustomTitles,
+  getTeamEffectiveLanguage,
+  getLocalizedTeamName,
+  getLocalizedTeamSlogan,
+  getActiveTasksForTeam,
+  CORE_THEMATIC_TRACKS
 } from '../data/masterTaskPool';
 import { storageService } from '../services/storageService';
 import { processLocalFile } from '../utils/fileUploadHelper';
@@ -50,6 +65,8 @@ interface Props {
   onGoBack?: () => void;
   onSelectTeamMissions?: (teamIndex: number) => void;
   taskOrder?: string[];
+  customTeamTitles?: Record<string, CustomTeamTitleRecord>;
+  subgroups?: Team[];
 }
 
 // Curated authentic scientific Wow-Moments per Cyprus Vulture Group
@@ -361,13 +378,40 @@ export const TeamPresentationArena: React.FC<Props> = ({
   synthesisNotes,
   onGoBack,
   onSelectTeamMissions,
-  taskOrder
+  taskOrder,
+  customTeamTitles,
+  subgroups: subgroupsProp
 }) => {
   const isEl = lang === 'el';
   const allPoolTasks = useMemo(() => getAllTasks(customQuestions, taskOrder), [customQuestions, taskOrder]);
 
-  // Display Mode: 'spotlight' vs 'grid'
-  const [viewMode, setViewMode] = useState<'spotlight' | 'grid'>('spotlight');
+  const [storedSubgroups, setStoredSubgroups] = useState<Team[]>(() => subgroupsProp || storageService.getSubgroups());
+
+  useEffect(() => {
+    if (subgroupsProp) {
+      setStoredSubgroups(subgroupsProp);
+    }
+  }, [subgroupsProp]);
+
+  useEffect(() => {
+    const handleSubgroupsSync = () => {
+      setStoredSubgroups(storageService.getSubgroups());
+    };
+    window.addEventListener('boundpad:subgroups', handleSubgroupsSync);
+    window.addEventListener('storage', handleSubgroupsSync);
+    return () => {
+      window.removeEventListener('boundpad:subgroups', handleSubgroupsSync);
+      window.removeEventListener('storage', handleSubgroupsSync);
+    };
+  }, []);
+
+  // Derived teams with custom Greek/English titles and slogans
+  const activeTeams = useMemo(() => {
+    return getTeamsWithCustomTitles(customTeamTitles, storedSubgroups);
+  }, [customTeamTitles, storedSubgroups]);
+
+  // Display Mode: 'leaderboard' vs 'spotlight' vs 'grid'
+  const [viewMode, setViewMode] = useState<'leaderboard' | 'spotlight' | 'grid'>('leaderboard');
   const [spotlightIndex, setSpotlightIndex] = useState<number>(0);
   const [isPlayingAuto, setIsPlayingAuto] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -412,10 +456,10 @@ export const TeamPresentationArena: React.FC<Props> = ({
   useEffect(() => {
     if (!isPlayingAuto) return;
     const interval = setInterval(() => {
-      setSpotlightIndex((prev) => (prev + 1) % masterTeamsPool.length);
+      setSpotlightIndex((prev) => (prev + 1) % activeTeams.length);
     }, 12000);
     return () => clearInterval(interval);
-  }, [isPlayingAuto]);
+  }, [isPlayingAuto, activeTeams.length]);
 
   // Trigger celebration confetti
   const triggerTeamConfetti = (teamColor: string) => {
@@ -460,10 +504,11 @@ export const TeamPresentationArena: React.FC<Props> = ({
 
   // Compute stats and compile presentation data for each of the 4 teams
   const teamPosters = useMemo(() => {
-    return masterTeamsPool.map((team, idx) => {
+    return activeTeams.map((team, idx) => {
+      const trackId = team.trackId || team.id;
       const teamQuestions = allPoolTasks.filter((q) => {
         if (!q.assignedTeamIds || q.assignedTeamIds.length === 0) return true;
-        return q.assignedTeamIds.includes(team.id);
+        return q.assignedTeamIds.includes(team.id) || q.assignedTeamIds.includes(trackId);
       });
 
       const activeQuestions = teamQuestions.filter((q) => isTaskActive(q, taskOverrides));
@@ -533,10 +578,10 @@ export const TeamPresentationArena: React.FC<Props> = ({
       }
 
       const solvedCheckpoints = solvedTasks.filter((item) => isCheckpointTask(item.question.id));
-      const teamNotes = synthesisNotes.filter((n) => n.teamId === team.id);
-      const wowMoments = GROUP_WOW_MOMENTS[team.id] || GROUP_WOW_MOMENTS['team-alpha'];
-      const metrics = GROUP_INFOGRAPHIC_METRICS[team.id] || GROUP_INFOGRAPHIC_METRICS['team-alpha'];
-      const defaultIllustration = GROUP_DEFAULT_ILLUSTRATIONS[team.id] || GROUP_DEFAULT_ILLUSTRATIONS['team-alpha'];
+      const teamNotes = synthesisNotes.filter((n) => n.teamId === team.id || n.teamId === trackId);
+      const wowMoments = GROUP_WOW_MOMENTS[trackId] || GROUP_WOW_MOMENTS['team-alpha'];
+      const metrics = GROUP_INFOGRAPHIC_METRICS[trackId] || GROUP_INFOGRAPHIC_METRICS['team-alpha'];
+      const defaultIllustration = GROUP_DEFAULT_ILLUSTRATIONS[trackId] || GROUP_DEFAULT_ILLUSTRATIONS['team-alpha'];
 
       // Student Reflection Extraction from storage or attempted mission data
       const storedReflection = storageService.getTeamReflection(team.id);
@@ -558,9 +603,45 @@ export const TeamPresentationArena: React.FC<Props> = ({
         }
       }
 
+      const effectiveLang = getTeamEffectiveLanguage(team, lang);
       if (!studentReflection) {
-        studentReflection = DEFAULT_TEAM_REFLECTIONS[team.id]?.[lang] || DEFAULT_TEAM_REFLECTIONS['team-alpha'][lang];
+        studentReflection = DEFAULT_TEAM_REFLECTIONS[trackId]?.[effectiveLang] || DEFAULT_TEAM_REFLECTIONS['team-alpha'][effectiveLang];
       }
+
+      // Extract Survey Responses for this subgroup
+      const surveyQuestions = activeQuestions.filter((q) => q.type === 'survey' || q.id.includes('survey'));
+      const surveyResponses = surveyQuestions.map((q) => {
+        const sub = submissions[`${team.id}_${q.id}`];
+        const p = q.payload as any;
+        const optionsEl: string[] = Array.isArray(p?.options) ? p.options : [];
+        const optionsEn: string[] = Array.isArray(p?.options_en) ? p.options_en : (Array.isArray(q.payload_en?.options) ? q.payload_en.options : optionsEl);
+
+        let selectedOptions: string[] = [];
+        if (sub) {
+          if (Array.isArray(sub.answerData?.selectedOptions) && sub.answerData.selectedOptions.length > 0) {
+            selectedOptions = sub.answerData.selectedOptions;
+          } else if (Array.isArray(sub.answerData?.selectedIndices)) {
+            selectedOptions = sub.answerData.selectedIndices.map((i: number) => {
+              const isEn = effectiveLang === 'en';
+              return isEn ? (optionsEn[i] || optionsEl[i] || `Option ${i + 1}`) : (optionsEl[i] || `Επιλογή ${i + 1}`);
+            });
+          } else if (typeof sub.answerData?.selectedIndex === 'number') {
+            const i = sub.answerData.selectedIndex;
+            const isEn = effectiveLang === 'en';
+            selectedOptions = [isEn ? (optionsEn[i] || optionsEl[i] || `Option ${i + 1}`) : (optionsEl[i] || `Επιλογή ${i + 1}`)];
+          }
+        }
+
+        const reason = sub ? (sub.answerData?.reason || sub.answerData?.customReason || sub.answerData?.reasonText || sub.reflectionText || '') : '';
+
+        return {
+          question: q,
+          submission: sub,
+          selectedOptions,
+          reason,
+          isSubmitted: Boolean(sub)
+        };
+      });
 
       return {
         team,
@@ -580,12 +661,195 @@ export const TeamPresentationArena: React.FC<Props> = ({
         metrics,
         defaultIllustration,
         studentReflection,
-        isCustomReflection
+        isCustomReflection,
+        effectiveLang,
+        surveyResponses
       };
     });
-  }, [submissions, taskOverrides, synthesisNotes, allPoolTasks, reflectionsVersion, lang]);
+  }, [activeTeams, submissions, taskOverrides, synthesisNotes, allPoolTasks, reflectionsVersion, lang]);
 
-  const currentPoster = teamPosters[spotlightIndex] || teamPosters[0];
+  // 4 Core Thematic Track Posters uniting all subgroups per track
+  const trackPosters = useMemo(() => {
+    return CORE_THEMATIC_TRACKS.map((track, trackIdx) => {
+      const trackId = (track.trackId || track.id) as CoreTrackId;
+      // All subgroups assigned to this track
+      const trackSubgroups = teamPosters.filter((p) => {
+        const tid = p.team.trackId || p.team.id;
+        return tid === trackId;
+      });
+
+      // Default fallback team if no subgroups are active for this track
+      const fallbackTeam: Team = masterTeamsPool.find((t) => t.id === trackId) || {
+        id: trackId,
+        trackId: trackId,
+        name: track.title,
+        name_en: track.title_en,
+        color: track.color,
+        avatar: track.avatar,
+        slogan: 'Ανακαλύπτουμε τα πάντα για το Όρνιο!',
+        slogan_en: 'Discovering all about the Griffon Vulture!',
+        language: 'el'
+      };
+
+      const primarySubgroup = trackSubgroups[0] || {
+        team: fallbackTeam,
+        index: trackIdx,
+        totalQuestions: 15,
+        solvedTasks: [],
+        attemptedTasks: [],
+        recordedFacts: [],
+        allTeamBaselineFacts: [],
+        mistakesLearnedCount: 0,
+        totalScore: 0,
+        progressPercent: 0,
+        uploadedMedia: [],
+        solvedCheckpoints: [],
+        teamNotes: [],
+        wowMoments: GROUP_WOW_MOMENTS[trackId] || GROUP_WOW_MOMENTS['team-alpha'],
+        metrics: GROUP_INFOGRAPHIC_METRICS[trackId] || GROUP_INFOGRAPHIC_METRICS['team-alpha'],
+        defaultIllustration: GROUP_DEFAULT_ILLUSTRATIONS[trackId] || GROUP_DEFAULT_ILLUSTRATIONS['team-alpha'],
+        studentReflection: DEFAULT_TEAM_REFLECTIONS[trackId]?.[lang] || DEFAULT_TEAM_REFLECTIONS['team-alpha'][lang],
+        isCustomReflection: false,
+        effectiveLang: lang,
+        surveyResponses: []
+      };
+
+      // Combined Metrics across all subgroups on this track
+      const combinedTotalScore = trackSubgroups.reduce((acc, sub) => acc + sub.totalScore, 0);
+      const combinedUploadedMedia = trackSubgroups.flatMap((sub) => sub.uploadedMedia);
+      const combinedNotes = trackSubgroups.flatMap((sub) => sub.teamNotes);
+
+      // Questions for this track
+      const trackQuestions = allPoolTasks.filter((q) => {
+        if (!q.assignedTeamIds || q.assignedTeamIds.length === 0) return true;
+        return q.assignedTeamIds.includes(trackId);
+      });
+      const activeTrackQuestions = trackQuestions.filter((q) => isTaskActive(q, taskOverrides));
+      const surveyQuestions = activeTrackQuestions.filter((q) => q.type === 'survey' || q.id.includes('survey'));
+
+      // Authoritative baseline facts in active language
+      const allTrackBaselineFacts = activeTrackQuestions.map((q) => {
+        return extractScientificFact(q, trackId, true);
+      });
+
+      const uniqueSolvedTaskIds = new Set<string>();
+      trackSubgroups.forEach((sub) => {
+        sub.solvedTasks.forEach((st: any) => uniqueSolvedTaskIds.add(st.question.id));
+      });
+      const combinedProgressPercent = activeTrackQuestions.length > 0
+        ? Math.round((uniqueSolvedTaskIds.size / activeTrackQuestions.length) * 100)
+        : 0;
+
+      return {
+        track,
+        trackId,
+        trackIndex: trackIdx,
+        trackSubgroups,
+        primarySubgroup,
+        combinedTotalScore,
+        combinedProgressPercent,
+        combinedUploadedMedia,
+        combinedNotes,
+        activeTrackQuestions,
+        surveyQuestions,
+        allTrackBaselineFacts,
+        wowMoments: GROUP_WOW_MOMENTS[trackId] || GROUP_WOW_MOMENTS['team-alpha'],
+        metrics: GROUP_INFOGRAPHIC_METRICS[trackId] || GROUP_INFOGRAPHIC_METRICS['team-alpha'],
+        defaultIllustration: GROUP_DEFAULT_ILLUSTRATIONS[trackId] || GROUP_DEFAULT_ILLUSTRATIONS['team-alpha'],
+        // Backward-compatible properties for single-view
+        team: primarySubgroup.team,
+        totalScore: combinedTotalScore,
+        progressPercent: combinedProgressPercent,
+        totalQuestions: activeTrackQuestions.length,
+        solvedTasks: primarySubgroup.solvedTasks,
+        attemptedTasks: primarySubgroup.attemptedTasks,
+        recordedFacts: primarySubgroup.recordedFacts,
+        uploadedMedia: combinedUploadedMedia,
+        solvedCheckpoints: primarySubgroup.solvedCheckpoints,
+        teamNotes: combinedNotes,
+        studentReflection: primarySubgroup.studentReflection,
+        isCustomReflection: primarySubgroup.isCustomReflection,
+        effectiveLang: lang
+      };
+    });
+  }, [teamPosters, allPoolTasks, taskOverrides, lang]);
+
+  // Real-time Leaderboard Rankings (Sorted by Total Score descending, then Solved Quests count)
+  const rankedTeams = useMemo(() => {
+    return [...teamPosters].sort((a, b) => {
+      if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+      if (b.solvedTasks.length !== a.solvedTasks.length) return b.solvedTasks.length - a.solvedTasks.length;
+      return a.index - b.index;
+    });
+  }, [teamPosters]);
+
+  // Overall Classroom Metrics
+  const totalClassroomScore = useMemo(() => teamPosters.reduce((acc, p) => acc + p.totalScore, 0), [teamPosters]);
+  const totalClassroomSolved = useMemo(() => teamPosters.reduce((acc, p) => acc + p.solvedTasks.length, 0), [teamPosters]);
+  const totalClassroomMedia = useMemo(() => teamPosters.reduce((acc, p) => acc + p.uploadedMedia.length, 0), [teamPosters]);
+  const totalClassroomQuestions = useMemo(() => teamPosters.reduce((acc, p) => acc + p.totalQuestions, 0), [teamPosters]);
+
+  // Focused subgroup within current track poster ('all' for side-by-side comparison, or specific subgroup id)
+  const [focusedSubgroupId, setFocusedSubgroupId] = useState<string>('all');
+
+  // Real-time Submission Animation & Pulse Detection
+  const previousScoresRef = useRef<Record<string, number>>({});
+  const isInitialMount = useRef(true);
+  const [submissionPulse, setSubmissionPulse] = useState<{
+    teamId: string;
+    delta: number;
+    teamName: string;
+    avatar: string;
+    color: string;
+    timestamp: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      for (const p of teamPosters) {
+        previousScoresRef.current[p.team.id] = p.totalScore;
+      }
+      return;
+    }
+
+    let detectedDelta = 0;
+    let detectedTeamId = '';
+    let detectedTeamName = '';
+    let detectedAvatar = '';
+    let detectedColor = '';
+
+    for (const poster of teamPosters) {
+      const prev = previousScoresRef.current[poster.team.id] ?? 0;
+      if (poster.totalScore > prev) {
+        detectedDelta = poster.totalScore - prev;
+        detectedTeamId = poster.team.id;
+        detectedTeamName = isEl ? poster.team.name : poster.team.name_en || poster.team.name;
+        detectedAvatar = poster.team.avatar;
+        detectedColor = poster.team.color;
+      }
+      previousScoresRef.current[poster.team.id] = poster.totalScore;
+    }
+
+    if (detectedDelta > 0 && detectedTeamId) {
+      setSubmissionPulse({
+        teamId: detectedTeamId,
+        delta: detectedDelta,
+        teamName: detectedTeamName,
+        avatar: detectedAvatar,
+        color: detectedColor,
+        timestamp: Date.now()
+      });
+      triggerTeamConfetti(detectedColor);
+
+      const timer = setTimeout(() => {
+        setSubmissionPulse(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [teamPosters, isEl]);
+
+  const currentPoster = trackPosters[spotlightIndex] || trackPosters[0];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -598,16 +862,17 @@ export const TeamPresentationArena: React.FC<Props> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                {isEl ? 'Αρένα Παρουσίασης & Ψηφιακά Infographic Posters' : 'Team Presentation Arena & Infographic Posters'}
+                {isEl ? 'Αρένα Παρουσίασης & Εξέλιξης Ομάδων' : 'Presentation Arena & Team Progress'}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black uppercase tracking-wider">
-                PROJECTOR EXHIBIT READY
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>LIVE SYNC</span>
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
               {isEl
-                ? 'Επιστημονικά ψηφιακά πόστερ έκθεσης: Μεγάλα αριθμητικά στατιστικά, κεντρικό έκθεμα και punchy Wow Moments'
-                : 'Scientific museum exhibit posters: Large metric callouts, central evidence hero, and punchy Wow Moments'}
+                ? 'Αντικειμενική παρακολούθηση προόδου ομάδων και ψηφιακά Infographic Posters ανά θεματική ενότητα'
+                : 'Objective tracking of team progress and scientific Infographic Posters per thematic track'}
             </p>
           </div>
         </div>
@@ -616,6 +881,18 @@ export const TeamPresentationArena: React.FC<Props> = ({
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* View Mode Toggle */}
           <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setViewMode('leaderboard')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewMode === 'leaderboard'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>{isEl ? 'Πίνακας Εξέλιξης & Προόδου' : 'Progress & Analytics'}</span>
+            </button>
             <button
               type="button"
               onClick={() => setViewMode('spotlight')}
@@ -642,7 +919,7 @@ export const TeamPresentationArena: React.FC<Props> = ({
             </button>
           </div>
 
-          {/* Auto-Play Slideshow */}
+          {/* Auto-Play Slideshow (for spotlight) */}
           {viewMode === 'spotlight' && (
             <button
               type="button"
@@ -662,8 +939,8 @@ export const TeamPresentationArena: React.FC<Props> = ({
           {/* Celebration Confetti */}
           <button
             type="button"
-            onClick={() => triggerTeamConfetti(currentPoster.team.color)}
-            className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            onClick={() => triggerTeamConfetti(teamPosters[0]?.team.color || '#f59e0b')}
+            className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>{isEl ? 'Εορτασμός!' : 'Celebrate!'}</span>
@@ -681,24 +958,384 @@ export const TeamPresentationArena: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* ===================== DYNAMIC SUBMISSION PULSE TOAST ===================== */}
+      {submissionPulse && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/25 via-emerald-500/25 to-purple-500/25 border-2 border-amber-400 shadow-2xl shadow-amber-500/20 flex items-center justify-between gap-4 flex-wrap animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-4 min-w-0">
+            <div
+              style={{ backgroundColor: `${submissionPulse.color}35`, borderColor: submissionPulse.color }}
+              className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-3xl shadow-lg shrink-0 animate-bounce"
+            >
+              {submissionPulse.avatar}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                  <Zap className="w-3 h-3 fill-slate-950" />
+                  <span>{isEl ? 'ΖΩΝΤΑΝΗ ΥΠΟΒΟΛΗ' : 'LIVE SUBMISSION'}</span>
+                </span>
+                <span className="text-xs font-bold text-amber-300">
+                  {isEl ? 'Αυτόματη ενημέρωση προόδου!' : 'Real-time progress update!'}
+                </span>
+              </div>
+              <p className="text-base sm:text-lg font-black text-white mt-0.5 truncate">
+                {submissionPulse.teamName}{' '}
+                <span className="text-emerald-400 font-mono font-black ml-1.5 inline-block animate-pulse">
+                  +{submissionPulse.delta} pts!
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 text-xs font-mono font-bold flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>{isEl ? 'Ενημέρωση Προόδου' : 'Progress Updated'}</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== VIEW 0: REAL-TIME LEADERBOARD VISUALIZATION ===================== */}
+      {viewMode === 'leaderboard' && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          {/* Section Header & Classroom Stat Badges */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center text-xl shrink-0">
+                🏆
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {isEl ? 'Συνολικοί Πόντοι' : 'Total Points'}
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-amber-400 font-mono">
+                  {totalClassroomScore} <span className="text-xs text-slate-400 font-sans">pts</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shrink-0">
+                🎯
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {isEl ? 'Λυμένες Αποστολές' : 'Solved Quests'}
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-emerald-400 font-mono">
+                  {totalClassroomSolved}{' '}
+                  <span className="text-xs text-slate-400 font-sans">/ {totalClassroomQuestions}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center text-xl shrink-0">
+                📸
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {isEl ? 'Τεκμήρια Πεδίου' : 'Field Media Evidence'}
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-purple-400 font-mono">
+                  {totalClassroomMedia} <span className="text-xs text-slate-400 font-sans">{isEl ? 'αρχεία' : 'files'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xl shrink-0">
+                ⚡
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {isEl ? 'Κατάσταση Αρένας' : 'Arena Status'}
+                </div>
+                <div className="text-sm font-black text-cyan-300 flex items-center gap-1.5 mt-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>{isEl ? 'Ζωντανή Καταγραφή' : 'Real-Time Dynamic'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ================= OBJECTIVE PROGRESS & ANALYTICS DASHBOARD ================= */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-xl font-black text-white flex items-center gap-2.5">
+                  <BarChart3 className="w-6 h-6 text-emerald-400" />
+                  <span>{isEl ? 'Αναλυτικός Πίνακας Βαθμολογίας & Εξέλιξης' : 'Analytics & Team Progress Board'}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                  {isEl
+                    ? 'Αντικειμενική παρακολούθηση της πορείας κάθε θεματικής ομάδας. Επειδή κάθε ομάδα ερευνά διαφορετική πτυχή του Γύπα (Ταυτότητα, Βιότοπος, Βιολογία, Απειλές), η παρουσίαση εστιάζει στη συνεργατική γνώση χωρίς ανταγωνιστική κατάταξη.'
+                    : 'Objective overview of each thematic subgroup. As each team investigates a distinct domain of the Griffon Vulture, this dashboard highlights collaborative learning without competitive rankings.'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-300 font-mono px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{teamPosters.length} {isEl ? 'ενεργές ομάδες' : 'active teams'}</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {teamPosters.map((poster) => {
+                const isJustUpdated = submissionPulse?.teamId === poster.team.id;
+                const tTrackId = (poster.team.trackId || poster.team.id) as CoreTrackId;
+                const trackInfo = CORE_THEMATIC_TRACKS.find((t) => (t.trackId || t.id) === tTrackId);
+                const trackIdx = CORE_THEMATIC_TRACKS.findIndex((t) => (t.trackId || t.id) === tTrackId);
+
+                return (
+                  <div
+                    key={poster.team.id}
+                    style={{
+                      borderColor: isJustUpdated ? '#f59e0b' : `${poster.team.color}40`,
+                      boxShadow: isJustUpdated ? '0 0 30px rgba(245,158,11,0.35)' : 'none'
+                    }}
+                    className={`p-5 sm:p-6 rounded-3xl bg-slate-900 border-2 transition-all duration-300 relative overflow-hidden ${
+                      isJustUpdated ? 'scale-[1.01] ring-2 ring-amber-400' : ''
+                    }`}
+                  >
+                    {/* Background Subtle Themed Tint */}
+                    <div
+                      style={{
+                        background: `linear-gradient(90deg, ${poster.team.color}15 0%, transparent 40%)`
+                      }}
+                      className="absolute inset-0 pointer-events-none"
+                    />
+
+                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                      {/* Left: Team/Subgroup Number + Avatar + Title & Slogan */}
+                      <div className="flex items-start sm:items-center gap-4 sm:gap-5 min-w-0 flex-1">
+                        {/* Team Indicator (Neutral, non-ranking) */}
+                        <div
+                          style={{
+                            backgroundColor: `${poster.team.color}18`,
+                            borderColor: `${poster.team.color}50`,
+                            color: poster.team.color
+                          }}
+                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-2 flex flex-col items-center justify-center font-mono shadow-sm shrink-0"
+                        >
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                            {isEl ? 'ΟΜΑΔΑ' : 'TEAM'}
+                          </span>
+                          <span className="text-xl sm:text-2xl font-black leading-none mt-0.5">
+                            {poster.index + 1}
+                          </span>
+                        </div>
+
+                        {/* Team Avatar */}
+                        <div
+                          style={{ borderColor: poster.team.color }}
+                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-950 border-2 flex items-center justify-center text-3xl sm:text-4xl shadow-inner shrink-0"
+                        >
+                          {poster.team.avatar}
+                        </div>
+
+                        {/* Title, Thematic Track Badge & Slogan */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-lg sm:text-xl font-black text-white truncate">
+                              {isEl ? poster.team.name : poster.team.name_en || poster.team.name}
+                            </h4>
+
+                            {/* Thematic Track Pill */}
+                            {trackInfo && (
+                              <span
+                                style={{
+                                  backgroundColor: `${trackInfo.color}25`,
+                                  borderColor: `${trackInfo.color}50`,
+                                  color: '#f8fafc'
+                                }}
+                                className="px-2.5 py-0.5 rounded-lg border text-[11px] font-bold flex items-center gap-1.5"
+                              >
+                                <span>{trackInfo.avatar}</span>
+                                <span>{isEl ? trackInfo.title : trackInfo.title_en}</span>
+                              </span>
+                            )}
+
+                            {/* Language Tag */}
+                            <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-mono font-bold uppercase">
+                              {poster.effectiveLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}
+                            </span>
+
+                            {isJustUpdated && (
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] uppercase tracking-wider animate-bounce">
+                                +{submissionPulse?.delta} PTS!
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-1 max-w-xl">
+                            {isEl ? poster.team.slogan : poster.team.slogan_en || poster.team.slogan}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right: Progress Data, Stats, Total Points & Action Links */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 justify-between lg:justify-end border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-800/80">
+                        {/* Progress Bar & Detailed Counts */}
+                        <div className="w-full sm:w-56 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                            <span className="flex items-center gap-1 text-slate-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>{isEl ? 'Σωστές Απαντήσεις' : 'Correct Tasks'}</span>
+                            </span>
+                            <span className="font-mono text-emerald-400 font-black">
+                              {poster.solvedTasks.length} / {poster.totalQuestions}
+                            </span>
+                          </div>
+
+                          <div className="w-full h-3 rounded-full bg-slate-950 border border-slate-800 overflow-hidden p-0.5">
+                            <div
+                              style={{
+                                width: `${poster.progressPercent}%`,
+                                backgroundColor: poster.team.color
+                              }}
+                              className="h-full rounded-full transition-all duration-700 shadow-sm"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                            <span className="text-cyan-300 font-mono font-bold">
+                              {poster.progressPercent}% {isEl ? 'ολοκλήρωση' : 'completion'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span>📸 {poster.uploadedMedia.length}</span>
+                              <span>💡 {poster.recordedFacts.length}</span>
+                              {poster.surveyResponses && poster.surveyResponses.length > 0 && (
+                                <span className="text-emerald-400 font-bold" title={isEl ? 'Ψηφοφορία ολοκληρώθηκε' : 'Poll submitted'}>
+                                  🗳️
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Points Display (Objective) */}
+                        <div className="text-left sm:text-right shrink-0 min-w-[90px]">
+                          <div className="text-2xl sm:text-3xl font-black text-amber-400 font-mono tracking-tight flex items-baseline sm:justify-end gap-1">
+                            <span>{poster.totalScore}</span>
+                            <span className="text-xs text-slate-400 font-sans font-bold">pts</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            {isEl ? 'Συνολικοί Πόντοι' : 'Total Points'}
+                          </span>
+                        </div>
+
+                        {/* Direct Links to Posters & Tasks */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSpotlightIndex(trackIdx >= 0 ? trackIdx : 0);
+                              setFocusedSubgroupId(poster.team.id);
+                              setViewMode('spotlight');
+                            }}
+                            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700 active:scale-95 shadow-sm"
+                            title={isEl ? 'Άμεση προβολή του Infographic Poster' : 'Direct link to Infographic Poster'}
+                          >
+                            <Award className="w-3.5 h-3.5 text-amber-400" />
+                            <span>{isEl ? 'Πόστερ' : 'Poster'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onSelectTeamMissions) onSelectTeamMissions(trackIdx >= 0 ? trackIdx : 0);
+                            }}
+                            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
+                            title={isEl ? 'Άμεση μετάβαση στις αποστολές της ομάδας' : 'Direct link to team missions'}
+                          >
+                            <span>{isEl ? 'Αποστολές' : 'Missions'}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===================== VIEW 1: SPOTLIGHT DISPLAY ===================== */}
       {viewMode === 'spotlight' && (
         <div className="space-y-4">
-          {/* Team Quick Selector Bar */}
+          {/* Real-Time Team Progress Ticker Bar */}
+          <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2 overflow-x-auto">
+            <span className="text-[10px] font-black uppercase text-cyan-400 px-2 shrink-0 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{isEl ? 'ΟΜΑΔΕΣ ΕΡΓΑΣΙΑΣ:' : 'STUDENT TEAMS:'}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              {teamPosters.map((tp) => {
+                const tpTrackId = (tp.team.trackId || tp.team.id) as CoreTrackId;
+                const isSelected = tpTrackId === currentPoster.trackId && (focusedSubgroupId === 'all' || focusedSubgroupId === tp.team.id);
+                return (
+                  <button
+                    key={tp.team.id}
+                    type="button"
+                    onClick={() => {
+                      const trackIdx = CORE_THEMATIC_TRACKS.findIndex((t) => (t.trackId || t.id) === tpTrackId);
+                      setSpotlightIndex(trackIdx >= 0 ? trackIdx : 0);
+                      setFocusedSubgroupId(tp.team.id);
+                      setIsPlayingAuto(false);
+                    }}
+                    style={{
+                      borderColor: isSelected ? tp.team.color : 'transparent',
+                      backgroundColor: isSelected ? `${tp.team.color}25` : undefined
+                    }}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
+                      isSelected
+                        ? 'text-white border shadow-md font-black ring-1 ring-white/20'
+                        : 'bg-slate-900/80 text-slate-300 hover:bg-slate-850'
+                    }`}
+                  >
+                    <span>{tp.team.avatar}</span>
+                    <span className="text-[11px]">
+                      {isEl ? tp.team.name.split(':')[0] : tp.team.name_en?.split(':')[0] || tp.team.name}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-slate-950 text-[10px] font-mono text-cyan-300 font-bold">
+                      {tp.progressPercent}%
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-slate-950 text-[10px] font-mono text-amber-400 font-bold">
+                      {tp.totalScore}p
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setViewMode('leaderboard')}
+              className="text-[10px] font-bold text-amber-400 hover:underline px-2 shrink-0 flex items-center gap-1"
+            >
+              <span>{isEl ? 'Πίνακας Προόδου →' : 'Progress Board →'}</span>
+            </button>
+          </div>
+
+          {/* Thematic Track Quick Selector Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {teamPosters.map((poster, idx) => {
+            {trackPosters.map((poster, idx) => {
               const isSelected = idx === spotlightIndex;
               return (
                 <button
-                  key={poster.team.id}
+                  key={poster.trackId}
                   type="button"
                   onClick={() => {
                     setSpotlightIndex(idx);
+                    setFocusedSubgroupId('all');
                     setIsPlayingAuto(false);
                   }}
                   style={{
-                    borderColor: isSelected ? poster.team.color : 'transparent',
-                    boxShadow: isSelected ? `0 0 25px ${poster.team.color}35` : 'none'
+                    borderColor: isSelected ? poster.track.color : 'transparent',
+                    boxShadow: isSelected ? `0 0 25px ${poster.track.color}35` : 'none'
                   }}
                   className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-center justify-between ${
                     isSelected
@@ -707,19 +1344,19 @@ export const TeamPresentationArena: React.FC<Props> = ({
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-2xl shrink-0">{poster.team.avatar}</span>
+                    <span className="text-2xl shrink-0">{poster.track.avatar}</span>
                     <div className="min-w-0">
                       <div className="text-xs font-bold truncate">
-                        {isEl ? `Ομάδα ${idx + 1}` : `Group ${idx + 1}`}
+                        {isEl ? poster.track.title.split(':')[0] : poster.track.title_en.split(':')[0]}
                       </div>
                       <div className="text-[11px] text-slate-400 truncate">
-                        {poster.totalScore} pts • {poster.progressPercent}%
+                        {poster.trackSubgroups.length} {isEl ? (poster.trackSubgroups.length === 1 ? 'υποομάδα' : 'υποομάδες') : (poster.trackSubgroups.length === 1 ? 'group' : 'groups')} • {poster.combinedTotalScore} pts
                       </div>
                     </div>
                   </div>
                   {isSelected && (
                     <span
-                      style={{ backgroundColor: poster.team.color }}
+                      style={{ backgroundColor: poster.track.color }}
                       className="w-3 h-3 rounded-full shrink-0 animate-pulse"
                     />
                   )}
@@ -733,30 +1370,32 @@ export const TeamPresentationArena: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => {
-                setSpotlightIndex((prev) => (prev > 0 ? prev - 1 : teamPosters.length - 1));
+                setSpotlightIndex((prev) => (prev > 0 ? prev - 1 : trackPosters.length - 1));
+                setFocusedSubgroupId('all');
                 setIsPlayingAuto(false);
               }}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
-              <span>{isEl ? 'Προηγούμενη Ομάδα' : 'Previous Team'}</span>
+              <span>{isEl ? 'Προηγούμενος Πυλώνας' : 'Previous Track'}</span>
             </button>
 
             <span className="font-semibold text-slate-300">
               {isEl
-                ? `Παρουσίαση Έκθεσης: Ομάδα ${spotlightIndex + 1} από ${teamPosters.length}`
-                : `Exhibition Stage: Team ${spotlightIndex + 1} of ${teamPosters.length}`}
+                ? `Παρουσίαση Έκθεσης: Πυλώνας ${spotlightIndex + 1} από ${trackPosters.length}`
+                : `Exhibition Stage: Track ${spotlightIndex + 1} of ${trackPosters.length}`}
             </span>
 
             <button
               type="button"
               onClick={() => {
-                setSpotlightIndex((prev) => (prev + 1) % teamPosters.length);
+                setSpotlightIndex((prev) => (prev + 1) % trackPosters.length);
+                setFocusedSubgroupId('all');
                 setIsPlayingAuto(false);
               }}
               className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black flex items-center gap-1.5 cursor-pointer transition-colors shadow-md active:scale-95"
             >
-              <span>{isEl ? 'Επόμενη Ομάδα' : 'Next Team'}</span>
+              <span>{isEl ? 'Επόμενος Πυλώνας' : 'Next Track'}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -765,10 +1404,12 @@ export const TeamPresentationArena: React.FC<Props> = ({
           <VisualInfographicPoster
             poster={currentPoster}
             lang={lang}
+            focusedSubgroupId={focusedSubgroupId}
+            onSelectFocusSubgroup={(id) => setFocusedSubgroupId(id)}
             onInspectTask={(q) => setSelectedInspectTask(q)}
             onOpenLightbox={(media) => setLightboxMedia(media)}
-            onGoToMissions={() => onSelectTeamMissions && onSelectTeamMissions(currentPoster.index)}
-            onDirectUpload={(file) => handleDirectUpload(currentPoster.team.id, file)}
+            onGoToMissions={() => onSelectTeamMissions && onSelectTeamMissions(currentPoster.trackIndex)}
+            onDirectUpload={(teamId, file) => handleDirectUpload(teamId, file)}
             onEditReflection={handleOpenEditReflection}
           />
         </div>
@@ -777,15 +1418,15 @@ export const TeamPresentationArena: React.FC<Props> = ({
       {/* ===================== VIEW 2: 4-POSTER GALLERY ===================== */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {teamPosters.map((poster) => (
+          {trackPosters.map((poster) => (
             <VisualInfographicPoster
-              key={poster.team.id}
+              key={poster.trackId}
               poster={poster}
               lang={lang}
               onInspectTask={(q) => setSelectedInspectTask(q)}
               onOpenLightbox={(media) => setLightboxMedia(media)}
-              onGoToMissions={() => onSelectTeamMissions && onSelectTeamMissions(poster.index)}
-              onDirectUpload={(file) => handleDirectUpload(poster.team.id, file)}
+              onGoToMissions={() => onSelectTeamMissions && onSelectTeamMissions(poster.trackIndex)}
+              onDirectUpload={(teamId, file) => handleDirectUpload(teamId, file)}
               onEditReflection={handleOpenEditReflection}
             />
           ))}
@@ -1033,39 +1674,25 @@ export const TeamPresentationArena: React.FC<Props> = ({
 
 // ============================================================================
 // COMPONENT: VISUAL INFOGRAPHIC POSTER (Digital Science / Museum Exhibit Panel)
+// Supports Unified Thematic Core Science & Differentiated Subgroup Inputs
 // ============================================================================
 interface PosterProps {
-  poster: {
-    team: Team;
-    index: number;
-    totalQuestions: number;
-    solvedTasks: { question: Question; submission: Submission }[];
-    attemptedTasks: { question: Question; submission: Submission; isCorrect: boolean }[];
-    recordedFacts: ScientificFactRecord[];
-    allTeamBaselineFacts: ScientificFactRecord[];
-    mistakesLearnedCount: number;
-    totalScore: number;
-    progressPercent: number;
-    uploadedMedia: { url: string; type: 'photo' | 'video'; caption?: string; taskId: string }[];
-    solvedCheckpoints: { question: Question; submission: Submission }[];
-    teamNotes: any[];
-    wowMoments: WowMoment[];
-    metrics: InfographicMetric[];
-    defaultIllustration: string;
-    studentReflection: string;
-    isCustomReflection: boolean;
-  };
+  poster: any;
   lang: 'el' | 'en';
+  focusedSubgroupId?: string;
+  onSelectFocusSubgroup?: (subgroupId: string) => void;
   onInspectTask: (q: Question) => void;
   onOpenLightbox: (media: { url: string; title: string; caption?: string }) => void;
   onGoToMissions: () => void;
-  onDirectUpload?: (file: File) => void;
+  onDirectUpload?: (teamId: string, file: File) => void;
   onEditReflection: (team: Team, currentText: string) => void;
 }
 
 const VisualInfographicPoster: React.FC<PosterProps> = ({
   poster,
   lang,
+  focusedSubgroupId = 'all',
+  onSelectFocusSubgroup,
   onInspectTask,
   onOpenLightbox,
   onGoToMissions,
@@ -1073,41 +1700,79 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
   onEditReflection
 }) => {
   const isEl = lang === 'el';
-  const {
-    team,
-    totalScore,
-    progressPercent,
-    solvedTasks,
-    attemptedTasks,
-    recordedFacts,
-    allTeamBaselineFacts,
-    mistakesLearnedCount,
-    totalQuestions,
-    wowMoments,
-    metrics,
-    uploadedMedia,
-    teamNotes,
-    defaultIllustration,
-    studentReflection,
-    isCustomReflection
-  } = poster;
 
-  // Selected hero media in the centerpiece
+  // Thematic Track Information (Unified Foundation)
+  const track: ThematicTrackInfo = poster.track || {
+    id: poster.team?.trackId || 'team-alpha',
+    trackNumber: (poster.index || 0) + 1,
+    title: poster.team?.name || 'Θεματικός Πυλώνας',
+    title_en: poster.team?.name_en || 'Thematic Track',
+    theme: poster.team?.slogan || '',
+    theme_en: poster.team?.slogan_en || '',
+    color: poster.team?.color || '#10b981',
+    avatar: poster.team?.avatar || '🦅'
+  };
+
+  // Subgroups assigned to this thematic track
+  const trackSubgroups: any[] = poster.trackSubgroups && poster.trackSubgroups.length > 0
+    ? poster.trackSubgroups
+    : [poster];
+  const hasMultipleSubgroups = trackSubgroups.length > 1;
+
+  // Internal focus state fallback
+  const [internalFocused, setInternalFocused] = useState<string>('all');
+  const activeFocusedId = focusedSubgroupId || internalFocused;
+
+  const handleSelectSubgroupTab = (id: string) => {
+    if (onSelectFocusSubgroup) {
+      onSelectFocusSubgroup(id);
+    } else {
+      setInternalFocused(id);
+    }
+  };
+
+  // If viewing a single focused subgroup
+  const focusedSub = activeFocusedId !== 'all'
+    ? trackSubgroups.find((s) => s.team.id === activeFocusedId) || trackSubgroups[0]
+    : null;
+
+  // Single-view hero media index
   const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
-  const currentHeroMedia = uploadedMedia.length > 0 ? uploadedMedia[activeMediaIndex] || uploadedMedia[0] : null;
+  const singleSubMedia = focusedSub
+    ? focusedSub.uploadedMedia
+    : trackSubgroups.flatMap((s) => s.uploadedMedia);
+  const currentSingleMedia = singleSubMedia.length > 0
+    ? singleSubMedia[activeMediaIndex] || singleSubMedia[0]
+    : null;
+
+  // Unified metrics and baseline facts (in active language)
+  const metrics: InfographicMetric[] = poster.metrics || GROUP_INFOGRAPHIC_METRICS[track.id] || GROUP_INFOGRAPHIC_METRICS['team-alpha'];
+  const wowMoments: WowMoment[] = poster.wowMoments || GROUP_WOW_MOMENTS[track.id] || GROUP_WOW_MOMENTS['team-alpha'];
+  const defaultIllustration: string = poster.defaultIllustration || GROUP_DEFAULT_ILLUSTRATIONS[track.id] || GROUP_DEFAULT_ILLUSTRATIONS['team-alpha'];
+  const allTrackBaselineFacts: ScientificFactRecord[] = poster.allTrackBaselineFacts || poster.allTeamBaselineFacts || [];
+  const surveyQuestions: Question[] = poster.surveyQuestions || [];
+
+  const displayScore = focusedSub
+    ? focusedSub.totalScore
+    : poster.combinedTotalScore ?? poster.totalScore ?? 0;
+  const displayProgress = focusedSub
+    ? focusedSub.progressPercent
+    : poster.combinedProgressPercent ?? poster.progressPercent ?? 0;
+
+  const primaryColor = focusedSub ? focusedSub.team.color : track.color;
 
   return (
     <article
       style={{
-        borderColor: `${team.color}70`,
-        boxShadow: `0 30px 80px -20px ${team.color}25`
+        borderColor: `${primaryColor}70`,
+        boxShadow: `0 30px 80px -20px ${primaryColor}25`
       }}
       className="p-6 sm:p-10 rounded-[36px] bg-slate-950 border-2 shadow-2xl space-y-8 flex flex-col justify-between overflow-hidden relative"
     >
       {/* Background Museum Ambient Glow */}
       <div
         style={{
-          background: `radial-gradient(circle at 85% 15%, ${team.color}18, transparent 55%), radial-gradient(circle at 15% 85%, ${team.color}10, transparent 50%)`
+          background: `radial-gradient(circle at 85% 15%, ${primaryColor}18, transparent 55%), radial-gradient(circle at 15% 85%, ${primaryColor}10, transparent 50%)`
         }}
         className="absolute inset-0 pointer-events-none"
       />
@@ -1118,11 +1783,11 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
           {/* Top Exhibition Metadata Bar */}
           <div className="flex items-center justify-between text-xs font-black tracking-widest uppercase text-slate-400">
             <span className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: team.color }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: primaryColor }} />
               <span>{isEl ? 'ΕΠΙΣΗΜΟ ΕΚΘΕΜΑ ΠΕΔΙΟΥ' : 'OFFICIAL FIELD EXHIBIT'}</span>
               <span className="text-slate-600">·</span>
-              <span style={{ color: team.color }}>
-                {isEl ? `ΟΜΑΔΑ 0${poster.index + 1}` : `GROUP 0${poster.index + 1}`}
+              <span style={{ color: primaryColor }}>
+                {isEl ? `ΠΥΛΩΝΑΣ 0${track.trackNumber}` : `TRACK 0${track.trackNumber}`}
               </span>
             </span>
             <span className="text-amber-400 font-mono hidden sm:inline">
@@ -1131,38 +1796,42 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
           </div>
 
           <div className="flex items-center justify-between gap-6 flex-wrap">
-            {/* Team Avatar, Name & Catchy Slogan */}
+            {/* Track Avatar, Thematic Title & Subgroups Roster */}
             <div className="flex items-center gap-5 min-w-0">
               <div
                 style={{
-                  backgroundColor: `${team.color}20`,
-                  borderColor: `${team.color}60`,
-                  boxShadow: `0 0 35px ${team.color}35`
+                  backgroundColor: `${primaryColor}20`,
+                  borderColor: `${primaryColor}60`,
+                  boxShadow: `0 0 35px ${primaryColor}35`
                 }}
                 className="w-20 h-20 sm:w-26 sm:h-26 rounded-3xl flex items-center justify-center text-5xl sm:text-6xl border-2 shrink-0 select-none"
               >
-                {team.avatar}
+                {track.avatar}
               </div>
 
               <div className="min-w-0">
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-none">
-                  {isEl ? team.name : team.name_en || team.name}
+                <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                  {isEl ? track.title : track.title_en}
                 </h2>
 
-                <p className="text-base sm:text-lg text-amber-300 font-semibold italic mt-2 leading-snug">
-                  «{isEl ? team.slogan : team.slogan_en || team.slogan}»
+                <p className="text-sm sm:text-base text-amber-300 font-semibold italic mt-1.5 leading-snug">
+                  «{isEl ? (track.theme || track.description) : (track.theme_en || track.description_en)}»
                 </p>
 
-                <div className="flex items-center gap-2 mt-2 text-xs text-slate-400 font-semibold">
-                  <span>{solvedTasks.length} / {totalQuestions} {isEl ? 'Ολοκληρωμένες Αποστολές' : 'Completed Missions'}</span>
-                  {mistakesLearnedCount > 0 && (
-                    <>
-                      <span>·</span>
-                      <span className="text-amber-400 font-bold">
-                        💡 {mistakesLearnedCount} {isEl ? 'ευκαιρίες μάθησης έγιναν γνώση' : 'mistakes turned to knowledge'}
-                      </span>
-                    </>
+                <div className="flex items-center gap-2 mt-2 text-xs text-slate-400 font-semibold flex-wrap">
+                  {hasMultipleSubgroups ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold">
+                      👥 {trackSubgroups.length} {isEl ? 'Συνεργαζόμενες Υποομάδες' : 'Collaborating Subgroups'}
+                    </span>
+                  ) : (
+                    <span>
+                      {trackSubgroups[0]?.solvedTasks?.length || 0} / {poster.activeTrackQuestions?.length || 15} {isEl ? 'Ολοκληρωμένες Αποστολές' : 'Completed Missions'}
+                    </span>
                   )}
+                  <span>·</span>
+                  <span className="text-slate-300">
+                    {poster.activeTrackQuestions?.length || 15} {isEl ? 'Κοινές Ερωτήσεις Master Pool' : 'Shared Curriculum Tasks'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1171,10 +1840,12 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
             <div className="flex items-center gap-3.5 ml-auto shrink-0 flex-wrap sm:flex-nowrap">
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 text-center min-w-[105px] shadow-lg">
                 <span className="text-[11px] uppercase font-black text-slate-400 block tracking-wider">
-                  {isEl ? 'ΒΑΘΜΟΙ' : 'SCORE'}
+                  {hasMultipleSubgroups && activeFocusedId === 'all'
+                    ? (isEl ? 'ΣΥΝΟΛΟ ΒΑΘΜΩΝ' : 'TOTAL SCORE')
+                    : (isEl ? 'ΒΑΘΜΟΙ' : 'SCORE')}
                 </span>
                 <span className="text-3xl sm:text-4xl font-black text-amber-400">
-                  {totalScore}
+                  {displayScore}
                 </span>
                 <span className="text-xs font-bold text-amber-400/80 ml-1">pts</span>
               </div>
@@ -1184,10 +1855,10 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
                   {isEl ? 'ΓΕΓΟΝΟΤΑ' : 'FACTS'}
                 </span>
                 <span className="text-3xl sm:text-4xl font-black text-white">
-                  {recordedFacts.length > 0 ? recordedFacts.length : allTeamBaselineFacts.length}
+                  {allTrackBaselineFacts.length}
                 </span>
                 <span className="text-[10px] font-bold text-slate-400 block mt-0.5">
-                  {isEl ? 'κατοχυρωμένα' : 'verified'}
+                  {isEl ? 'επιστημονικά σημεία' : 'verified points'}
                 </span>
               </div>
 
@@ -1196,25 +1867,83 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
                   {isEl ? 'ΠΡΟΟΔΟΣ' : 'PROGRESS'}
                 </span>
                 <span className="text-3xl sm:text-4xl font-black text-emerald-400">
-                  {progressPercent}%
+                  {displayProgress}%
                 </span>
                 <span className="text-[10px] font-bold text-slate-400 block mt-0.5">
-                  {solvedTasks.length}/{totalQuestions}
+                  {isEl ? 'κάλυψη πυλώνα' : 'track coverage'}
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Subgroup Collaboration Selector Bar (when multiple subgroups exist on this track) */}
+          {hasMultipleSubgroups && (
+            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+                <span className="text-xs font-bold text-slate-400 shrink-0">
+                  {isEl ? 'Προβολή Υποομάδων:' : 'Subgroup View:'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSelectSubgroupTab('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 ${
+                    activeFocusedId === 'all'
+                      ? 'bg-amber-500 text-slate-950 font-black border-amber-400 shadow-md shadow-amber-500/20'
+                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>{isEl ? 'Σύγκριση Όλων (Side-by-Side)' : 'Compare All (Side-by-Side)'}</span>
+                </button>
+
+                {trackSubgroups.map((sub) => {
+                  const isSelected = activeFocusedId === sub.team.id;
+                  return (
+                    <button
+                      key={sub.team.id}
+                      type="button"
+                      onClick={() => handleSelectSubgroupTab(sub.team.id)}
+                      style={{
+                        borderColor: isSelected ? sub.team.color : undefined,
+                        backgroundColor: isSelected ? `${sub.team.color}25` : undefined
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'text-white border shadow-md font-black ring-1 ring-white/20'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      <span>{sub.team.avatar}</span>
+                      <span className="font-bold">{isEl ? sub.team.name : sub.team.name_en || sub.team.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
+                        {sub.effectiveLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}
+                      </span>
+                      <span className="font-mono text-amber-400 font-bold">
+                        {sub.totalScore}p
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="text-[11px] text-slate-400 font-mono">
+                {activeFocusedId === 'all'
+                  ? (isEl ? '★ Πλήρες συνδυαστικό πόστερ με παράλληλη προβολή' : '★ Unified poster with side-by-side inputs')
+                  : (isEl ? `★ Εστίαση: ${focusedSub?.team.name}` : `★ Focused on ${focusedSub?.team.name_en || focusedSub?.team.name}`)}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* ================= 2. BOLD STATISTICAL METRIC CALLOUTS ================= */}
+        {/* ================= 2. BOLD STATISTICAL METRIC CALLOUTS (UNIFIED CORE SCIENCE) ================= */}
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-400">
             <span className="text-white flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>{isEl ? 'Βασικοί Επιστημονικοί Δείκτες Ενότητας (Biometric Metrics)' : 'Key Scientific Metrics & Thresholds'}</span>
+              <span>{isEl ? 'Κοινά Επιστημονικά Βιομετρικά Δεδομένα Πυλώνα' : 'Core Thematic Biometric Baseline Data'}</span>
             </span>
             <span className="text-emerald-400 font-mono text-[11px]">
-              {isEl ? '✓ Επαληθευμένα Δεδομένα Πεδίου' : '✓ Field Verified Data'}
+              {isEl ? '✓ Ενιαία Επιστημονική Αλήθεια (Unified Science)' : '✓ Authoritative Shared Science'}
             </span>
           </div>
 
@@ -1223,8 +1952,8 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
               <div
                 key={mIdx}
                 style={{
-                  borderColor: `${team.color}40`,
-                  background: `linear-gradient(135deg, ${team.color}15, #0a0f1d 85%)`
+                  borderColor: `${primaryColor}40`,
+                  background: `linear-gradient(135deg, ${primaryColor}15, #0a0f1d 85%)`
                 }}
                 className="p-5 sm:p-6 rounded-3xl border shadow-xl flex items-center gap-5 transition-transform hover:scale-[1.02]"
               >
@@ -1252,292 +1981,488 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
           </div>
         </div>
 
-        {/* ================= 3. BIG VISUAL SHOWCASE (CENTRAL HERO CENTERPIECE) ================= */}
-        <div className="space-y-3">
+        {/* ================= 3. DIFFERENTIATED FIELD EVIDENCE & HERO MEDIA ================= */}
+        <div className="space-y-4">
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider">
             <span className="text-white flex items-center gap-2">
               <Camera className="w-4 h-4 text-emerald-400" />
               <span className="text-sm font-black">
-                {isEl ? 'Κεντρικό Έκθεμα Πεδίου & Οπτικά Τεκμήρια' : 'Central Field Showcase & Visual Evidence'}
+                {hasMultipleSubgroups && activeFocusedId === 'all'
+                  ? (isEl ? 'Αυθεντικά Τεκμήρια Πεδίου ανά Υποομάδα (Side-by-Side Evidence)' : 'Field Visual Evidence by Subgroup (Side-by-Side)')
+                  : (isEl ? 'Κεντρικό Έκθεμα Πεδίου & Οπτικά Τεκμήρια' : 'Central Field Showcase & Visual Evidence')}
               </span>
             </span>
-            {uploadedMedia.length > 0 ? (
-              <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-3 py-1 rounded-full text-xs font-bold">
-                ✓ {uploadedMedia.length} {isEl ? 'τεκμήρια καταγράφηκαν' : 'media logged'}
-              </span>
-            ) : (
-              <span className="text-slate-400 text-xs font-medium">
-                {isEl ? 'Εκπαιδευτικό Επιστημονικό Διάγραμμα Ενότητας' : 'Educational Scientific Diagram'}
-              </span>
-            )}
+            <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-3 py-1 rounded-full text-xs font-bold">
+              {hasMultipleSubgroups && activeFocusedId === 'all'
+                ? (isEl ? 'Παράλληλη Προβολή Ομάδων' : 'Side-by-Side Showcase')
+                : (isEl ? 'Επίσημο Έκθεμα' : 'Official Showcase')}
+            </span>
           </div>
 
-          {/* Focal Museum Hero Frame - Expanded Size for Projector Showcase */}
-          <div
-            style={{
-              borderColor: `${team.color}60`,
-              boxShadow: `0 25px 60px -15px ${team.color}35`
-            }}
-            className="rounded-3xl overflow-hidden border-2 bg-slate-950 relative group shadow-2xl"
-          >
-            {currentHeroMedia ? (
-              <div className="relative">
-                {currentHeroMedia.type === 'video' ? (
-                  <video
-                    src={currentHeroMedia.url}
-                    controls
-                    className="w-full h-80 sm:h-[460px] lg:h-[540px] object-contain bg-black"
-                  />
-                ) : (
+          {/* SIDE-BY-SIDE DISPLAY: When multiple subgroups share this track */}
+          {hasMultipleSubgroups && activeFocusedId === 'all' ? (
+            <div className={`grid grid-cols-1 ${trackSubgroups.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-5`}>
+              {trackSubgroups.map((sub) => {
+                const subMedia = sub.uploadedMedia?.[0] || null;
+                const subLang = sub.effectiveLang || 'el';
+                return (
                   <div
-                    className="relative overflow-hidden cursor-pointer"
-                    onClick={() => onOpenLightbox({ url: currentHeroMedia.url, title: team.name, caption: currentHeroMedia.caption })}
+                    key={sub.team.id}
+                    style={{ borderColor: `${sub.team.color}80` }}
+                    className="p-5 rounded-3xl bg-slate-900/90 border-2 shadow-2xl space-y-4 flex flex-col justify-between"
                   >
-                    <img
-                      src={currentHeroMedia.url}
-                      alt={currentHeroMedia.caption || team.name}
-                      className="w-full h-80 sm:h-[460px] lg:h-[540px] object-cover hover:scale-102 transition-transform duration-500"
-                    />
-                    <div className="absolute top-4 right-4 p-3 rounded-2xl bg-black/80 text-white backdrop-blur-md border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                      <ZoomIn className="w-6 h-6 text-amber-400" />
+                    {/* Subgroup Header Tag */}
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl p-1.5 rounded-xl bg-slate-950 border border-slate-800">
+                          {sub.team.avatar}
+                        </span>
+                        <div>
+                          <h4 className="text-sm font-black text-white">
+                            {isEl ? sub.team.name : sub.team.name_en || sub.team.name}
+                          </h4>
+                          <span className="text-[11px] text-slate-400 italic">
+                            «{isEl ? sub.team.slogan : sub.team.slogan_en || sub.team.slogan}»
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                          {subLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}
+                        </span>
+                        <span style={{ color: sub.team.color }} className="font-mono font-black text-xs">
+                          {sub.totalScore}p
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Media Display */}
+                    <div className="rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 relative group">
+                      {subMedia ? (
+                        subMedia.type === 'video' ? (
+                          <video src={subMedia.url} controls className="w-full h-56 sm:h-64 object-contain bg-black" />
+                        ) : (
+                          <div
+                            onClick={() => onOpenLightbox({ url: subMedia.url, title: sub.team.name, caption: subMedia.caption })}
+                            className="relative overflow-hidden cursor-pointer"
+                          >
+                            <img
+                              src={subMedia.url}
+                              alt={subMedia.caption || sub.team.name}
+                              className="w-full h-56 sm:h-64 object-cover group-hover:scale-102 transition-transform duration-300"
+                            />
+                            <div className="absolute top-3 right-3 p-2 rounded-xl bg-black/80 text-white backdrop-blur-md border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ZoomIn className="w-5 h-5 text-amber-400" />
+                            </div>
+                          </div>
+                        )
+                      ) : (
+                        <div className="relative">
+                          <img
+                            src={defaultIllustration}
+                            alt={sub.team.name}
+                            className="w-full h-56 sm:h-64 object-cover opacity-80"
+                          />
+                          <div className="absolute inset-0 bg-slate-950/60 flex items-center justify-center p-4 text-center">
+                            <span className="text-xs text-slate-300 font-semibold">
+                              {isEl ? 'Αναμονή φωτογραφίας από την ομάδα' : 'Awaiting field photo from this subgroup'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Caption & Actions for this Subgroup */}
+                    <div className="space-y-3 pt-2">
+                      <p className="text-xs text-slate-300 italic line-clamp-2">
+                        {subMedia?.caption ? `"${subMedia.caption}"` : (isEl ? 'Εκπαιδευτικό διάγραμμα πυλώνα' : 'Thematic scientific diagram')}
+                      </p>
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                        {onDirectUpload && (
+                          <label
+                            htmlFor={`subgroup-file-upload-${sub.team.id}`}
+                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors border border-slate-700"
+                          >
+                            <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{subMedia ? (isEl ? 'Αλλαγή' : 'Replace') : (isEl ? 'Μεταφόρτωση' : 'Upload')}</span>
+                            <input
+                              id={`subgroup-file-upload-${sub.team.id}`}
+                              type="file"
+                              accept="image/*,video/*"
+                              className="sr-only"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file && onDirectUpload) onDirectUpload(sub.team.id, file);
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        )}
+
+                        {subMedia && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenLightbox({ url: subMedia.url, title: sub.team.name, caption: subMedia.caption })}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-black flex items-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <ZoomIn className="w-3.5 h-3.5" />
+                            <span>{isEl ? 'Μεγέθυνση' : 'Zoom'}</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-
-                {/* Sleek Caption Banner Underneath */}
-                <div className="p-4 sm:p-5 bg-slate-950/95 border-t border-slate-800 flex items-center justify-between gap-4 flex-wrap">
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">
-                      {isEl ? '✓ ΕΠΑΛΗΘΕΥΜΕΝΟ ΤΕΚΜΗΡΙΟ ΠΕΔΙΟΥ' : '✓ VERIFIED FIELD EVIDENCE'}
-                    </span>
-                    <p className="text-sm sm:text-base font-bold text-white truncate mt-0.5">
-                      "{currentHeroMedia.caption || (isEl ? 'Καταγραφή πεδίου ομάδας' : 'Team field observation')}"
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    {onDirectUpload && (
-                      <label
-                        htmlFor={`poster-file-change-${team.id}`}
-                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors shrink-0 border border-slate-700"
-                        title={isEl ? 'Μεταφόρτωση νέου αρχείου πεδίου' : 'Upload new field media'}
-                      >
-                        <Upload className="w-4 h-4 text-emerald-400" />
-                        <span>{isEl ? 'Νέο Αρχείο' : 'New File'}</span>
-                        <input
-                          id={`poster-file-change-${team.id}`}
-                          type="file"
-                          accept="image/*,video/*"
-                          className="sr-only"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file && onDirectUpload) {
-                              onDirectUpload(file);
-                            }
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onOpenLightbox({ url: currentHeroMedia.url, title: team.name, caption: currentHeroMedia.caption })}
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black flex items-center gap-2 cursor-pointer transition-colors shrink-0 shadow-md shadow-amber-500/20"
+                );
+              })}
+            </div>
+          ) : (
+            /* SINGLE FOCUS VIEW: Standard prominent hero frame */
+            <div
+              style={{
+                borderColor: `${primaryColor}60`,
+                boxShadow: `0 25px 60px -15px ${primaryColor}35`
+              }}
+              className="rounded-3xl overflow-hidden border-2 bg-slate-950 relative group shadow-2xl"
+            >
+              {currentSingleMedia ? (
+                <div className="relative">
+                  {currentSingleMedia.type === 'video' ? (
+                    <video
+                      src={currentSingleMedia.url}
+                      controls
+                      className="w-full h-80 sm:h-[460px] lg:h-[540px] object-contain bg-black"
+                    />
+                  ) : (
+                    <div
+                      className="relative overflow-hidden cursor-pointer"
+                      onClick={() => onOpenLightbox({ url: currentSingleMedia.url, title: focusedSub ? focusedSub.team.name : track.title, caption: currentSingleMedia.caption })}
                     >
-                      <ZoomIn className="w-4 h-4 text-slate-950" />
-                      <span>{isEl ? 'Μεγέθυνση Προβολέα' : 'Projector Zoom'}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* High-Impact Vector Diagram when no photo uploaded yet */
-              <div className="relative overflow-hidden">
-                <img
-                  src={defaultIllustration}
-                  alt={team.name}
-                  className="w-full h-80 sm:h-[460px] lg:h-[540px] object-cover bg-slate-950"
-                />
+                      <img
+                        src={currentSingleMedia.url}
+                        alt={currentSingleMedia.caption || track.title}
+                        className="w-full h-80 sm:h-[460px] lg:h-[540px] object-cover hover:scale-102 transition-transform duration-500"
+                      />
+                      <div className="absolute top-4 right-4 p-3 rounded-2xl bg-black/80 text-white backdrop-blur-md border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                        <ZoomIn className="w-6 h-6 text-amber-400" />
+                      </div>
+                    </div>
+                  )}
 
-                <div className="p-4 sm:p-5 bg-slate-950/95 border-t border-slate-800 flex items-center justify-between gap-4 flex-wrap">
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
-                      {isEl ? 'ΕΠΙΣΤΗΜΟΝΙΚΟ ΔΙΑΓΡΑΜΜΑ ΕΝΟΤΗΤΑΣ' : 'SCIENTIFIC TOPIC DIAGRAM'}
-                    </span>
-                    <p className="text-xs sm:text-sm font-semibold text-slate-200 truncate mt-0.5">
-                      {isEl
-                        ? 'Έτοιμο για προβολή στην τάξη • Περιλαμβάνει τις επίσημες βιομετρικές παραμέτρους'
-                        : 'Classroom ready • Features official biometric baseline parameters'}
-                    </p>
-                  </div>
+                  <div className="p-4 sm:p-5 bg-slate-950/95 border-t border-slate-800 flex items-center justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">
+                        {isEl ? '✓ ΕΠΑΛΗΘΕΥΜΕΝΟ ΤΕΚΜΗΡΙΟ ΠΕΔΙΟΥ' : '✓ VERIFIED FIELD EVIDENCE'}
+                      </span>
+                      <p className="text-sm sm:text-base font-bold text-white truncate mt-0.5">
+                        "{currentSingleMedia.caption || (isEl ? 'Καταγραφή πεδίου ομάδας' : 'Team field observation')}"
+                      </p>
+                    </div>
 
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    {onDirectUpload ? (
-                      <label
-                        htmlFor={`poster-file-upload-${team.id}`}
-                        className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-2 cursor-pointer transition-colors shadow-lg shadow-emerald-500/20 shrink-0"
-                      >
-                        <Camera className="w-4 h-4" />
-                        <span>{isEl ? 'Άμεση Μεταφόρτωση Φωτογραφίας / Βίντεο' : 'Upload Field Photo / Video'}</span>
-                        <input
-                          id={`poster-file-upload-${team.id}`}
-                          type="file"
-                          accept="image/*,video/*"
-                          className="sr-only"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file && onDirectUpload) {
-                              onDirectUpload(file);
-                            }
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                    ) : (
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      {onDirectUpload && (
+                        <label
+                          htmlFor="poster-file-change-single"
+                          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors shrink-0 border border-slate-700"
+                        >
+                          <Upload className="w-4 h-4 text-emerald-400" />
+                          <span>{isEl ? 'Νέο Αρχείο' : 'New File'}</span>
+                          <input
+                            id="poster-file-change-single"
+                            type="file"
+                            accept="image/*,video/*"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              const targetTeamId = focusedSub ? focusedSub.team.id : trackSubgroups[0]?.team.id;
+                              if (file && onDirectUpload && targetTeamId) onDirectUpload(targetTeamId, file);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
                       <button
                         type="button"
-                        onClick={onGoToMissions}
-                        className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-2 cursor-pointer transition-colors shadow-md shrink-0"
+                        onClick={() => onOpenLightbox({ url: currentSingleMedia.url, title: track.title, caption: currentSingleMedia.caption })}
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black flex items-center gap-2 cursor-pointer transition-colors shrink-0 shadow-md shadow-amber-500/20"
                       >
-                        <Camera className="w-4 h-4" />
-                        <span>{isEl ? 'Ανέβασμα Τεκμηρίου Πεδίου' : 'Upload Field Photo'}</span>
+                        <ZoomIn className="w-4 h-4 text-slate-950" />
+                        <span>{isEl ? 'Μεγέθυνση Προβολέα' : 'Projector Zoom'}</span>
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Media selector thumbnails strip if multiple exist */}
-          {uploadedMedia.length > 1 && (
-            <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-1">
-              {uploadedMedia.map((media, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setActiveMediaIndex(idx)}
-                  className={`w-20 h-14 rounded-2xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
-                    activeMediaIndex === idx
-                      ? 'border-amber-400 scale-105 shadow-lg'
-                      : 'border-slate-800 opacity-60 hover:opacity-100'
-                  }`}
-                >
-                  <img src={media.url} alt="Thumbnail" className="w-full h-full object-cover" />
-                </button>
-              ))}
+              ) : (
+                <div className="relative overflow-hidden">
+                  <img
+                    src={defaultIllustration}
+                    alt={track.title}
+                    className="w-full h-80 sm:h-[460px] lg:h-[540px] object-cover bg-slate-950"
+                  />
+                  <div className="p-4 sm:p-5 bg-slate-950/95 border-t border-slate-800 flex items-center justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+                        {isEl ? 'ΕΠΙΣΤΗΜΟΝΙΚΟ ΔΙΑΓΡΑΜΜΑ ΠΥΛΩΝΑ' : 'THEMATIC TOPIC DIAGRAM'}
+                      </span>
+                      <p className="text-xs sm:text-sm font-semibold text-slate-200 truncate mt-0.5">
+                        {isEl ? 'Έτοιμο για προβολή στην τάξη' : 'Classroom ready presentation diagram'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* ================= 3B. PROMINENT STUDENT REFLECTION & 'WOW MOMENT' QUOTE BOX ================= */}
-        <div
-          style={{
-            borderColor: `${team.color}80`,
-            background: `linear-gradient(135deg, ${team.color}18 0%, #030712 55%, ${team.color}10 100%)`,
-            boxShadow: `0 20px 60px -15px ${team.color}35`
-          }}
-          className="relative overflow-hidden rounded-[32px] p-6 sm:p-8 border-2 shadow-2xl transition-all"
-        >
-          {/* Subtle Ambient Radial Glow */}
-          <div
-            className="absolute top-0 right-0 w-80 h-80 pointer-events-none rounded-full blur-3xl opacity-25"
-            style={{ backgroundColor: team.color }}
-          />
-
-          <div className="relative z-10 space-y-4">
-            {/* Header row with badges and action button */}
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+        {/* ================= 4. DIFFERENTIATED SURVEY / OPINION POLL CHOICES (SIDE-BY-SIDE) ================= */}
+        {surveyQuestions.length > 0 && (
+          <div className="p-6 sm:p-8 rounded-[32px] bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 border-2 border-indigo-500/50 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between gap-3 flex-wrap pb-4 border-b border-indigo-500/30">
               <div className="flex items-center gap-3">
-                <div
-                  className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-lg border shrink-0"
-                  style={{
-                    backgroundColor: `${team.color}30`,
-                    borderColor: `${team.color}70`,
-                    color: team.color
-                  }}
-                >
-                  <Quote className="w-5 h-5 fill-current" />
+                <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-xl shrink-0">
+                  <Vote className="w-5 h-5 text-indigo-400" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                      {isEl ? 'Αναστοχασμός Ομάδας & Wow Moment' : 'Team Reflection & Wow Moment'}
+                  <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                    <span>{isEl ? '🗳️ Δημοσκόπηση & Αποφάσεις Προτεραιότητας Υποομάδων (Survey Choices)' : '🗳️ Subgroup Opinion Poll & Decision Consensus'}</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[10px] font-bold">
+                      {isEl ? 'Διαφοροποιημένες Επιλογές' : 'Differentiated Choices'}
                     </span>
-                    {isCustomReflection ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/50">
-                        {isEl ? '✓ ΑΥΘΕΝΤΙΚΗ ΚΑΤΑΓΡΑΦΗ ΜΑΘΗΤΩΝ' : '✓ AUTHENTIC STUDENT LOG'}
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/50">
-                        {isEl ? 'ΣΥΜΠΕΡΑΣΜΑ ΠΕΔΙΟΥ' : 'FIELD TAKEAWAY'}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-slate-400 block font-medium mt-0.5">
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
                     {isEl
-                      ? 'Τι εντυπωσίασε και τι έμαθε η ομάδα κατά τη διάρκεια της αποστολής'
-                      : 'What captivated and enlightened the team during their field investigations'}
-                  </span>
+                      ? 'Σύγκριση των προτεραιοτήτων και της αιτιολόγησης που εξέφρασε κάθε μαθητική ομάδα για τη διατήρηση του Γύπα'
+                      : 'Comparison of priority conservation measures and justifications expressed by each student subgroup'}
+                  </p>
                 </div>
               </div>
-
-              {/* Edit / Customize Reflection Button */}
-              <button
-                type="button"
-                onClick={() => onEditReflection(team, studentReflection)}
-                className="px-4 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 hover:border-amber-400 text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md group shrink-0"
-              >
-                <Edit3 className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-                <span>{isEl ? 'Επεξεργασία Αναστοχασμού' : 'Edit Reflection'}</span>
-              </button>
             </div>
 
-            {/* Giant Italic Quote Body */}
-            <div className="py-2 px-1 sm:px-2">
-              <blockquote className="text-lg sm:text-xl md:text-2xl font-bold italic text-slate-100 leading-relaxed tracking-tight">
-                {studentReflection.startsWith('«') || studentReflection.startsWith('“') || studentReflection.startsWith('"')
-                  ? studentReflection
-                  : `«${studentReflection}»`}
-              </blockquote>
-            </div>
+            {/* Questions List */}
+            <div className="space-y-6">
+              {surveyQuestions.map((sq) => (
+                <div key={sq.id} className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+                    <span className="text-[10px] font-black uppercase text-amber-400 block tracking-wider">
+                      {isEl ? 'ΕΡΩΤΗΣΗ ΔΗΜΟΣΚΟΠΗΣΗΣ / ΔΙΑΒΟΥΛΕΥΣΗΣ:' : 'OPINION POLL QUERY:'}
+                    </span>
+                    <h4 className="font-bold text-white text-sm sm:text-base mt-0.5">
+                      {isEl ? sq.title : sq.title_en || sq.title}
+                    </h4>
+                    <p className="text-xs text-slate-300 mt-1">
+                      {isEl ? sq.description : sq.description_en || sq.description}
+                    </p>
+                  </div>
 
-            {/* Attribution Footnote */}
-            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
-              <div className="flex items-center gap-2 font-semibold">
-                <span className="text-lg">{team.avatar}</span>
-                <span className="text-white font-bold">
-                  {isEl ? team.name : team.name_en || team.name}
-                </span>
-                <span className="text-slate-600">·</span>
-                <span style={{ color: team.color }}>
-                  {isEl ? `Ομάδα Έρευνας 0${poster.index + 1}` : `Research Group 0${poster.index + 1}`}
-                </span>
-              </div>
+                  {/* Side-by-Side Subgroup Survey Answers */}
+                  <div className={`grid grid-cols-1 ${trackSubgroups.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
+                    {trackSubgroups.map((sub) => {
+                      const response = sub.surveyResponses?.find((r: any) => r.question.id === sq.id);
+                      const isAnswered = Boolean(response && response.isSubmitted && response.selectedOptions.length > 0);
+                      const subLang = sub.effectiveLang || 'el';
 
-              <div className="text-[11px] font-mono text-amber-400/90">
-                {isEl ? '★ Παρουσίαση στην Τάξη & Έκθεση Πόστερ' : '★ Classroom Presentation & Poster Exhibit'}
-              </div>
+                      return (
+                        <div
+                          key={sub.team.id}
+                          style={{ borderColor: `${sub.team.color}60` }}
+                          className="p-5 rounded-2xl bg-slate-950/90 border flex flex-col justify-between space-y-3"
+                        >
+                          {/* Subgroup Header */}
+                          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{sub.team.avatar}</span>
+                              <span className="font-bold text-xs text-white">
+                                {isEl ? sub.team.name : sub.team.name_en || sub.team.name}
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                              {subLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}
+                            </span>
+                          </div>
+
+                          {/* Selected Vote / Choice */}
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                              {isEl ? 'Επιλογή Προτεραιότητας Ομάδας:' : 'Subgroup Chosen Priority:'}
+                            </span>
+                            {isAnswered ? (
+                              <div className="space-y-1.5">
+                                {response.selectedOptions.map((opt: string, oIdx: number) => (
+                                  <div
+                                    key={oIdx}
+                                    className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-start gap-2"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                                    <span>{opt}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 text-xs italic flex items-center gap-2">
+                                <Clock className="w-4 h-4" />
+                                <span>{isEl ? 'Εκκρεμεί η ψηφοφορία της ομάδας' : 'Subgroup vote pending submission'}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Subgroup Reason / Justification */}
+                          <div className="pt-2 border-t border-slate-800/80">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                              {isEl ? 'Αιτιολόγηση Απόφασης:' : 'Justification Reasoning:'}
+                            </span>
+                            {response?.reason ? (
+                              <blockquote className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs italic text-slate-200 leading-relaxed font-medium">
+                                "{response.reason}"
+                              </blockquote>
+                            ) : isAnswered ? (
+                              <span className="text-xs text-slate-400 italic">
+                                {isEl ? '✓ Κατοχυρωμένη ομοφωνία ομάδας' : '✓ Team consensus certified'}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-500 italic">
+                                {isEl ? '—' : '—'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* ================= 4. CLEAN INFOGRAPHIC CARDS: SCIENTIFIC FACTS & WOW MOMENTS ================= */}
+        {/* ================= 5. DIFFERENTIATED STUDENT REFLECTIONS & WOW MOMENTS ================= */}
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-400">
             <span className="text-white flex items-center gap-2">
-              <Lightbulb className="w-4 h-4 text-amber-400" />
+              <Quote className="w-4 h-4 text-amber-400" />
               <span className="text-sm font-black">
-                {isEl ? 'Κορυφαία Επιστημονικά Συμπεράσματα (Wow Moments)' : 'Key Scientific Takeaways (Wow Moments)'}
+                {hasMultipleSubgroups && activeFocusedId === 'all'
+                  ? (isEl ? 'Αναστοχασμός & Προσωπικά Συμπεράσματα ανά Υποομάδα (Side-by-Side)' : 'Subgroup Reflections & Personal Takeaways (Side-by-Side)')
+                  : (isEl ? 'Αναστοχασμός Ομάδας & Wow Moment' : 'Team Reflection & Wow Moment')}
               </span>
             </span>
             <span className="text-amber-400 font-mono text-[11px]">
-              {isEl ? '3 Σημεία Αιχμής' : '3 Key Highlights'}
+              {isEl ? '★ Φωνή των Μαθητών' : '★ Student Voice'}
             </span>
           </div>
 
-          {/* 3 Modern Graphic Cards (No Heavy Text Blocks) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* SIDE-BY-SIDE REFLECTIONS: When multiple subgroups share this track */}
+          {hasMultipleSubgroups && activeFocusedId === 'all' ? (
+            <div className={`grid grid-cols-1 ${trackSubgroups.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-5`}>
+              {trackSubgroups.map((sub) => {
+                const subLang = sub.effectiveLang || 'el';
+                return (
+                  <div
+                    key={sub.team.id}
+                    style={{
+                      borderColor: `${sub.team.color}80`,
+                      background: `linear-gradient(135deg, ${sub.team.color}15 0%, #030712 55%, ${sub.team.color}10 100%)`,
+                      boxShadow: `0 15px 40px -15px ${sub.team.color}30`
+                    }}
+                    className="relative overflow-hidden rounded-[28px] p-6 border-2 shadow-xl flex flex-col justify-between space-y-4"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-2xl">{sub.team.avatar}</span>
+                          <div>
+                            <span className="font-bold text-sm text-white block">
+                              {isEl ? sub.team.name : sub.team.name_en || sub.team.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {subLang === 'el' ? '🇬🇷 Ελληνικά' : '🇬🇧 English'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => onEditReflection(sub.team, sub.studentReflection)}
+                          className="px-2.5 py-1 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-amber-300 border border-slate-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit3 className="w-3 h-3 text-amber-400" />
+                          <span>{isEl ? 'Επεξεργασία' : 'Edit'}</span>
+                        </button>
+                      </div>
+
+                      <blockquote className="text-base sm:text-lg font-bold italic text-slate-100 leading-relaxed py-1">
+                        {sub.studentReflection?.startsWith('«') || sub.studentReflection?.startsWith('“') || sub.studentReflection?.startsWith('"')
+                          ? sub.studentReflection
+                          : `«${sub.studentReflection || ''}»`}
+                      </blockquote>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 italic">
+                      «{isEl ? sub.team.slogan : sub.team.slogan_en || sub.team.slogan}»
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Single reflection prominent box */
+            <div
+              style={{
+                borderColor: `${primaryColor}80`,
+                background: `linear-gradient(135deg, ${primaryColor}18 0%, #030712 55%, ${primaryColor}10 100%)`,
+                boxShadow: `0 20px 60px -15px ${primaryColor}35`
+              }}
+              className="relative overflow-hidden rounded-[32px] p-6 sm:p-8 border-2 shadow-2xl transition-all"
+            >
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-lg border shrink-0"
+                      style={{
+                        backgroundColor: `${primaryColor}30`,
+                        borderColor: `${primaryColor}70`,
+                        color: primaryColor
+                      }}
+                    >
+                      <Quote className="w-5 h-5 fill-current" />
+                    </div>
+                    <div>
+                      <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-white block">
+                        {isEl ? 'Αναστοχασμός Ομάδας & Wow Moment' : 'Team Reflection & Wow Moment'}
+                      </span>
+                      <span className="text-[11px] text-slate-400 block font-medium mt-0.5">
+                        {isEl
+                          ? 'Τι εντυπωσίασε και τι έμαθε η ομάδα κατά τη διάρκεια της αποστολής'
+                          : 'What captivated and enlightened the team during their field investigations'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onEditReflection(focusedSub ? focusedSub.team : trackSubgroups[0]?.team, focusedSub ? focusedSub.studentReflection : trackSubgroups[0]?.studentReflection)}
+                    className="px-4 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 hover:border-amber-400 text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md group shrink-0"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                    <span>{isEl ? 'Επεξεργασία Αναστοχασμού' : 'Edit Reflection'}</span>
+                  </button>
+                </div>
+
+                <div className="py-2 px-1 sm:px-2">
+                  <blockquote className="text-lg sm:text-xl md:text-2xl font-bold italic text-slate-100 leading-relaxed tracking-tight">
+                    {(() => {
+                      const text = focusedSub ? focusedSub.studentReflection : trackSubgroups[0]?.studentReflection || '';
+                      return text.startsWith('«') || text.startsWith('“') || text.startsWith('"') ? text : `«${text}»`;
+                    })()}
+                  </blockquote>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Core Graphic Wow Moments Cards (Unified for Track) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
             {wowMoments.map((moment, mIdx) => (
               <div
                 key={mIdx}
@@ -1565,47 +2490,33 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
           </div>
         </div>
 
-        {/* ================= 4B. DEDICATED SCIENTIFIC FACTS & LEARNING DISCOVERIES ================= */}
+        {/* ================= 6. UNIFIED AUTHORITATIVE SCIENTIFIC FACTS & DISCOVERIES ================= */}
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-400">
             <span className="text-white flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-cyan-400" />
               <span className="text-sm font-black">
-                {isEl ? 'Κατοχυρωμένα Επιστημονικά Δεδομένα & Ευκαιρίες Μάθησης' : 'Recorded Scientific Facts & Learning Opportunities'}
+                {isEl ? 'Κατοχυρωμένα Επιστημονικά Δεδομένα Πυλώνα' : 'Recorded Thematic Scientific Truths'}
               </span>
             </span>
             <span className="text-cyan-400 font-mono text-[11px]">
-              {recordedFacts.length > 0
-                ? `${recordedFacts.length} ${isEl ? 'καταγραφές' : 'logged'}`
-                : `${allTeamBaselineFacts.length} ${isEl ? 'επιστημονικά σημεία' : 'science points'}`}
+              {allTrackBaselineFacts.length} {isEl ? 'επιστημονικά σημεία' : 'science facts'}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(recordedFacts.length > 0 ? recordedFacts : allTeamBaselineFacts.slice(0, 3)).map((fact, fIdx) => (
+            {allTrackBaselineFacts.slice(0, 6).map((fact, fIdx) => (
               <div
                 key={fact.taskId || fIdx}
-                className={`p-5 rounded-3xl border transition-all space-y-3 flex flex-col justify-between group shadow-xl ${
-                  fact.isMistakeTurnedLearning
-                    ? 'bg-gradient-to-br from-amber-950/30 via-slate-900 to-slate-950 border-amber-500/60 shadow-amber-500/10'
-                    : 'bg-gradient-to-br from-emerald-950/20 via-slate-900 to-slate-950 border-emerald-500/40 shadow-emerald-500/10'
-                }`}
+                className="p-5 rounded-3xl border transition-all space-y-3 flex flex-col justify-between group shadow-xl bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 hover:border-slate-700"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="text-2xl p-2 rounded-xl bg-slate-950/90 border border-slate-800 shadow-inner">
+                    <span className="text-2xl p-2 rounded-xl bg-slate-950 border border-slate-800 shadow-inner">
                       {fact.icon || '🔬'}
                     </span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
-                        fact.isMistakeTurnedLearning
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
-                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
-                      }`}
-                    >
-                      {fact.isMistakeTurnedLearning
-                        ? (isEl ? '💡 Ευκαιρία Μάθησης' : '💡 Learning Opportunity')
-                        : (isEl ? '✓ Επαληθευμένη Γνώση' : '✓ Verified Science')}
+                    <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/50">
+                      {isEl ? '✓ Επαληθευμένη Γνώση' : '✓ Verified Science'}
                     </span>
                   </div>
 
@@ -1632,80 +2543,65 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
           </div>
         </div>
 
-        {/* ================= 5. FIELD LOG & MISSIONS SNAPSHOT ================= */}
+        {/* ================= 7. SUBGROUPS MISSIONS SNAPSHOT & FIELD VOICE ================= */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-          {/* Attempted Missions & Mastered Facts Snapshot */}
+          {/* Subgroups Tasks Snapshot */}
           <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-3 shadow-lg">
             <div className="flex items-center justify-between text-xs font-bold text-slate-300">
               <span className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-black">{isEl ? 'Αποστολές & Επιστημονικά Δεδομένα' : 'Missions & Science Facts'}</span>
+                <span className="text-sm font-black">{isEl ? 'Πρόοδος Αποστολών ανά Υποομάδα' : 'Subgroup Mission Progress'}</span>
               </span>
               <span className="text-amber-400 font-mono text-xs">
-                {attemptedTasks.length} / {totalQuestions}
-                {mistakesLearnedCount > 0 && ` (${mistakesLearnedCount} ${isEl ? 'μάθησης' : 'learned'})`}
+                {trackSubgroups.length} {isEl ? 'υποομάδες' : 'groups'}
               </span>
             </div>
 
-            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
-              {attemptedTasks.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-4 text-center">
-                  {isEl ? 'Δεν έχουν υποβληθεί αποστολές ακόμα • Όλες οι προσπάθειες καταγράφονται εδώ.' : 'No missions submitted yet • All attempts are recorded here.'}
-                </p>
-              ) : (
-                attemptedTasks.slice(0, 6).map(({ question, isCorrect }) => (
-                  <div
-                    key={question.id}
-                    onClick={() => onInspectTask(question)}
-                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center justify-between text-xs cursor-pointer transition-colors"
-                  >
-                    <span className="truncate text-slate-200 font-medium flex items-center gap-2">
-                      {isCorrect ? (
-                        <span className="text-emerald-400 font-bold shrink-0">✓</span>
-                      ) : (
-                        <span className="text-amber-400 font-bold shrink-0">💡</span>
-                      )}
-                      <span className="truncate">
-                        {isEl ? question.title : question.title_en || question.title}
-                      </span>
+            <div className="space-y-2">
+              {trackSubgroups.map((sub) => (
+                <div
+                  key={sub.team.id}
+                  className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <span>{sub.team.avatar}</span>
+                    <span className="font-bold text-white">{isEl ? sub.team.name : sub.team.name_en || sub.team.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
+                      {sub.effectiveLang === 'el' ? '🇬🇷' : '🇬🇧'}
                     </span>
-                    {isCorrect ? (
-                      <span className="text-amber-400 font-black shrink-0 ml-2">
-                        +{question.points}p
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold shrink-0 ml-2">
-                        {isEl ? 'Μάθηση' : 'Learned'}
-                      </span>
-                    )}
                   </div>
-                ))
-              )}
-              {attemptedTasks.length > 6 && (
-                <div className="text-[11px] text-slate-400 text-center pt-1 font-semibold">
-                  {isEl ? `+ άλλες ${attemptedTasks.length - 6} αποστολές` : `+ ${attemptedTasks.length - 6} more missions`}
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-mono">
+                      {sub.solvedTasks?.length || 0} / {sub.totalQuestions || 15}
+                    </span>
+                    <span style={{ color: sub.team.color }} className="font-black font-mono">
+                      {sub.totalScore} pts
+                    </span>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
           </div>
 
-          {/* Team Field Voice */}
+          {/* Subgroups Field Voice */}
           <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-3 shadow-lg">
             <div className="flex items-center justify-between text-xs font-bold text-slate-300">
               <span className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm font-black">{isEl ? 'Φωνή Ομάδας & Σημειώσεις Πεδίου' : 'Team Voice & Field Notes'}</span>
+                <span className="text-sm font-black">{isEl ? 'Σημειώσεις & Φωνή Πεδίου Μαθητών' : 'Student Field Notes & Voice'}</span>
               </span>
-              <span className="text-cyan-400 font-mono text-xs">{teamNotes.length}</span>
+              <span className="text-cyan-400 font-mono text-xs">
+                {poster.combinedNotes?.length || 0}
+              </span>
             </div>
 
-            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
-              {teamNotes.length === 0 ? (
+            <div className="space-y-2 max-h-44 overflow-y-auto pr-1 scrollbar-thin">
+              {(!poster.combinedNotes || poster.combinedNotes.length === 0) ? (
                 <p className="text-xs text-slate-500 italic py-4 text-center">
                   {isEl ? 'Καμία σημείωση πεδίου ακόμα.' : 'No field notes logged yet.'}
                 </p>
               ) : (
-                teamNotes.map((note) => (
+                poster.combinedNotes.map((note: any) => (
                   <div
                     key={note.id}
                     className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1 text-xs"
@@ -1727,14 +2623,14 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
         </div>
       </div>
 
-      {/* ================= 6. POSTER FOOTER ACTIONS ================= */}
+      {/* ================= 8. POSTER FOOTER ACTIONS ================= */}
       <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-4 flex-wrap">
         <button
           type="button"
           onClick={onGoToMissions}
           className="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 cursor-pointer transition-colors"
         >
-          <span>{isEl ? '→ Προβολή Όλων των Αποστολών της Ομάδας' : '→ View All Team Missions'}</span>
+          <span>{isEl ? '→ Προβολή Όλων των Αποστολών του Πυλώνα' : '→ View All Thematic Track Missions'}</span>
           <ArrowRight className="w-4 h-4" />
         </button>
 

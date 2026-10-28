@@ -8,44 +8,115 @@
 // Zero generic placeholders. 100% real scientific educational content.
 // ============================================================================
 
-import { Question, Team, Submission } from "../types/game";
+import { Question, Team, Submission, CoreTrackId, ThematicTrackInfo } from "../types/game";
+
+export const CORE_THEMATIC_TRACKS: ThematicTrackInfo[] = [
+  {
+    id: 'team-alpha',
+    trackId: 'team-alpha',
+    trackNumber: 1,
+    title: 'Ομάδα 1: Ταυτότητα & Γενικά Χαρακτηριστικά',
+    title_el: 'Ομάδα 1: Ταυτότητα & Γενικά Χαρακτηριστικά',
+    title_en: 'Group 1: Identity & Basics',
+    theme: 'Ταυτότητα, μορφολογία, μέγεθος, αναπαραγωγή και πληθυσμός',
+    theme_en: 'Identity, morphology, wingspan, lifecycle, and population status',
+    description: 'Ταυτότητα, μορφολογία, μέγεθος, αναπαραγωγή και πληθυσμός',
+    description_en: 'Identity, morphology, wingspan, lifecycle, and population status',
+    color: '#10b981',
+    avatar: '🧭',
+    tasksCount: 15
+  },
+  {
+    id: 'team-beta',
+    trackId: 'team-beta',
+    trackNumber: 2,
+    title: 'Ομάδα 2: Περιβάλλον, Φωλεοποίηση & Πτήση',
+    title_el: 'Ομάδα 2: Περιβάλλον, Φωλεοποίηση & Πτήση',
+    title_en: 'Group 2: Habitat, Nesting & Flight',
+    theme: 'Απόκρημνοι γκρεμοί Επισκοπής, θερμικά ανοδικά ρεύματα και πτήση 100+ km',
+    theme_en: 'Episkopi sea cliffs, thermal soaring updrafts, and long-range foraging',
+    description: 'Απόκρημνοι γκρεμοί Επισκοπής, θερμικά ανοδικά ρεύματα και πτήση 100+ km',
+    description_en: 'Episkopi sea cliffs, thermal soaring updrafts, and long-range foraging',
+    color: '#06b6d4',
+    avatar: '⚡',
+    tasksCount: 15
+  },
+  {
+    id: 'team-gamma',
+    trackId: 'team-gamma',
+    trackNumber: 3,
+    title: 'Ομάδα 3: Διατροφή & Βιολογία',
+    title_el: 'Ομάδα 3: Διατροφή & Βιολογία',
+    title_en: 'Group 3: Diet & Biology',
+    theme: 'Αποκλειστικοί πτωματοφάγοι, γυμνός λαιμός, pH στομάχου 1-2 και όραση',
+    theme_en: 'Obligate scavengers, bare neck, acidic gastric pH 1-2, visual foraging',
+    description: 'Αποκλειστικοί πτωματοφάγοι, γυμνός λαιμός, pH στομάχου 1-2 και όραση',
+    description_en: 'Obligate scavengers, bare neck, acidic gastric pH 1-2, visual foraging',
+    color: '#f59e0b',
+    avatar: '🚀',
+    tasksCount: 15
+  },
+  {
+    id: 'team-delta',
+    trackId: 'team-delta',
+    trackNumber: 4,
+    title: 'Ομάδα 4: Απειλές & Προστασία',
+    title_el: 'Ομάδα 4: Απειλές & Προστασία',
+    title_en: 'Group 4: Threats & Conservation',
+    theme: 'Παράνομες φόλες, σκύλοι K9, 4 ταΐστρες, σημαντήρες καλωδίων και Σύμφωνο',
+    theme_en: 'Poison baits, anti-poison K9 units, feeding stations, power lines, and Charter',
+    description: 'Παράνομες φόλες, σκύλοι K9, 4 ταΐστρες, σημαντήρες καλωδίων και Σύμφωνο',
+    description_en: 'Poison baits, anti-poison K9 units, feeding stations, power lines, and Charter',
+    color: '#8b5cf6',
+    avatar: '🔬',
+    tasksCount: 16
+  }
+];
 
 export const masterTeamsPool: Team[] = [
   {
-    "id": "team-alpha",
-    "name": "Ομάδα 1: Ταυτότητα & Γενικά Χαρακτηριστικά",
-    "name_en": "Group 1: Identity & Basics",
-    "color": "#10b981",
-    "avatar": "🧭",
-    "slogan": "Ανακαλύπτουμε τα πάντα για το Όρνιο!",
-    "slogan_en": "Discovering all about the Griffon Vulture!"
+    id: "team-alpha",
+    trackId: "team-alpha",
+    name: "Ομάδα 1: Ταυτότητα & Γενικά Χαρακτηριστικά",
+    name_en: "Group 1: Identity & Basics",
+    color: "#10b981",
+    avatar: "🧭",
+    slogan: "Ανακαλύπτουμε τα πάντα για το Όρνιο!",
+    slogan_en: "Discovering all about the Griffon Vulture!",
+    language: "el"
   },
   {
-    "id": "team-beta",
-    "name": "Ομάδα 2: Περιβάλλον, Φωλεοποίηση & Πτήση",
-    "name_en": "Group 2: Habitat, Nesting & Flight",
-    "color": "#06b6d4",
-    "avatar": "⚡",
-    "slogan": "Κυρίαρχοι των γκρεμών και των αιθέρων!",
-    "slogan_en": "Masters of the cliffs and the skies!"
+    id: "team-beta",
+    trackId: "team-beta",
+    name: "Ομάδα 2: Περιβάλλον, Φωλεοποίηση & Πτήση",
+    name_en: "Group 2: Habitat, Nesting & Flight",
+    color: "#06b6d4",
+    avatar: "⚡",
+    slogan: "Κυρίαρχοι των γκρεμών και των αιθέρων!",
+    slogan_en: "Masters of the cliffs and the skies!",
+    language: "el"
   },
   {
-    "id": "team-gamma",
-    "name": "Ομάδα 3: Διατροφή & Βιολογία",
-    "name_en": "Group 3: Diet & Biology",
-    "color": "#f59e0b",
-    "avatar": "🚀",
-    "slogan": "Οι καθαριστές της κυπριακής φύσης!",
-    "slogan_en": "The sanitary guardians of nature!"
+    id: "team-gamma",
+    trackId: "team-gamma",
+    name: "Ομάδα 3: Διατροφή & Βιολογία",
+    name_en: "Group 3: Diet & Biology",
+    color: "#f59e0b",
+    avatar: "🚀",
+    slogan: "Οι καθαριστές της κυπριακής φύσης!",
+    slogan_en: "The sanitary guardians of nature!",
+    language: "el"
   },
   {
-    "id": "team-delta",
-    "name": "Ομάδα 4: Απειλές & Προστασία",
-    "name_en": "Group 4: Threats & Conservation",
-    "color": "#8b5cf6",
-    "avatar": "🔬",
-    "slogan": "Δράση και λύσεις για το μέλλον!",
-    "slogan_en": "Action and solutions for the future!"
+    id: "team-delta",
+    trackId: "team-delta",
+    name: "Ομάδα 4: Απειλές & Προστασία",
+    name_en: "Group 4: Threats & Conservation",
+    color: "#8b5cf6",
+    avatar: "🔬",
+    slogan: "Δράση και λύσεις για το μέλλον!",
+    slogan_en: "Action and solutions for the future!",
+    language: "el"
   }
 ];
 
@@ -2311,6 +2382,39 @@ export const masterTaskPool: Question[] = [
     },
     "explanation": "Ο αναστοχασμός ολοκληρώνει τη διερευνητική μάθηση. Το απόσταγμα της σκέψης σας καταγράφεται και κοσμεί το ψηφιακό έκθεμα της ομάδας!",
     "explanation_en": "Student reflection crowns authentic inquiry. Your synthesized thought is now prominently immortalized on the team poster!"
+  },
+  {
+    "id": "cyprus-vulture-survey-1",
+    "title": "Δημοσκόπηση Ομάδας: Το Σημαντικότερο Μέτρο Προστασίας",
+    "title_en": "Team Survey: Most Critical Conservation Priority",
+    "description": "Ως επιστημονική ομάδα δράσης, ποιο θεωρείτε ότι είναι το πιο κρίσιμο και επείγον μέτρο για τη σωτηρία του Γύπα στην Κύπρο;",
+    "description_en": "As a scientific conservation taskforce, which action does your team consider most urgent and critical to save the Cypriot Griffon Vulture?",
+    "type": "survey",
+    "points": 120,
+    "assignedTeamIds": ["team-delta"],
+    "imageUrl": "https://images.unsplash.com/photo-1549608276-5786777e6587?auto=format&fit=crop&w=1200&q=80",
+    "payload": {
+      "options": [
+        "Οριστική εξάλειψη δηλητηριασμένων δολωμάτων & ενίσχυση μονάδων σκύλων K9",
+        "Δίκτυο περιφραγμένων ασφαλών σταθμών σίτισης (Εστιατόρια Γυπών)",
+        "Σήμανση και μόνωση εναέριων γραμμών ηλεκτροδότησης (Αποτροπή πρόσκρουσης)",
+        "Ενίσχυση πληθυσμού με εισαγωγή νεαρών πουλιών από την Ισπανία (LIFE with Vultures)",
+        "Εκπαίδευση και συνεργασία με τοπικές κοινότητες, κτηνοτρόφους και κυνηγούς"
+      ],
+      "options_en": [
+        "Complete elimination of poison baits & deployment of anti-poison K9 dog units",
+        "Network of secure, fenced feeding stations (Vulture Restaurants)",
+        "Marking and insulation of aerial power lines to prevent collision & electrocution",
+        "Population restocking via Griffon vultures imported from Spain (LIFE with Vultures)",
+        "Community engagement and active partnership with local farmers and hunters"
+      ],
+      "allowMultiple": false,
+      "allowCustomReason": true,
+      "reasonPrompt": "Αιτιολογήστε την απόφαση της ομάδας σας (Ποια κριτήρια επείγοντος λάβατε υπόψη;):",
+      "reasonPrompt_en": "Justify your team's consensus (What urgency criteria guided your choice?):"
+    },
+    "explanation": "Όλα τα μέτρα του προγράμματος LIFE with Vultures είναι αλληλένδετα. Ωστόσο, η εξάλειψη των δηλητηρίων θεωρείται από τους βιολόγους η απόλυτη προτεραιότητα, καθώς ένα και μόνο δόλωμα μπορεί να αφανίσει ολόκληρη την αποικία.",
+    "explanation_en": "All conservation actions under the LIFE with Vultures project are interrelated. Nonetheless, biologists deem the eradication of poison baits the top priority, as a single poisoned carcass can wipe out the entire colony."
   }
 ];
 
@@ -2547,29 +2651,53 @@ export function isTaskActive(task: Question, overrides?: Record<string, boolean>
  * Group 3 -> team-gamma
  * Group 4 -> team-delta
  */
+export function resolveTeamTrackId(teamId: string, customTeams?: Team[]): CoreTrackId {
+  if (customTeams) {
+    const found = customTeams.find((t) => t.id === teamId);
+    if (found?.trackId) return found.trackId;
+  }
+  const defaultFound = masterTeamsPool.find((t) => t.id === teamId);
+  if (defaultFound?.trackId) return defaultFound.trackId;
+
+  if (teamId.includes('alpha') || teamId.includes('group-1') || teamId.includes('1')) return 'team-alpha';
+  if (teamId.includes('beta') || teamId.includes('group-2') || teamId.includes('2')) return 'team-beta';
+  if (teamId.includes('gamma') || teamId.includes('group-3') || teamId.includes('3')) return 'team-gamma';
+  if (teamId.includes('delta') || teamId.includes('group-4') || teamId.includes('4')) return 'team-delta';
+  return 'team-delta';
+}
+
+/**
+ * Dynamically filter ONLY designated active real questions for a specific group/subgroup in sequential order.
+ * Multiple subgroups assigned to the same core track share the exact same core questions!
+ */
 export function getActiveTasksForTeam(
   teamId: string,
   overrides?: Record<string, boolean>,
   customOverrides?: Record<string, Question>,
-  customOrder?: string[]
+  customOrder?: string[],
+  customTeams?: Team[]
 ): Question[] {
   const pool = getAllTasks(customOverrides, customOrder);
+  const trackId = resolveTeamTrackId(teamId, customTeams);
+
   return pool.filter((task) => {
     if (!isTaskActive(task, overrides)) return false;
-    return Boolean(task.assignedTeamIds && task.assignedTeamIds.includes(teamId));
+    if (!task.assignedTeamIds || task.assignedTeamIds.length === 0) return true;
+    return task.assignedTeamIds.includes(teamId) || task.assignedTeamIds.includes(trackId);
   });
 }
 
 /**
- * Retrieve all checkpoints for a specific team
+ * Retrieve all checkpoints for a specific team or subgroup
  */
 export function getCheckpointsForTeam(
   teamId: string,
   overrides?: Record<string, boolean>,
   customOverrides?: Record<string, Question>,
-  customOrder?: string[]
+  customOrder?: string[],
+  customTeams?: Team[]
 ): Question[] {
-  const teamTasks = getActiveTasksForTeam(teamId, overrides, customOverrides, customOrder);
+  const teamTasks = getActiveTasksForTeam(teamId, overrides, customOverrides, customOrder, customTeams);
   return teamTasks.filter((t) => isCheckpointTask(t.id));
 }
 
@@ -2580,6 +2708,7 @@ export function getTaskById(taskId: string, customOverrides?: Record<string, Que
 
 export interface TeamTaskStats {
   team: Team;
+  teamId?: string;
   totalActiveTasks: number;
   completedTasks: number;
   totalScore: number;
@@ -2591,9 +2720,10 @@ export function computeTeamTaskStats(
   submissions: Record<string, Submission>,
   overrides?: Record<string, boolean>,
   customOverrides?: Record<string, Question>,
-  customOrder?: string[]
+  customOrder?: string[],
+  customTeams?: Team[]
 ): TeamTaskStats {
-  const activeTasks = getActiveTasksForTeam(team.id, overrides, customOverrides, customOrder);
+  const activeTasks = getActiveTasksForTeam(team.id, overrides, customOverrides, customOrder, customTeams);
   let totalScore = 0;
   let completedTasks = 0;
 
@@ -2610,9 +2740,68 @@ export function computeTeamTaskStats(
 
   return {
     team,
+    teamId: team.id,
     totalActiveTasks,
     completedTasks,
     totalScore,
     progressPercent
   };
+}
+
+/**
+ * Returns teams/subgroups with custom titles, English titles, language preference, and slogans merged in
+ */
+export function getTeamsWithCustomTitles(
+  customTitles?: Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string; language?: 'el' | 'en'; trackId?: CoreTrackId }>,
+  customSubgroups?: Team[]
+): Team[] {
+  const baseList = (customSubgroups && customSubgroups.length > 0) ? customSubgroups : masterTeamsPool;
+  if (!customTitles || Object.keys(customTitles).length === 0) {
+    return baseList;
+  }
+  return baseList.map((team) => {
+    const override = customTitles[team.id];
+    if (!override) return team;
+    return {
+      ...team,
+      trackId: override.trackId || team.trackId || resolveTeamTrackId(team.id),
+      language: override.language || team.language || 'el',
+      name: override.name && override.name.trim().length > 0 ? override.name.trim() : team.name,
+      name_en: override.name_en && override.name_en.trim().length > 0 ? override.name_en.trim() : (team.name_en || team.name),
+      slogan: override.slogan && override.slogan.trim().length > 0 ? override.slogan.trim() : team.slogan,
+      slogan_en: override.slogan_en && override.slogan_en.trim().length > 0 ? override.slogan_en.trim() : (team.slogan_en || team.slogan)
+    };
+  });
+}
+
+/**
+ * Returns localized team display name based on current language or team preference
+ */
+export function getLocalizedTeamName(team: Team, lang?: 'el' | 'en'): string {
+  const effectiveLang = lang || team.language || 'el';
+  if (effectiveLang === 'en') {
+    return team.name_en && team.name_en.trim().length > 0 ? team.name_en : team.name;
+  }
+  return team.name;
+}
+
+/**
+ * Returns localized team slogan based on current language or team preference
+ */
+export function getLocalizedTeamSlogan(team: Team, lang?: 'el' | 'en'): string {
+  const effectiveLang = lang || team.language || 'el';
+  if (effectiveLang === 'en') {
+    return team.slogan_en && team.slogan_en.trim().length > 0 ? team.slogan_en : (team.slogan || '');
+  }
+  return team.slogan || '';
+}
+
+/**
+ * Resolves effective language for an active team/subgroup
+ */
+export function getTeamEffectiveLanguage(team?: Team, globalLang: 'el' | 'en' = 'el'): 'el' | 'en' {
+  if (team?.language === 'en' || team?.language === 'el') {
+    return team.language;
+  }
+  return globalLang;
 }

@@ -9,7 +9,17 @@ export type QuestionType =
   | 'photo_upload'
   | 'puzzle'
   | 'task'
-  | 'research';
+  | 'research'
+  | 'survey';
+
+export interface SurveyPayload {
+  options: string[];
+  options_en?: string[];
+  allowMultiple?: boolean;
+  allowCustomReason?: boolean;
+  reasonPrompt?: string;
+  reasonPrompt_en?: string;
+}
 
 export interface MultipleChoicePayload {
   options: string[];
@@ -139,7 +149,8 @@ export interface Question {
     | PhotoUploadPayload
     | PuzzlePayload
     | TaskPayload
-    | ResearchPayload;
+    | ResearchPayload
+    | SurveyPayload;
   explanation?: string;
   timeLimitMinutes?: number; // Optional time limit in minutes for task deadline
   // English localization
@@ -149,14 +160,43 @@ export interface Question {
   payload_en?: any;
 }
 
+export type CoreTrackId = 'team-alpha' | 'team-beta' | 'team-gamma' | 'team-delta';
+
+export interface ThematicTrackInfo {
+  id: CoreTrackId;
+  trackId?: CoreTrackId;
+  trackNumber: number;
+  title: string;
+  title_el?: string;
+  title_en: string;
+  theme: string;
+  theme_en: string;
+  description?: string;
+  description_en?: string;
+  color: string;
+  avatar: string;
+  tasksCount?: number;
+}
+
+export interface CustomTeamTitleRecord {
+  name?: string;
+  name_en?: string;
+  slogan?: string;
+  slogan_en?: string;
+  language?: 'el' | 'en';
+  trackId?: CoreTrackId;
+}
+
 export interface Team {
-  id: string;
+  id: string; // Unique subgroup identifier (e.g. 'team-alpha', 'team-delta', 'subgroup-delta-en', etc.)
+  trackId?: CoreTrackId; // Core thematic track: team-alpha (Track 1), team-beta (Track 2), team-gamma (Track 3), team-delta (Track 4)
   name: string;
+  name_en?: string;
   color: string;
   avatar: string;
   slogan?: string;
-  name_en?: string;
   slogan_en?: string;
+  language?: 'el' | 'en'; // Independent language preference for this subgroup (el | en)
   questionOrder?: string[]; // IDs of questions in sequence for this team
   sequentialProgression?: boolean; // If true, team must answer questions in order
   reflectionText?: string; // Student reflection and wow moment quote

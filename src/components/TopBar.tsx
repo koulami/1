@@ -205,6 +205,19 @@ export const TopBar: React.FC<Props> = ({
             </button>
           )}
 
+          {/* Quick Field Station QR Scanner */}
+          {onOpenFieldScanner && (
+            <button
+              type="button"
+              onClick={onOpenFieldScanner}
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-purple-950/70 hover:bg-purple-900 text-purple-300 hover:text-purple-200 border border-purple-500/40 hover:border-purple-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
+              title={lang === 'el' ? 'Σάρωση QR Code Σταθμού Πεδίου & Αναπαραγωγή' : 'Scan Field Station QR Code & Play Media'}
+            >
+              <Camera className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden md:inline">{lang === 'el' ? 'QR Πεδίου' : 'Field QR'}</span>
+            </button>
+          )}
+
           {/* Synchronized Countdown Indicator */}
           <div
             onClick={onToggleTimer}

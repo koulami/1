@@ -44,10 +44,17 @@ import {
   getCheckpointsForTeam,
   isCheckpointTask,
   getCheckpointMetadata,
-  TEAM_GROUP_MAP
+  TEAM_GROUP_MAP,
+  getAllTasks,
+  getTeamsWithCustomTitles,
+  getLocalizedTeamName,
+  getLocalizedTeamSlogan,
+  getTeamEffectiveLanguage,
+  resolveTeamTrackId,
+  CORE_THEMATIC_TRACKS
 } from './data/masterTaskPool';
 import { storageService } from './services/storageService';
-import { Question, Team, Submission } from './types/game';
+import { Question, Team, Submission, FieldSpotInfo, CoreTrackId } from './types/game';
 import { extractScientificFact } from './utils/scientificFactHelper';
 import { SectionErrorBoundary } from './components/SectionErrorBoundary';
 import { MultipleChoiceQuest } from './components/quests/MultipleChoiceQuest';
@@ -59,8 +66,11 @@ import { QrScanQuest } from './components/quests/QrScanQuest';
 import { PhotoUploadQuest } from './components/quests/PhotoUploadQuest';
 import { TaskQuest } from './components/quests/TaskQuest';
 import { ResearchQuest } from './components/quests/ResearchQuest';
+import { SurveyQuest } from './components/quests/SurveyQuest';
 import { AdminConsole } from './components/AdminConsole';
 import { TeamPresentationArena } from './components/TeamPresentationArena';
+import { FieldQrScannerModal } from './components/FieldQrScannerModal';
+import { FieldMediaPlaybackModal } from './components/FieldMediaPlaybackModal';
 
 const VALID_TABS = ['home', 'group-1', 'group-2', 'group-3', 'group-4', 'arena'] as const;
 type ValidTab = typeof VALID_TABS[number];
@@ -208,6 +218,10 @@ export default function App() {
     return storageService.getTaskOrder();
   });
 
+  // Field Station QR Scanner & Media Playback Modal states
+  const [isFieldScannerOpen, setIsFieldScannerOpen] = useState<boolean>(false);
+  const [fieldPlaybackModal, setFieldPlaybackModal] = useState<{ question: Question; fieldSpot: FieldSpotInfo } | null>(null);
+
   useEffect(() => {
     const handleTaskOrderChange = () => {
       setTaskOrder(storageService.getTaskOrder());
@@ -223,6 +237,99 @@ export default function App() {
   const handleUpdateTaskOrder = (newOrder: string[]) => {
     setTaskOrder(newOrder);
     storageService.saveTaskOrder(newOrder);
+  };
+
+  // Custom Team Titles state (Greek and English overrides)
+  const [customTeamTitles, setCustomTeamTitles] = useState<Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }>>(() => {
+    return storageService.getCustomTeamTitles();
+  });
+
+  useEffect(() => {
+    const syncTeamTitles = () => {
+      setCustomTeamTitles(storageService.getCustomTeamTitles());
+    };
+    window.addEventListener('boundpad:teamTitles', syncTeamTitles);
+    window.addEventListener('storage', syncTeamTitles);
+    return () => {
+      window.removeEventListener('boundpad:teamTitles', syncTeamTitles);
+      window.removeEventListener('storage', syncTeamTitles);
+    };
+  }, []);
+
+  const handleUpdateCustomTeamTitles = (
+    newTitles: Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }>
+  ) => {
+    setCustomTeamTitles(newTitles);
+    storageService.saveCustomTeamTitles(newTitles);
+  };
+
+  // Subgroups state (allows multiple student groups per core thematic track with independent language)
+  const [subgroups, setSubgroups] = useState<Team[]>(() => {
+    return storageService.getSubgroups();
+  });
+
+  useEffect(() => {
+    const syncSubgroups = () => {
+      setSubgroups(storageService.getSubgroups());
+    };
+    window.addEventListener('boundpad:subgroups', syncSubgroups);
+    window.addEventListener('storage', syncSubgroups);
+    return () => {
+      window.removeEventListener('boundpad:subgroups', syncSubgroups);
+      window.removeEventListener('storage', syncSubgroups);
+    };
+  }, []);
+
+  // Track the active subgroup for each of the 4 core thematic tracks
+  const [selectedSubgroupIds, setSelectedSubgroupIds] = useState<Record<string, string>>({
+    'team-alpha': 'team-alpha',
+    'team-beta': 'team-beta',
+    'team-gamma': 'team-gamma',
+    'team-delta': 'team-delta'
+  });
+
+  const handleSelectSubgroupForTrack = (trackId: string, subgroupId: string) => {
+    setSelectedSubgroupIds((prev) => ({
+      ...prev,
+      [trackId]: subgroupId
+    }));
+  };
+
+  // Active teams / subgroups with custom Greek/English titles and slogans merged
+  const activeTeams: Team[] = useMemo(() => {
+    return getTeamsWithCustomTitles(customTeamTitles, subgroups);
+  }, [customTeamTitles, subgroups]);
+
+  // Map from track id to all subgroups assigned to that track
+  const subgroupsByTrack = useMemo(() => {
+    const map: Record<CoreTrackId, Team[]> = {
+      'team-alpha': [],
+      'team-beta': [],
+      'team-gamma': [],
+      'team-delta': []
+    };
+    activeTeams.forEach((t) => {
+      const trackId = resolveTeamTrackId(t.id, activeTeams);
+      if (map[trackId]) {
+        map[trackId].push(t);
+      }
+    });
+    return map;
+  }, [activeTeams]);
+
+  // Resolve current active team for each track
+  const getActiveSubgroupForTrack = (trackId: CoreTrackId): Team => {
+    const trackSubgroups = subgroupsByTrack[trackId] || [];
+    const selectedId = selectedSubgroupIds[trackId];
+    const found = trackSubgroups.find((t) => t.id === selectedId);
+    return found || trackSubgroups[0] || masterTeamsPool.find((t) => t.id === trackId) || masterTeamsPool[0];
+  };
+
+  const handleToggleSubgroupLanguage = (subgroupId: string) => {
+    const target = activeTeams.find((t) => t.id === subgroupId);
+    const newLang = (target?.language === 'en') ? 'el' : 'en';
+    const updated = storageService.updateSubgroup(subgroupId, { language: newLang });
+    setSubgroups(updated);
   };
 
   const handleUpdateTaskOverrides = (newOverrides: Record<string, boolean>) => {
@@ -254,16 +361,23 @@ export default function App() {
     }
   };
 
+  // Real-time synchronization of submissions across tabs/components
+  useEffect(() => {
+    const handleSubmissionsSync = () => {
+      setSubmissions(storageService.getSubmissions());
+    };
+    window.addEventListener('boundpad:submissions', handleSubmissionsSync);
+    window.addEventListener('storage', handleSubmissionsSync);
+    return () => {
+      window.removeEventListener('boundpad:submissions', handleSubmissionsSync);
+      window.removeEventListener('storage', handleSubmissionsSync);
+    };
+  }, []);
+
   const handleResetTeamSubmissions = (teamId: string) => {
     try {
-      const current = { ...submissions };
-      for (const key of Object.keys(current)) {
-        if (key.startsWith(`${teamId}_`)) {
-          delete current[key];
-        }
-      }
-      storageService.saveAllSubmissions(current);
-      setSubmissions(current);
+      const updated = storageService.clearTeamData(teamId);
+      setSubmissions(updated);
     } catch (err) {
       console.error('Error resetting team submissions', err);
     }
@@ -296,7 +410,13 @@ export default function App() {
     try {
       storageService.saveSubmission(sub);
       const key = `${sub.teamId}_${sub.questionId}`;
-      setSubmissions((prev) => ({ ...prev, [key]: sub }));
+      setSubmissions((prev) => {
+        const next = { ...prev, [key]: sub };
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('boundpad:submissions', { detail: { submission: sub, submissions: next } }));
+        }
+        return next;
+      });
 
       // If this submission contains reflection text or is for a reflection task, save to team reflections
       const reflectionText = (sub.reflectionText || sub.answerData?.reportText || sub.answerData?.reflectionText || '').trim();
@@ -308,16 +428,19 @@ export default function App() {
     }
   };
 
-  // Reset submissions
-  const resetAllSubmissions = () => {
-    const msg = lang === 'el'
-      ? 'Είστε βέβαιοι ότι θέλετε να μηδενίσετε όλες τις απαντήσεις και την πρόοδο;'
-      : 'Are you sure you want to reset all submissions and progress?';
-    if (window.confirm(msg)) {
-      try {
-        storageService.clearAll();
-      } catch {}
+  // Global reset for all submissions, scores, photos and team reflections
+  const resetAllSubmissions = (skipConfirm = true) => {
+    if (!skipConfirm) {
+      const msg = lang === 'el'
+        ? 'Είστε βέβαιοι ότι θέλετε να μηδενίσετε όλες τις απαντήσεις και την πρόοδο;'
+        : 'Are you sure you want to reset all submissions and progress?';
+      if (!window.confirm(msg)) return;
+    }
+    try {
+      storageService.clearAllSubmissionsAndProgress();
       setSubmissions({});
+    } catch (err) {
+      console.error('Error resetting all submissions', err);
     }
   };
 
@@ -331,13 +454,13 @@ export default function App() {
   // Compute live team stats dynamically from master pool with task overrides, custom edits & task order
   const allTeamStats: TeamTaskStats[] = useMemo(() => {
     try {
-      return masterTeamsPool.map((team) =>
+      return activeTeams.map((team) =>
         computeTeamTaskStats(team, submissions, taskOverrides, customQuestions, taskOrder)
       );
     } catch {
       return [];
     }
-  }, [submissions, taskOverrides, customQuestions, taskOrder]);
+  }, [activeTeams, submissions, taskOverrides, customQuestions, taskOrder]);
 
   // Tab mapping for the 4 groups
   const teamTabs: { tab: ValidTab; teamIndex: number; icon: any }[] = [
@@ -452,6 +575,17 @@ export default function App() {
               </span>
             </button>
 
+            {/* Field Station QR Scanner Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsFieldScannerOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-purple-950/70 hover:bg-purple-900 text-purple-300 hover:text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+              title={lang === 'el' ? 'Σάρωση QR Code Σταθμού Πεδίου & Αναπαραγωγή' : 'Scan Field Station QR Code & Play Media'}
+            >
+              <Camera className="w-3.5 h-3.5 text-purple-400" />
+              <span>{lang === 'el' ? 'QR Πεδίου' : 'Field QR'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsAdminOpen(true)}
@@ -464,9 +598,9 @@ export default function App() {
 
             <button
               type="button"
-              onClick={resetAllSubmissions}
+              onClick={() => resetAllSubmissions(false)}
               className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title={lang === 'el' ? 'Επαναφορά Απαντήσεων' : 'Reset Submissions'}
+              title={lang === 'el' ? 'Επαναφορά Απαντήσεων Όλων των Ομάδων' : 'Reset All Teams Submissions'}
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{lang === 'el' ? 'Επαναφορά' : 'Reset'}</span>
@@ -495,10 +629,14 @@ export default function App() {
 
           {/* 4 Group Tabs */}
           {teamTabs.map(({ tab, teamIndex }) => {
-            const stat = allTeamStats[teamIndex];
-            const team = masterTeamsPool[teamIndex];
-            if (!team) return null;
+            const trackInfo = CORE_THEMATIC_TRACKS[teamIndex];
+            const trackId = ((trackInfo && (trackInfo.trackId || trackInfo.id)) || masterTeamsPool[teamIndex]?.id || 'team-alpha') as CoreTrackId;
+            const currentSubgroup = getActiveSubgroupForTrack(trackId);
+            const trackSubgroups = subgroupsByTrack[trackId] || [];
+            const stat = allTeamStats.find((s) => s.team.id === currentSubgroup.id || s.teamId === currentSubgroup.id);
             const isActive = currentTab === tab;
+            const teamDisplayName = getLocalizedTeamName(currentSubgroup, lang);
+            const effectiveSubLang = currentSubgroup.language || 'el';
 
             return (
               <button
@@ -509,21 +647,30 @@ export default function App() {
                   safeSetActiveTab(tab);
                 }}
                 style={{
-                  borderColor: isActive ? team.color : 'transparent'
+                  borderColor: isActive ? currentSubgroup.color : 'transparent'
                 }}
                 className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 border transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-slate-800 text-white shadow-md'
+                    ? 'bg-slate-800 text-white shadow-md ring-1 ring-white/10'
                     : 'bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white'
                 }`}
+                title={`${teamDisplayName} (${effectiveSubLang === 'el' ? 'Ελληνικά' : 'English'})`}
               >
-                <span className="text-base">{team.avatar}</span>
+                <span className="text-base">{currentSubgroup.avatar}</span>
                 <span className="truncate max-w-[130px] sm:max-w-none">
-                  {lang === 'el' ? `Ομάδα ${teamIndex + 1}` : `Group ${teamIndex + 1}`}
+                  {teamDisplayName}
                 </span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-900 border border-slate-700 text-slate-300">
+                  {effectiveSubLang === 'el' ? '🇬🇷' : '🇬🇧'}
+                </span>
+                {trackSubgroups.length > 1 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    {trackSubgroups.length}
+                  </span>
+                )}
                 {stat && (
                   <span
-                    style={{ backgroundColor: `${team.color}25`, color: team.color }}
+                    style={{ backgroundColor: `${currentSubgroup.color}25`, color: currentSubgroup.color }}
                     className="px-1.5 py-0.5 rounded-md text-[10px] font-bold ml-0.5"
                   >
                     {stat.totalScore}p
@@ -571,6 +718,14 @@ export default function App() {
                 lang={lang}
                 teamStats={allTeamStats}
                 onSelectTab={safeSetActiveTab}
+                teams={activeTeams}
+                subgroupsByTrack={subgroupsByTrack}
+                onSelectSubgroupForTrack={(trackId, subgroupId) => {
+                  handleSelectSubgroupForTrack(trackId, subgroupId);
+                  const idx = CORE_THEMATIC_TRACKS.findIndex((t) => t.id === trackId || t.trackId === trackId);
+                  safeSetActiveTab(`group-${idx + 1}` as ValidTab);
+                }}
+                onOpenAdmin={() => setIsAdminOpen(true)}
               />
             </SectionErrorBoundary>
           )}
@@ -579,6 +734,10 @@ export default function App() {
             <SectionErrorBoundary sectionName="Group 1 (Ομάδα 1)" onReset={() => safeSetActiveTab('home')}>
               <GroupMissionsView
                 teamIndex={0}
+                teamProp={getActiveSubgroupForTrack('team-alpha')}
+                subgroupsInTrack={subgroupsByTrack['team-alpha']}
+                onSelectSubgroup={(id) => handleSelectSubgroupForTrack('team-alpha', id)}
+                onToggleSubgroupLanguage={handleToggleSubgroupLanguage}
                 lang={lang}
                 submissions={submissions}
                 taskOverrides={taskOverrides}
@@ -596,6 +755,10 @@ export default function App() {
             <SectionErrorBoundary sectionName="Group 2 (Ομάδα 2)" onReset={() => safeSetActiveTab('home')}>
               <GroupMissionsView
                 teamIndex={1}
+                teamProp={getActiveSubgroupForTrack('team-beta')}
+                subgroupsInTrack={subgroupsByTrack['team-beta']}
+                onSelectSubgroup={(id) => handleSelectSubgroupForTrack('team-beta', id)}
+                onToggleSubgroupLanguage={handleToggleSubgroupLanguage}
                 lang={lang}
                 submissions={submissions}
                 taskOverrides={taskOverrides}
@@ -613,6 +776,10 @@ export default function App() {
             <SectionErrorBoundary sectionName="Group 3 (Ομάδα 3)" onReset={() => safeSetActiveTab('home')}>
               <GroupMissionsView
                 teamIndex={2}
+                teamProp={getActiveSubgroupForTrack('team-gamma')}
+                subgroupsInTrack={subgroupsByTrack['team-gamma']}
+                onSelectSubgroup={(id) => handleSelectSubgroupForTrack('team-gamma', id)}
+                onToggleSubgroupLanguage={handleToggleSubgroupLanguage}
                 lang={lang}
                 submissions={submissions}
                 taskOverrides={taskOverrides}
@@ -630,6 +797,10 @@ export default function App() {
             <SectionErrorBoundary sectionName="Group 4 (Ομάδα 4)" onReset={() => safeSetActiveTab('home')}>
               <GroupMissionsView
                 teamIndex={3}
+                teamProp={getActiveSubgroupForTrack('team-delta')}
+                subgroupsInTrack={subgroupsByTrack['team-delta']}
+                onSelectSubgroup={(id) => handleSelectSubgroupForTrack('team-delta', id)}
+                onToggleSubgroupLanguage={handleToggleSubgroupLanguage}
                 lang={lang}
                 submissions={submissions}
                 taskOverrides={taskOverrides}
@@ -652,6 +823,8 @@ export default function App() {
                 customQuestions={customQuestions}
                 taskOrder={taskOrder}
                 synthesisNotes={synthesisNotes}
+                customTeamTitles={customTeamTitles}
+                subgroups={subgroups}
                 onGoBack={() => safeSetActiveTab('home')}
                 onSelectTeamMissions={(teamIdx) => safeSetActiveTab(`group-${teamIdx + 1}` as ValidTab)}
               />
@@ -669,6 +842,13 @@ export default function App() {
           taskOverrides={taskOverrides}
           customQuestions={customQuestions}
           taskOrder={taskOrder}
+          customTeamTitles={customTeamTitles}
+          onUpdateCustomTeamTitles={handleUpdateCustomTeamTitles}
+          subgroups={subgroups}
+          onUpdateSubgroups={(newSubs) => {
+            setSubgroups(newSubs);
+            storageService.saveSubgroups(newSubs);
+          }}
           onUpdateTaskOrder={handleUpdateTaskOrder}
           onUpdateTaskOverrides={handleUpdateTaskOverrides}
           onSaveCustomQuestion={handleSaveCustomQuestion}
@@ -698,9 +878,9 @@ export default function App() {
                   onChange={(e) => setNewNoteTeam(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
                 >
-                  {masterTeamsPool.map((t) => (
+                  {activeTeams.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.avatar} {lang === 'el' ? t.name : t.name_en || t.name}
+                      {t.avatar} {getLocalizedTeamName(t, lang)}
                     </option>
                   ))}
                 </select>
@@ -767,6 +947,37 @@ export default function App() {
         </div>
       )}
 
+      {/* Field QR Scanner Modal */}
+      {isFieldScannerOpen && (
+        <FieldQrScannerModal
+          lang={lang}
+          questions={getAllTasks(customQuestions, taskOrder)}
+          onClose={() => setIsFieldScannerOpen(false)}
+          onScanSuccess={(question: Question, fieldSpot: FieldSpotInfo) => {
+            setIsFieldScannerOpen(false);
+            setFieldPlaybackModal({ question, fieldSpot });
+          }}
+        />
+      )}
+
+      {/* Field Media Playback Modal */}
+      {fieldPlaybackModal && (
+        <FieldMediaPlaybackModal
+          question={fieldPlaybackModal.question}
+          fieldSpot={fieldPlaybackModal.fieldSpot}
+          lang={lang}
+          onClose={() => setFieldPlaybackModal(null)}
+          onSolveTask={(question: Question) => {
+            setFieldPlaybackModal(null);
+            const assignedTeam = question.assignedTeamIds?.[0] || 'team-alpha';
+            const teamIndex = masterTeamsPool.findIndex((t) => t.id === assignedTeam);
+            if (teamIndex >= 0) {
+              safeSetActiveTab(`group-${teamIndex + 1}`);
+            }
+          }}
+        />
+      )}
+
       {/* ================= FOOTER ================= */}
       <footer className="border-t border-slate-800/80 bg-slate-900/60 px-4 py-4 text-center text-xs text-slate-500">
         <p>
@@ -784,9 +995,32 @@ interface HomeScreenProps {
   lang: 'el' | 'en';
   teamStats: TeamTaskStats[];
   onSelectTab: (tab: string) => void;
+  teams?: Team[];
+  subgroupsByTrack?: Record<CoreTrackId, Team[]>;
+  onSelectSubgroupForTrack?: (trackId: CoreTrackId, subgroupId: string) => void;
+  onOpenAdmin?: () => void;
 }
 
-function HomeScreen({ lang, teamStats, onSelectTab }: HomeScreenProps) {
+function HomeScreen({
+  lang,
+  teamStats,
+  onSelectTab,
+  teams,
+  subgroupsByTrack,
+  onSelectSubgroupForTrack,
+  onOpenAdmin
+}: HomeScreenProps) {
+  const isEl = lang === 'el';
+  const displayTeams = teams && teams.length > 0 ? teams : masterTeamsPool;
+
+  const handleSubgroupClick = (trackId: CoreTrackId, subgroupId: string, defaultIdx: number) => {
+    if (onSelectSubgroupForTrack) {
+      onSelectSubgroupForTrack(trackId, subgroupId);
+    } else {
+      onSelectTab(`group-${defaultIdx + 1}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Hero Banner */}
@@ -795,18 +1029,18 @@ function HomeScreen({ lang, teamStats, onSelectTab }: HomeScreenProps) {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
             <span>
-              {lang === 'el' ? 'Ενιαίο Master Task Pool (61 Αποστολές Έρευνας)' : 'Master Task Pool (61 Research Missions)'}
+              {isEl ? 'Ενιαίο Master Task Pool (61 Αποστολές Έρευνας)' : 'Master Task Pool (61 Research Missions)'}
             </span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-            {lang === 'el'
+            {isEl
               ? 'Το Όρνιο στην Κύπρο (Gyps fulvus) • LIFE with Vultures'
               : 'The Cyprus Griffon Vulture (Gyps fulvus) • LIFE with Vultures'}
           </h2>
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-            {lang === 'el'
-              ? 'Διαδραστική εκπαιδευτική αρένα 61 πραγματικών αποστολών. Κάθε μία από τις 4 ερευνητικές ομάδες αναλαμβάνει τον δικό της θεματικό πυλώνα (Ταυτότητα, Περιβάλλον, Βιολογία, Προστασία) και διαμορφώνει το δικό της ψηφιακό Infographic Poster!'
-              : 'Interactive educational arena with 61 real inquiry missions. Each of the 4 research teams undertakes its dedicated thematic pillar (Identity, Habitat, Biology, Conservation) and builds its visual Infographic Poster!'}
+            {isEl
+              ? 'Διαδραστική εκπαιδευτική αρένα 61 πραγματικών αποστολών. Πολλαπλές μαθητικές υποομάδες μπορούν να εργαστούν ταυτόχρονα σε κάθε θεματικό πυλώνα με ανεξάρτητη επιλογή γλώσσας (Ελληνικά ή English), μοιραζόμενες το ίδιο επιστημονικό σώμα ερωτήσεων!'
+              : 'Interactive inquiry arena with 61 real missions. Multiple student subgroups can work concurrently on any thematic track with independent language preferences (Greek or English), sharing the exact same scientific task curriculum!'}
           </p>
           <div className="pt-2 flex flex-wrap gap-3">
             <button
@@ -817,7 +1051,7 @@ function HomeScreen({ lang, teamStats, onSelectTab }: HomeScreenProps) {
               }}
               className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
             >
-              <span>{lang === 'el' ? 'Έναρξη Αποστολών (Ομάδες 1-4)' : 'Start Missions (Groups 1-4)'}</span>
+              <span>{isEl ? 'Έναρξη Αποστολών (Πυλώνες 1-4)' : 'Start Missions (Tracks 1-4)'}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
@@ -829,29 +1063,36 @@ function HomeScreen({ lang, teamStats, onSelectTab }: HomeScreenProps) {
               className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
             >
               <Trophy className="w-4 h-4" />
-              <span>{lang === 'el' ? 'Αρένα Παρουσίασης & Infographic Posters' : 'Team Arena & Infographic Posters'}</span>
+              <span>{isEl ? 'Αρένα Παρουσίασης & Infographic Posters' : 'Team Arena & Infographic Posters'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Live Scores for 4 Teams */}
+      {/* Live Scores for All Active Student Subgroups */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <Award className="w-5 h-5 text-amber-400" />
-            <span>{lang === 'el' ? 'Δυναμική Βαθμολογία 4 Ομάδων Έρευνας' : 'Dynamic 4-Group Research Scoreboard'}</span>
+            <span>{isEl ? 'Δυναμική Βαθμολογία Μαθητικών Υποομάδων' : 'Dynamic Student Subgroups Scoreboard'}</span>
           </h3>
+          <span className="text-xs text-slate-400">
+            {displayTeams.length} {isEl ? 'ενεργές υποομάδες' : 'active subgroups'}
+          </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {masterTeamsPool.map((team, idx) => {
-            const stat = teamStats[idx];
+          {displayTeams.map((team, idx) => {
+            const stat = teamStats.find((s) => s.team.id === team.id || s.teamId === team.id);
+            const trackId = ((team.trackId || (masterTeamsPool[idx]?.id as CoreTrackId) || 'team-alpha')) as CoreTrackId;
+            const trackIdx = CORE_THEMATIC_TRACKS.findIndex((t) => t.id === trackId || t.trackId === trackId);
+            const teamLang = team.language || 'el';
+
             return (
               <div
                 key={team.id}
                 onClick={(e) => {
                   e.preventDefault();
-                  onSelectTab(`group-${idx + 1}`);
+                  handleSubgroupClick(trackId, team.id, trackIdx >= 0 ? trackIdx : idx);
                 }}
                 style={{ borderColor: `${team.color}40` }}
                 className="p-5 rounded-2xl bg-slate-900 border hover:border-slate-600 transition-all cursor-pointer group shadow-lg flex flex-col justify-between"
@@ -861,24 +1102,29 @@ function HomeScreen({ lang, teamStats, onSelectTab }: HomeScreenProps) {
                     <span className="text-3xl p-2 rounded-xl bg-slate-800/80 border border-slate-700/60 group-hover:scale-110 transition-transform">
                       {team.avatar}
                     </span>
-                    <div
-                      style={{ backgroundColor: `${team.color}20`, color: team.color }}
-                      className="px-3 py-1 rounded-full font-extrabold text-sm border border-current/30"
-                    >
-                      {stat ? stat.totalScore : 0} pts
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 border border-slate-700 text-slate-300">
+                        {teamLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}
+                      </span>
+                      <div
+                        style={{ backgroundColor: `${team.color}20`, color: team.color }}
+                        className="px-2.5 py-1 rounded-full font-extrabold text-xs border border-current/30"
+                      >
+                        {stat ? stat.totalScore : 0} pts
+                      </div>
                     </div>
                   </div>
                   <h4 className="font-bold text-white text-base group-hover:text-amber-300 transition-colors">
-                    {lang === 'el' ? team.name : team.name_en || team.name}
+                    {getLocalizedTeamName(team, lang)}
                   </h4>
                   <p className="text-xs text-slate-400 mt-1 line-clamp-1">
-                    {lang === 'el' ? team.slogan : team.slogan_en}
+                    {getLocalizedTeamSlogan(team, lang)}
                   </p>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-slate-800">
                   <div className="flex justify-between text-xs text-slate-400 mb-1.5">
-                    <span>{lang === 'el' ? 'Ενεργές Αποστολές' : 'Active Quests'}</span>
+                    <span>{isEl ? 'Ενεργές Αποστολές' : 'Active Quests'}</span>
                     <span className="font-semibold text-slate-200">
                       {stat ? `${stat.completedTasks} / ${stat.totalActiveTasks} (${stat.progressPercent}%)` : '0'}
                     </span>
@@ -899,57 +1145,83 @@ function HomeScreen({ lang, teamStats, onSelectTab }: HomeScreenProps) {
         </div>
       </div>
 
-      {/* 4 Pillars of the Cyprus Griffon Vulture Project */}
+      {/* 4 Thematic Pillars with assigned student subgroups */}
       <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-emerald-400" />
-          <span>
-            {lang === 'el'
-              ? 'Οι 4 Θεματικοί Πυλώνες του Προγράμματος LIFE with Vultures'
-              : 'The 4 Thematic Pillars of LIFE with Vultures Cyprus'}
-          </span>
-        </h3>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-emerald-400" />
+            <span>
+              {isEl
+                ? 'Οι 4 Θεματικοί Πυλώνες & Ανάθεση Υποομάδων'
+                : 'The 4 Thematic Tracks & Subgroup Assignments'}
+            </span>
+          </h3>
+          {onOpenAdmin && (
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{isEl ? 'Προσθήκη / Διαχείριση Υποομάδων (Admin)' : 'Manage Subgroups (Admin)'}</span>
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl bg-slate-800/40 border border-emerald-700/40 space-y-2">
-            <div className="font-bold text-emerald-400 text-sm">
-              {lang === 'el' ? 'Ομάδα 1: Ταυτότητα & Βασικά (15)' : 'Group 1: Identity & Basics (15)'}
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {lang === 'el'
-                ? 'Αναγνώριση του είδους Gyps fulvus, άνοιγμα πτερύγων 2.5m, βάρος 7-10kg, κύκλος αναπαραγωγής (1 αυγό), κατάσταση κινδύνου και εσωτερικός σταθμός φωτογράφισης (#36).'
-                : 'Species ID Gyps fulvus, 2.5m wingspan, 7-10kg weight, 1 egg clutch, critically endangered status, and indoor photo checkpoint (#36).'}
-            </p>
-          </div>
-          <div className="p-4 rounded-xl bg-slate-800/40 border border-cyan-700/40 space-y-2">
-            <div className="font-bold text-cyan-400 text-sm">
-              {lang === 'el' ? 'Ομάδα 2: Περιβάλλον & Πτήση (15)' : 'Group 2: Habitat & Flight (15)'}
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {lang === 'el'
-                ? 'Απόκρημνοι γκρεμοί Επισκοπής, κοιλάδες Διαρίζου & Χα-Ποτάμι, ανοδικά θερμικά ρεύματα, πτητική αεροδυναμική και ακτίνα αναζήτησης τροφής άνω των 100km.'
-                : 'Episkopi sea cliffs colony, Diarizos & Cha-Potami valleys, thermal soaring updrafts, and long foraging flights exceeding 100km.'}
-            </p>
-          </div>
-          <div className="p-4 rounded-xl bg-slate-800/40 border border-amber-700/40 space-y-2">
-            <div className="font-bold text-amber-400 text-sm">
-              {lang === 'el' ? 'Ομάδα 3: Διατροφή & Βιολογία (15)' : 'Group 3: Diet & Biology (15)'}
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {lang === 'el'
-                ? 'Αποκλειστικοί καθαριστές πτωματοφάγοι (όχι θηρευτές), γυμνός λαιμός για υγιεινή, πανίσχυρο γαστρικό pH 1-2, όξυνση όρασης και σταθμός QR πάρκου (#56).'
-                : 'Obligate scavengers (not predators), bare hygiene neck, acidic stomach pH 1-2 neutralizing pathogens, visual foraging, and park QR checkpoint (#56).'}
-            </p>
-          </div>
-          <div className="p-4 rounded-xl bg-slate-800/40 border border-purple-700/40 space-y-2">
-            <div className="font-bold text-purple-400 text-sm">
-              {lang === 'el' ? 'Ομάδα 4: Απειλές & Προστασία (16)' : 'Group 4: Threats & Conservation (16)'}
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {lang === 'el'
-                ? 'Καταπολέμηση δηλητηριασμένων δολωμάτων, εκπαιδευμένοι σκύλοι K9, 4 περιφραγμένες ταΐστρες, σημαντήρες καλωδίων, ενίσχυση από Ισπανία και Σύμφωνο Προστασίας (#61).'
-                : 'Combatting poison baits, K9 detection teams, 4 feeding stations, power line markers, restocking from Spain, and the official Conservation Charter (#61).'}
-            </p>
-          </div>
+          {CORE_THEMATIC_TRACKS.map((track, trackIdx) => {
+            const trackId = (track.trackId || track.id) as CoreTrackId;
+            const trackSubgroups: Team[] = subgroupsByTrack?.[trackId] || displayTeams.filter((t) => (t.trackId || t.id) === trackId);
+            const pillarColors = ['border-emerald-700/40 text-emerald-400', 'border-cyan-700/40 text-cyan-400', 'border-amber-700/40 text-amber-400', 'border-purple-700/40 text-purple-400'];
+            const colorClass = pillarColors[trackIdx % pillarColors.length];
+
+            return (
+              <div key={trackId} className={`p-4 rounded-xl bg-slate-800/40 border ${colorClass.split(' ')[0]} space-y-3 flex flex-col justify-between`}>
+                <div className="space-y-2">
+                  <div className={`font-bold text-sm ${colorClass.split(' ')[1]}`}>
+                    {isEl ? track.title : track.title_en}
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {isEl ? (track.description || track.theme) : (track.description_en || track.theme_en)}
+                  </p>
+                </div>
+
+                {/* Assigned Subgroups Chips */}
+                <div className="pt-2 border-t border-slate-700/50 space-y-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>{isEl ? 'Υποομάδες Πυλώνα:' : 'Assigned Subgroups:'}</span>
+                    <span className="text-slate-300">{trackSubgroups.length}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {trackSubgroups.map((sub: Team) => {
+                      const subLang = sub.language || 'el';
+                      const subStat = teamStats.find((s) => s.team.id === sub.id || s.teamId === sub.id);
+                      return (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          onClick={() => handleSubgroupClick(trackId, sub.id, trackIdx)}
+                          className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                          title={getLocalizedTeamName(sub, lang)}
+                        >
+                          <span>{sub.avatar}</span>
+                          <span className="truncate max-w-[90px]">{getLocalizedTeamName(sub, lang)}</span>
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400">
+                            {subLang === 'el' ? '🇬🇷' : '🇬🇧'}
+                          </span>
+                          {subStat && (
+                            <span style={{ color: sub.color }} className="font-extrabold text-[10px]">
+                              {subStat.totalScore}p
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -1024,10 +1296,10 @@ function TeamLobbyWaitingScreen({
               {lang === 'el' ? `Ομάδα ${teamIndex + 1}` : `Group ${teamIndex + 1}`}
             </span>
             <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-              {lang === 'el' ? team.name : team.name_en || team.name}
+              {getLocalizedTeamName(team, lang)}
             </h2>
             <p className="text-slate-400 text-sm max-w-lg mx-auto italic">
-              «{lang === 'el' ? team.slogan : team.slogan_en}»
+              «{getLocalizedTeamSlogan(team, lang)}»
             </p>
           </div>
         </div>
@@ -1113,6 +1385,10 @@ interface GroupMissionsViewProps {
   onStartGame?: () => void;
   onSaveSubmission: (submission: Submission) => void;
   onGoHome: () => void;
+  teamProp?: Team;
+  subgroupsInTrack?: Team[];
+  onSelectSubgroup?: (subgroupId: string) => void;
+  onToggleSubgroupLanguage?: (subgroupId: string) => void;
 }
 
 function GroupMissionsView({
@@ -1125,9 +1401,14 @@ function GroupMissionsView({
   gameStarted = false,
   onStartGame,
   onSaveSubmission,
-  onGoHome
+  onGoHome,
+  teamProp,
+  subgroupsInTrack,
+  onSelectSubgroup,
+  onToggleSubgroupLanguage
 }: GroupMissionsViewProps) {
-  const team = masterTeamsPool[teamIndex] || masterTeamsPool[0];
+  const team = teamProp || masterTeamsPool[teamIndex] || masterTeamsPool[0];
+  const effectiveLang = getTeamEffectiveLanguage(team, lang);
 
   // Query ONLY active tasks for this team dynamically from Master Pool with custom overrides & task order
   const tasks = useMemo(() => {
@@ -1211,7 +1492,7 @@ function GroupMissionsView({
     return () => clearInterval(timer);
   }, []);
 
-  const timeLimitMinutes = groupTimers[team.id] ?? 20;
+  const timeLimitMinutes = groupTimers[team.id] ?? groupTimers[team.trackId || ''] ?? 20;
   const totalAllowedSeconds = timeLimitMinutes * 60;
   const elapsedSeconds = startTimestamp > 0 ? Math.max(0, Math.floor((now - startTimestamp) / 1000)) : 0;
   const remainingSeconds = totalAllowedSeconds > 0 && startTimestamp > 0
@@ -1231,7 +1512,7 @@ function GroupMissionsView({
       <TeamLobbyWaitingScreen
         team={team}
         teamIndex={teamIndex}
-        lang={lang}
+        lang={effectiveLang}
         totalActiveTasks={tasks.length}
         timeLimitMinutes={timeLimitMinutes}
         onStartGame={onStartGame}
@@ -1250,7 +1531,7 @@ function GroupMissionsView({
           className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer group"
         >
           <ArrowLeft className="w-4 h-4 text-amber-400 group-hover:-translate-x-1 transition-transform" />
-          <span>{lang === 'el' ? '← Επιστροφή στην Αρχική' : '← Return to Overview'}</span>
+          <span>{effectiveLang === 'el' ? '← Επιστροφή στην Αρχική' : '← Return to Overview'}</span>
         </button>
 
         {/* View Mode Switcher */}
@@ -1265,7 +1546,7 @@ function GroupMissionsView({
             }`}
           >
             <Target className="w-3.5 h-3.5" />
-            <span>{lang === 'el' ? 'Focus Mode (1 Αποστολή)' : 'Focus Mode (1 Task)'}</span>
+            <span>{effectiveLang === 'el' ? 'Focus Mode (1 Αποστολή)' : 'Focus Mode (1 Task)'}</span>
           </button>
           <button
             type="button"
@@ -1277,10 +1558,56 @@ function GroupMissionsView({
             }`}
           >
             <List className="w-3.5 h-3.5" />
-            <span>{lang === 'el' ? 'Προβολή Λίστας' : 'List View'}</span>
+            <span>{effectiveLang === 'el' ? 'Προβολή Λίστας' : 'List View'}</span>
           </button>
         </div>
       </div>
+
+      {/* Subgroup Switcher Bar for Multi-subgroup Tracks */}
+      {subgroupsInTrack && subgroupsInTrack.length > 1 && (
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between flex-wrap gap-2.5 shadow-lg">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-bold text-slate-300">
+              {effectiveLang === 'el' ? 'Υποομάδες αυτού του Θεματικού Πυλώνα:' : 'Subgroups in this Thematic Track:'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {subgroupsInTrack.map((sub) => {
+              const isCurrent = sub.id === team.id;
+              const subLang = sub.language || 'el';
+              const subStat = computeTeamTaskStats(sub, submissions, taskOverrides, customQuestions, taskOrder);
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => onSelectSubgroup && onSelectSubgroup(sub.id)}
+                  style={{
+                    borderColor: isCurrent ? sub.color : 'transparent'
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all cursor-pointer ${
+                    isCurrent
+                      ? 'bg-slate-800 text-white shadow-md ring-2 ring-amber-400/50'
+                      : 'bg-slate-950/70 hover:bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  <span>{sub.avatar}</span>
+                  <span>{getLocalizedTeamName(sub, effectiveLang)}</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-900 border border-slate-700">
+                    {subLang === 'el' ? '🇬🇷 GR' : '🇬🇧 EN'}
+                  </span>
+                  <span
+                    style={{ color: sub.color }}
+                    className="text-[11px] font-black"
+                  >
+                    {subStat.totalScore}p
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Group Header Card */}
       <div
@@ -1295,19 +1622,31 @@ function GroupMissionsView({
             {team.avatar}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
                 style={{ backgroundColor: `${team.color}20`, color: team.color }}
                 className="px-2.5 py-0.5 rounded-full text-xs font-bold"
               >
-                {lang === 'el' ? `Ομάδα ${teamIndex + 1}` : `Group ${teamIndex + 1}`}
+                {effectiveLang === 'el' ? `Ομάδα ${teamIndex + 1}` : `Group ${teamIndex + 1}`}
               </span>
               <span className="text-xs text-slate-400">
-                {lang === 'el' ? team.slogan : team.slogan_en}
+                {getLocalizedTeamSlogan(team, effectiveLang)}
               </span>
+              {/* 1-Click Language Switcher per Subgroup */}
+              {onToggleSubgroupLanguage && (
+                <button
+                  type="button"
+                  onClick={() => onToggleSubgroupLanguage(team.id)}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ml-1"
+                  title={effectiveLang === 'el' ? 'Αλλαγή γλώσσας υποομάδας σε English' : 'Switch subgroup language to Greek'}
+                >
+                  <span>{effectiveLang === 'el' ? '🇬🇷 Ελληνικά' : '🇬🇧 English'}</span>
+                  <span className="text-[10px] text-amber-400 font-normal">⇄ {effectiveLang === 'el' ? 'EN' : 'GR'}</span>
+                </button>
+              )}
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
-              {lang === 'el' ? team.name : team.name_en || team.name}
+              {getLocalizedTeamName(team, effectiveLang)}
             </h2>
           </div>
         </div>
@@ -1315,7 +1654,7 @@ function GroupMissionsView({
         {/* Score & Progress */}
         <div className="flex items-center gap-3">
           <div className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-center">
-            <div className="text-xs text-slate-400">{lang === 'el' ? 'Βαθμολογία' : 'Score'}</div>
+            <div className="text-xs text-slate-400">{effectiveLang === 'el' ? 'Βαθμολογία' : 'Score'}</div>
             <div
               style={{ color: team.color }}
               className="text-xl font-black"
@@ -1324,7 +1663,7 @@ function GroupMissionsView({
             </div>
           </div>
           <div className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-center">
-            <div className="text-xs text-slate-400">{lang === 'el' ? 'Πρόοδος' : 'Progress'}</div>
+            <div className="text-xs text-slate-400">{effectiveLang === 'el' ? 'Πρόοδος' : 'Progress'}</div>
             <div className="text-xl font-black text-emerald-400">
               {completedTasks} / {totalActiveTasks}
             </div>
@@ -1366,19 +1705,19 @@ function GroupMissionsView({
               <div className="flex items-center gap-2">
                 <span className="text-xs uppercase font-extrabold tracking-wider">
                   {isTimeExpired
-                    ? (lang === 'el' ? 'ΛΗΞΗ ΧΡΟΝΟΥ ΑΠΟΣΤΟΛΗΣ' : 'MISSION TIME EXPIRED')
-                    : (lang === 'el' ? 'Χρονόμετρο Πεδίου (Αντίστροφη Μέτρηση)' : 'Field Countdown Timer')}
+                    ? (effectiveLang === 'el' ? 'ΛΗΞΗ ΧΡΟΝΟΥ ΑΠΟΣΤΟΛΗΣ' : 'MISSION TIME EXPIRED')
+                    : (effectiveLang === 'el' ? 'Χρονόμετρο Πεδίου (Αντίστροφη Μέτρηση)' : 'Field Countdown Timer')}
                 </span>
                 <span className="text-[11px] text-slate-400">
-                  ({lang === 'el' ? `Όριο: ${timeLimitMinutes} λεπτά` : `Limit: ${timeLimitMinutes} min`})
+                  ({effectiveLang === 'el' ? `Όριο: ${timeLimitMinutes} λεπτά` : `Limit: ${timeLimitMinutes} min`})
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
                 {isTimeExpired
-                  ? (lang === 'el'
+                  ? (effectiveLang === 'el'
                     ? 'Ο διαθέσιμος χρόνος έληξε! Οι απαντήσεις κλειδώθηκαν αυτόματα για αξιολόγηση.'
                     : 'Time expired! All tasks have been locked for evaluation.')
-                  : (lang === 'el'
+                  : (effectiveLang === 'el'
                     ? 'Συνεργαστείτε για την επίλυση των αποστολών πριν μηδενίσει ο χρόνος.'
                     : 'Work with your team to solve missions before time runs out.')}
               </p>
@@ -1406,7 +1745,7 @@ function GroupMissionsView({
         <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-amber-500/30 flex items-center justify-between flex-wrap gap-2 shadow-lg">
           <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
             <Flag className="w-4 h-4 text-amber-400" />
-            <span>{lang === 'el' ? 'Επίσημοι Σταθμοί & Checkpoints:' : 'Official Checkpoints:'}</span>
+            <span>{effectiveLang === 'el' ? 'Επίσημοι Σταθμοί & Checkpoints:' : 'Official Checkpoints:'}</span>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -1414,7 +1753,7 @@ function GroupMissionsView({
               const cpIdx = tasks.findIndex((t) => t.id === cp.id);
               const isCpCurrent = cpIdx === safeIndex;
               const isCpDone = submissions[`${team.id}_${cp.id}`]?.status === 'correct';
-              const meta = getCheckpointMetadata(cp, lang);
+              const meta = getCheckpointMetadata(cp, effectiveLang);
 
               return (
                 <button
@@ -1446,12 +1785,12 @@ function GroupMissionsView({
           <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800">
             <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
               <span>
-                {lang === 'el'
+                {effectiveLang === 'el'
                   ? `Αποστολή ${safeIndex + 1} από ${tasks.length}`
                   : `Mission ${safeIndex + 1} of ${tasks.length}`}
               </span>
               <span className="text-[11px] text-slate-500">
-                {lang === 'el' ? 'Κλικ σε αριθμό για άμεση μετάβαση' : 'Click number to jump'}
+                {effectiveLang === 'el' ? 'Κλικ σε αριθμό για άμεση μετάβαση' : 'Click number to jump'}
               </span>
             </div>
 
@@ -1462,6 +1801,7 @@ function GroupMissionsView({
                 const isIncorrect = sub?.status === 'incorrect';
                 const isCurrent = idx === safeIndex;
                 const isCp = isCheckpointTask(t.id);
+                const taskTitle = effectiveLang === 'el' ? t.title : (t.title_en || t.title);
 
                 return (
                   <button
@@ -1479,7 +1819,7 @@ function GroupMissionsView({
                         ? 'bg-amber-950/40 text-amber-300 border border-amber-500/50'
                         : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
                     }`}
-                    title={isIncorrect ? `${t.title} (💡 Ευκαιρία Μάθησης)` : t.title}
+                    title={isIncorrect ? `${taskTitle} (💡 ${effectiveLang === 'el' ? 'Ευκαιρία Μάθησης' : 'Learning Opportunity'})` : taskTitle}
                   >
                     {isDone ? '✓' : isIncorrect ? '💡' : isCp ? '🚩' : idx + 1}
                   </button>
@@ -1496,7 +1836,7 @@ function GroupMissionsView({
             <InlineQuestCard
               quest={currentTask}
               team={team}
-              lang={lang}
+              lang={effectiveLang}
               submission={submissions[`${team.id}_${currentTask.id}`]}
               isLocked={isTimeExpired}
               onSaveSubmission={onSaveSubmission}
@@ -1514,7 +1854,7 @@ function GroupMissionsView({
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 text-xs sm:text-sm font-semibold flex items-center gap-2 cursor-pointer transition-colors shadow-md"
             >
               <ChevronLeft className="w-4 h-4" />
-              <span>{lang === 'el' ? 'Προηγούμενη Αποστολή' : 'Previous Mission'}</span>
+              <span>{effectiveLang === 'el' ? 'Προηγούμενη Αποστολή' : 'Previous Mission'}</span>
             </button>
 
             <span className="text-xs font-semibold text-slate-400">
@@ -1527,7 +1867,7 @@ function GroupMissionsView({
               onClick={() => handleSetTaskIndex(safeIndex + 1)}
               className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:pointer-events-none text-slate-950 text-xs sm:text-sm font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md shadow-amber-500/20 active:scale-95"
             >
-              <span>{lang === 'el' ? 'Επόμενη Αποστολή' : 'Next Mission'}</span>
+              <span>{effectiveLang === 'el' ? 'Επόμενη Αποστολή' : 'Next Mission'}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -1543,6 +1883,7 @@ function GroupMissionsView({
             const isIncorrect = sub?.status === 'incorrect';
             const isExpanded = expandedId === t.id;
             const isCp = isCheckpointTask(t.id);
+            const taskTitle = effectiveLang === 'el' ? t.title : (t.title_en || t.title);
 
             return (
               <div
@@ -1578,7 +1919,7 @@ function GroupMissionsView({
                     </span>
                     <div>
                       <h4 className="font-bold text-white text-sm">
-                        {lang === 'el' ? t.title : t.title_en || t.title}
+                        {taskTitle}
                       </h4>
                       <span className="text-[11px] text-slate-400">
                         {t.type.replace('_', ' ')} • +{t.points} pts
@@ -1598,7 +1939,7 @@ function GroupMissionsView({
                       <InlineQuestCard
                         quest={t}
                         team={team}
-                        lang={lang}
+                        lang={effectiveLang}
                         submission={submissions[`${team.id}_${t.id}`]}
                         isLocked={isTimeExpired}
                         onSaveSubmission={onSaveSubmission}
@@ -1639,14 +1980,15 @@ function InlineQuestCard({
   onNextTask,
   hasNextTask
 }: InlineQuestCardProps) {
+  const effectiveLang = getTeamEffectiveLanguage(team, lang);
   const isDone = submission?.status === 'correct';
   const isIncorrect = submission?.status === 'incorrect';
   const hasAttempted = Boolean(submission);
   const isReadOnly = hasAttempted || Boolean(isLocked);
-  const cpMeta = getCheckpointMetadata(quest, lang);
+  const cpMeta = getCheckpointMetadata(quest, effectiveLang);
 
-  const title = lang === 'el' ? quest.title : quest.title_en || quest.title;
-  const explanation = lang === 'el' ? quest.explanation : quest.explanation_en || quest.explanation;
+  const title = effectiveLang === 'el' ? quest.title : quest.title_en || quest.title;
+  const explanation = effectiveLang === 'el' ? quest.explanation : quest.explanation_en || quest.explanation;
 
   const currentFact = submission?.scientificFact || extractScientificFact(quest, team.id, isDone, submission?.answerData);
 
@@ -1701,7 +2043,7 @@ function InlineQuestCard({
               style={{ backgroundColor: `${team.color}20`, color: team.color }}
               className="px-2.5 py-0.5 rounded-full text-xs font-bold"
             >
-              {team.avatar} {lang === 'el' ? team.name : team.name_en || team.name}
+              {team.avatar} {effectiveLang === 'el' ? team.name : team.name_en || team.name}
             </span>
             <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-bold">
               +{quest.points} pts
@@ -1722,17 +2064,17 @@ function InlineQuestCard({
         {isDone ? (
           <span className="px-3.5 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{lang === 'el' ? 'Ολοκληρώθηκε' : 'Completed'}</span>
+            <span>{effectiveLang === 'el' ? 'Ολοκληρώθηκε' : 'Completed'}</span>
           </span>
         ) : isIncorrect ? (
           <span className="px-3.5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-sm">
             <span className="text-amber-400">💡</span>
-            <span>{lang === 'el' ? 'Ευκαιρία Μάθησης (Καταγράφηκε)' : 'Learning Fact (Logged)'}</span>
+            <span>{effectiveLang === 'el' ? 'Ευκαιρία Μάθησης (Καταγράφηκε)' : 'Learning Fact (Logged)'}</span>
           </span>
         ) : isLocked ? (
           <span className="px-3.5 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-sm">
             <Lock className="w-4 h-4 text-rose-400" />
-            <span>{lang === 'el' ? 'Κλειδώθηκε' : 'Locked'}</span>
+            <span>{effectiveLang === 'el' ? 'Κλειδώθηκε' : 'Locked'}</span>
           </span>
         ) : null}
       </div>
@@ -1742,7 +2084,7 @@ function InlineQuestCard({
         <div className="p-3.5 rounded-2xl bg-rose-950/40 border border-rose-500/50 text-rose-300 flex items-center gap-3 text-xs sm:text-sm font-semibold">
           <Lock className="w-4 h-4 text-rose-400 shrink-0" />
           <span>
-            {lang === 'el'
+            {effectiveLang === 'el'
               ? '🔒 Ο χρόνος της αποστολής έληξε! Η υποβολή απαντήσεων έχει κλειδωθεί για αυτή τη δραστηριότητα.'
               : '🔒 Mission time has expired! Answer submissions are locked for this task.'}
           </span>
@@ -1754,7 +2096,7 @@ function InlineQuestCard({
         <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
             <span>📷</span>
-            <span>{lang === 'el' ? 'Πολυμέσο Αναφοράς Αποστολής:' : 'Mission Reference Media:'}</span>
+            <span>{effectiveLang === 'el' ? 'Πολυμέσο Αναφοράς Αποστολής:' : 'Mission Reference Media:'}</span>
           </div>
           {quest.imageUrl && (
             <div className="rounded-xl overflow-hidden border border-slate-700 bg-black max-h-72 flex items-center justify-center">
@@ -1787,7 +2129,7 @@ function InlineQuestCard({
           <MultipleChoiceQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
           />
@@ -1797,7 +2139,7 @@ function InlineQuestCard({
           <TrueFalseQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
           />
@@ -1807,7 +2149,7 @@ function InlineQuestCard({
           <TextMatchQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
           />
@@ -1817,7 +2159,7 @@ function InlineQuestCard({
           <ImageMatchQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
           />
@@ -1827,7 +2169,7 @@ function InlineQuestCard({
           <PuzzleQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, true, data.points)}
           />
@@ -1837,7 +2179,7 @@ function InlineQuestCard({
           <QrScanQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, data.isCorrect, data.points)}
           />
@@ -1847,7 +2189,7 @@ function InlineQuestCard({
           <PhotoUploadQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, true, data.points)}
           />
@@ -1857,7 +2199,7 @@ function InlineQuestCard({
           <TaskQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, true, data.points)}
           />
@@ -1867,7 +2209,17 @@ function InlineQuestCard({
           <ResearchQuest
             question={quest}
             existingSubmission={submission}
-            lang={lang}
+            lang={effectiveLang}
+            readOnly={isReadOnly}
+            onSubmit={(data) => handleSaveSub(data, true, data.points)}
+          />
+        )}
+
+        {quest.type === 'survey' && (
+          <SurveyQuest
+            question={quest}
+            existingSubmission={submission}
+            lang={effectiveLang}
             readOnly={isReadOnly}
             onSubmit={(data) => handleSaveSub(data, true, data.points)}
           />
@@ -1880,30 +2232,30 @@ function InlineQuestCard({
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
               <span>💡</span>
-              <span>{lang === 'el' ? 'Ευκαιρία Μάθησης • Καταγράφηκε στο Πόστερ' : 'Learning Opportunity • Recorded to Poster'}</span>
+              <span>{effectiveLang === 'el' ? 'Ευκαιρία Μάθησης • Καταγράφηκε στο Πόστερ' : 'Learning Opportunity • Recorded to Poster'}</span>
             </span>
             <span className="text-[11px] font-bold text-slate-400">
-              {lang === 'el' ? 'Το λάθος μετατρέπεται σε επιστημονική γνώση' : 'Mistake turned into verified science'}
+              {effectiveLang === 'el' ? 'Το λάθος μετατρέπεται σε επιστημονική γνώση' : 'Mistake turned into verified science'}
             </span>
           </div>
 
           <div className="space-y-2 text-xs sm:text-sm">
             <div className="p-3 rounded-xl bg-slate-950/80 border border-emerald-500/40">
               <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-                {lang === 'el' ? '✓ Ορθή Επιστημονική Απάντηση:' : '✓ Correct Scientific Fact:'}
+                {effectiveLang === 'el' ? '✓ Ορθή Επιστημονική Απάντηση:' : '✓ Correct Scientific Fact:'}
               </span>
               <p className="font-bold text-white mt-0.5 text-sm">
-                {lang === 'el' ? currentFact.correctAnswerText : currentFact.correctAnswerText_en}
+                {effectiveLang === 'el' ? currentFact.correctAnswerText : (currentFact.correctAnswerText_en || currentFact.correctAnswerText)}
               </p>
             </div>
 
             {currentFact.explanation && (
               <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
                 <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
-                  {lang === 'el' ? 'Επιστημονική Τεκμηρίωση:' : 'Scientific Explanation:'}
+                  {effectiveLang === 'el' ? 'Επιστημονική Τεκμηρίωση:' : 'Scientific Explanation:'}
                 </span>
                 <p className="text-slate-300 mt-0.5 leading-relaxed">
-                  {lang === 'el' ? currentFact.explanation : currentFact.explanation_en}
+                  {effectiveLang === 'el' ? currentFact.explanation : (currentFact.explanation_en || currentFact.explanation)}
                 </p>
               </div>
             )}
@@ -1911,8 +2263,8 @@ function InlineQuestCard({
             {currentFact.keyTakeaway && (
               <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-amber-300 text-xs font-semibold">
                 <span>🎯</span>
-                <span>{lang === 'el' ? 'Κύριο Συμπέρασμα: ' : 'Key Takeaway: '}</span>
-                <span className="text-white font-bold">{lang === 'el' ? currentFact.keyTakeaway : currentFact.keyTakeaway_en}</span>
+                <span>{effectiveLang === 'el' ? 'Κύριο Συμπέρασμα: ' : 'Key Takeaway: '}</span>
+                <span className="text-white font-bold">{effectiveLang === 'el' ? currentFact.keyTakeaway : (currentFact.keyTakeaway_en || currentFact.keyTakeaway)}</span>
               </div>
             )}
           </div>
@@ -1924,7 +2276,7 @@ function InlineQuestCard({
         <div className="p-4 rounded-2xl border border-emerald-500/40 bg-emerald-950/20 text-xs text-slate-300 leading-relaxed space-y-1">
           <p className="font-bold text-emerald-300 flex items-center gap-1.5">
             <Info className="w-4 h-4 text-emerald-400" />
-            <span>{lang === 'el' ? 'Επιστημονική Τεκμηρίωση:' : 'Scientific Note:'}</span>
+            <span>{effectiveLang === 'el' ? 'Επιστημονική Τεκμηρίωση:' : 'Scientific Note:'}</span>
           </p>
           <p className="text-slate-300">{explanation}</p>
         </div>
@@ -1938,7 +2290,7 @@ function InlineQuestCard({
             onClick={onNextTask}
             className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 cursor-pointer shadow-md shadow-amber-500/20 transition-all active:scale-95"
           >
-            <span>{lang === 'el' ? 'Συνέχεια στην Επόμενη Αποστολή' : 'Continue to Next Mission'}</span>
+            <span>{effectiveLang === 'el' ? 'Συνέχεια στην Επόμενη Αποστολή' : 'Continue to Next Mission'}</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>

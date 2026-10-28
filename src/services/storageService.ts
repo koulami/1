@@ -5,7 +5,8 @@
  * and automatic synchronization across sessions and refreshes.
  */
 
-import { Submission, TeamSynthesisNote } from '../types/game';
+import { Submission, TeamSynthesisNote, Team, CoreTrackId } from '../types/game';
+import { masterTeamsPool } from '../data/masterTaskPool';
 
 // Storage keys versioned for safety
 export const STORAGE_KEYS = {
@@ -23,7 +24,9 @@ export const STORAGE_KEYS = {
   GROUP_TIMERS: 'boundpad_group_timers_v10',
   TASK_TIMERS: 'boundpad_task_timers_v10',
   TEAM_REFLECTIONS: 'boundpad_team_reflections_v10',
-  TASK_ORDER: 'boundpad_task_order_v10'
+  TASK_ORDER: 'boundpad_task_order_v10',
+  CUSTOM_TEAM_TITLES: 'boundpad_custom_team_titles_v10',
+  CUSTOM_SUBGROUPS: 'boundpad_subgroups_v11'
 } as const;
 
 // In-memory fallback cache in case localStorage is disabled, private, or quota-exceeded
@@ -281,7 +284,8 @@ export const storageService = {
           : {},
         synthesisNotes: this.getSynthesisNotes(),
         language: this.getLanguage(),
-        taskOrder: this.getTaskOrder()
+        taskOrder: this.getTaskOrder(),
+        customTeamTitles: this.getCustomTeamTitles()
       };
       return JSON.stringify(data, null, 2);
     } catch (e) {
@@ -312,6 +316,9 @@ export const storageService = {
       }
       if (Array.isArray(parsed.taskOrder)) {
         this.saveTaskOrder(parsed.taskOrder);
+      }
+      if (parsed.customTeamTitles && typeof parsed.customTeamTitles === 'object') {
+        this.saveCustomTeamTitles(parsed.customTeamTitles);
       }
       return true;
     } catch (e) {
@@ -641,6 +648,167 @@ export const storageService = {
   },
 
   /**
+   * Load custom team/subgroup titles and slogans (both Greek and English)
+   */
+  getCustomTeamTitles(): Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }> {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  },
+
+  /**
+   * Save all custom team titles immediately to localStorage & broadcast event
+   */
+  saveCustomTeamTitles(
+    titles: Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }>
+  ): boolean {
+    try {
+      const success = safeSetItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES, JSON.stringify(titles));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:teamTitles', { detail: { titles } }));
+        window.dispatchEvent(new Event('storage'));
+      }
+      return success;
+    } catch (e) {
+      console.warn('[StorageService] Error saving custom team titles:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Save title overrides for a specific team
+   */
+  saveCustomTeamTitle(
+    teamId: string,
+    titleData: { name?: string; name_en?: string; slogan?: string; slogan_en?: string }
+  ): Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }> {
+    try {
+      const current = this.getCustomTeamTitles();
+      const updated = {
+        ...current,
+        [teamId]: {
+          ...(current[teamId] || {}),
+          ...titleData
+        }
+      };
+      this.saveCustomTeamTitles(updated);
+      return updated;
+    } catch (e) {
+      console.warn('[StorageService] Error saving custom team title:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Reset title overrides for a specific team back to default
+   */
+  resetCustomTeamTitle(
+    teamId: string
+  ): Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }> {
+    try {
+      const current = this.getCustomTeamTitles();
+      delete current[teamId];
+      this.saveCustomTeamTitles(current);
+      return current;
+    } catch (e) {
+      console.warn('[StorageService] Error resetting custom team title:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Reset all custom team titles back to curriculum defaults
+   */
+  resetAllCustomTeamTitles(): void {
+    try {
+      safeRemoveItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:teamTitles', { detail: { titles: {} } }));
+        window.dispatchEvent(new Event('storage'));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error resetting all custom team titles:', e);
+    }
+  },
+
+  /**
+   * Clear all submissions, scores, uploaded photos, reflections, and progress for a single team
+   */
+  clearTeamData(teamId: string): Record<string, Submission> {
+    try {
+      const current = this.getSubmissions();
+      const updated: Record<string, Submission> = {};
+      for (const [key, sub] of Object.entries(current)) {
+        if (key.startsWith(`${teamId}_`) || sub?.teamId === teamId) {
+          continue; // Delete this team's submission
+        }
+        updated[key] = sub;
+      }
+      this.saveAllSubmissions(updated);
+
+      // Clear team reflection quote
+      try {
+        const rawRef = safeGetItem(STORAGE_KEYS.TEAM_REFLECTIONS);
+        if (rawRef) {
+          const refs = JSON.parse(rawRef) || {};
+          if (refs[teamId]) {
+            delete refs[teamId];
+            safeSetItem(STORAGE_KEYS.TEAM_REFLECTIONS, JSON.stringify(refs));
+          }
+        }
+      } catch (err) {
+        console.warn('Error clearing team reflection:', err);
+      }
+
+      // Reset team task index bookmark to 0
+      this.saveTeamTaskIndex(teamId, 0);
+
+      // Dispatch instant UI broadcast
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:submissions', { detail: { submissions: updated, resetTeamId: teamId } }));
+        window.dispatchEvent(new CustomEvent('boundpad:teamReset', { detail: { teamId } }));
+        window.dispatchEvent(new Event('storage'));
+      }
+      return updated;
+    } catch (e) {
+      console.warn('[StorageService] Error clearing team data:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Clear all answers, scores, photos, reflections and progress globally across all teams
+   */
+  clearAllSubmissionsAndProgress(): void {
+    try {
+      safeSetItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify({}));
+      delete memoryCache[STORAGE_KEYS.SUBMISSIONS];
+
+      safeSetItem(STORAGE_KEYS.TEAM_REFLECTIONS, JSON.stringify({}));
+      delete memoryCache[STORAGE_KEYS.TEAM_REFLECTIONS];
+
+      safeSetItem(STORAGE_KEYS.TEAM_TASK_INDEXES, JSON.stringify({}));
+      delete memoryCache[STORAGE_KEYS.TEAM_TASK_INDEXES];
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:submissions', { detail: { submissions: {}, resetAll: true } }));
+        window.dispatchEvent(new CustomEvent('boundpad:globalReset', { detail: {} }));
+        window.dispatchEvent(new Event('storage'));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error clearing all submissions and progress:', e);
+    }
+  },
+
+  /**
    * Clear all stored game data safely
    */
   clearAll(): void {
@@ -651,8 +819,122 @@ export const storageService = {
       safeRemoveItem(STORAGE_KEYS.ACTIVE_TAB);
       safeRemoveItem(STORAGE_KEYS.TASK_ACTIVE_OVERRIDES);
       safeRemoveItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+      safeRemoveItem(STORAGE_KEYS.TEAM_REFLECTIONS);
+      safeRemoveItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES);
+      safeRemoveItem(STORAGE_KEYS.CUSTOM_SUBGROUPS);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:submissions', { detail: { submissions: {}, resetAll: true } }));
+        window.dispatchEvent(new CustomEvent('boundpad:teamTitles', { detail: { titles: {} } }));
+        window.dispatchEvent(new CustomEvent('boundpad:subgroups', { detail: { subgroups: masterTeamsPool } }));
+        window.dispatchEvent(new Event('storage'));
+      }
     } catch (e) {
       console.warn('[StorageService] Error clearing storage:', e);
+    }
+  },
+
+  /**
+   * Load active student subgroups (each mapped to a core thematic track)
+   */
+  getSubgroups(): Team[] {
+    try {
+      const raw = safeGetItem(STORAGE_KEYS.CUSTOM_SUBGROUPS);
+      if (!raw) {
+        return masterTeamsPool;
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed as Team[];
+      }
+      return masterTeamsPool;
+    } catch (e) {
+      console.warn('[StorageService] Error reading subgroups:', e);
+      return masterTeamsPool;
+    }
+  },
+
+  /**
+   * Save active subgroups list and broadcast event
+   */
+  saveSubgroups(subgroups: Team[]): boolean {
+    try {
+      const success = safeSetItem(STORAGE_KEYS.CUSTOM_SUBGROUPS, JSON.stringify(subgroups));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:subgroups', { detail: { subgroups } }));
+        window.dispatchEvent(new Event('storage'));
+      }
+      return success;
+    } catch (e) {
+      console.warn('[StorageService] Error saving subgroups:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Add a new subgroup assigned to a core thematic track
+   */
+  addSubgroup(subgroup: Team): Team[] {
+    try {
+      const current = this.getSubgroups();
+      // Ensure unique ID
+      const exists = current.some((s) => s.id === subgroup.id);
+      const finalId = exists ? `${subgroup.id}-${Date.now().toString().slice(-4)}` : subgroup.id;
+      const updated = [...current, { ...subgroup, id: finalId }];
+      this.saveSubgroups(updated);
+      return updated;
+    } catch (e) {
+      console.warn('[StorageService] Error adding subgroup:', e);
+      return this.getSubgroups();
+    }
+  },
+
+  /**
+   * Update fields of an existing subgroup
+   */
+  updateSubgroup(teamId: string, updates: Partial<Team>): Team[] {
+    try {
+      const current = this.getSubgroups();
+      const updated = current.map((s) => (s.id === teamId ? { ...s, ...updates } : s));
+      this.saveSubgroups(updated);
+      return updated;
+    } catch (e) {
+      console.warn('[StorageService] Error updating subgroup:', e);
+      return this.getSubgroups();
+    }
+  },
+
+  /**
+   * Delete a custom subgroup
+   */
+  deleteSubgroup(teamId: string): Team[] {
+    try {
+      const current = this.getSubgroups();
+      // Prevent deleting if it would leave zero subgroups
+      if (current.length <= 1) return current;
+      const updated = current.filter((s) => s.id !== teamId);
+      this.saveSubgroups(updated);
+      this.clearTeamData(teamId);
+      return updated;
+    } catch (e) {
+      console.warn('[StorageService] Error deleting subgroup:', e);
+      return this.getSubgroups();
+    }
+  },
+
+  /**
+   * Reset subgroups back to curriculum defaults (the 4 base groups)
+   */
+  resetSubgroupsToDefault(): Team[] {
+    try {
+      safeRemoveItem(STORAGE_KEYS.CUSTOM_SUBGROUPS);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:subgroups', { detail: { subgroups: masterTeamsPool } }));
+        window.dispatchEvent(new Event('storage'));
+      }
+      return masterTeamsPool;
+    } catch (e) {
+      console.warn('[StorageService] Error resetting subgroups:', e);
+      return masterTeamsPool;
     }
   }
 };
