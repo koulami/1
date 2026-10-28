@@ -220,13 +220,6 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   };
 
   const handleDeleteSubgroup = (subgroupId: string, name: string) => {
-    const confirm = window.confirm(
-      isEl
-        ? `Είστε βέβαιοι ότι θέλετε να διαγράψετε την υποομάδα "${name}";`
-        : `Are you sure you want to delete subgroup "${name}"?`
-    );
-    if (!confirm) return;
-
     const updated = storageService.deleteSubgroup(subgroupId);
     setSubgroupsList(updated);
     if (onUpdateSubgroups) onUpdateSubgroups(updated);
@@ -240,13 +233,6 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   };
 
   const handleResetSubgroupsToDefault = () => {
-    const confirm = window.confirm(
-      isEl
-        ? 'Επαναφορά όλων των υποομάδων στις 4 αρχικές ομάδες του προγράμματος;'
-        : 'Reset all subgroups back to the original 4 default teams?'
-    );
-    if (!confirm) return;
-
     const updated = storageService.resetSubgroupsToDefault();
     setSubgroupsList(updated);
     if (onUpdateSubgroups) onUpdateSubgroups(updated);
@@ -257,6 +243,40 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
         : 'Subgroups reset to 4 default teams.',
       'info'
     );
+  };
+
+  // Inline reset confirmation states (100% reliable inside iframes, zero window.confirm blocking)
+  const [confirmResetTeamId, setConfirmResetTeamId] = useState<string | null>(null);
+  const [confirmResetAll, setConfirmResetAll] = useState<boolean>(false);
+
+  const handleExecuteResetTeam = (targetTeamId: string, teamLabel?: string) => {
+    try {
+      onResetTeamSubmissions(targetTeamId);
+      setConfirmResetTeamId(null);
+      showNotification(
+        isEl
+          ? `Όλες οι απαντήσεις, τα σκορ και τα τεκμήρια για την ${teamLabel || targetTeamId} μηδενίστηκαν επιτυχώς!`
+          : `All answers, scores and media for ${teamLabel || targetTeamId} have been reset successfully!`,
+        'success'
+      );
+    } catch (err) {
+      console.error('Error executing team reset:', err);
+    }
+  };
+
+  const handleExecuteResetAll = () => {
+    try {
+      onResetAllSubmissions();
+      setConfirmResetAll(false);
+      showNotification(
+        isEl
+          ? 'Όλες οι υποβολές, τα σκορ και τα τεκμήρια όλων των ομάδων μηδενίστηκαν επιτυχώς!'
+          : 'All submissions, scores and media across all teams have been cleared successfully!',
+        'success'
+      );
+    } catch (err) {
+      console.error('Error executing reset all:', err);
+    }
   };
 
   // Draft state for team titles in Admin
@@ -321,12 +341,6 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   };
 
   const handleResetAllTeamTitles = () => {
-    const confirm = window.confirm(
-      isEl
-        ? 'Θέλετε να επαναφέρετε τα ονόματα και τα συνθήματα ΟΛΩΝ των ομάδων στις προεπιλογές του αναλυτικού προγράμματος;'
-        : 'Reset titles and slogans for ALL groups back to default curriculum names?'
-    );
-    if (!confirm) return;
     storageService.resetAllCustomTeamTitles();
     setTeamTitleDrafts({});
     if (onUpdateCustomTeamTitles) {
@@ -904,14 +918,6 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
           showNotification(isEl ? 'Μη έγκυρο αρχείο JSON.' : 'Invalid JSON file.', 'error');
           return;
         }
-
-        const confirmRestore = window.confirm(
-          isEl
-            ? 'Θέλετε να επαναφέρετε τα δεδομένα από αυτό το αρχείο; Οι τρέχουσες απαντήσεις θα αντικατασταθούν.'
-            : 'Restore data from this backup file? Current answers will be replaced.'
-        );
-
-        if (!confirmRestore) return;
 
         if (parsed.taskActiveOverrides && typeof parsed.taskActiveOverrides === 'object') {
           onUpdateTaskOverrides(parsed.taskActiveOverrides);
@@ -1680,29 +1686,36 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                         <CheckCircle2 className="w-4 h-4" />
                         <span>{isEl ? 'Ενεργοποίηση Όλων της Ομάδας' : 'Activate All for Group'}</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const confirm = window.confirm(
-                            isEl
-                              ? `Θέλετε να μηδενίσετε όλες τις απαντήσεις, τα σκορ και τα τεκμήρια για την ${selectedTeamMeta.name};`
-                              : `Reset all answers, scores and photos for ${selectedTeamMeta.name}?`
-                          );
-                          if (confirm) {
-                            onResetTeamSubmissions(selectedGroup);
-                            showNotification(
-                              isEl
-                                ? `Οι απαντήσεις και το σκορ για την ${selectedTeamMeta.name} μηδενίστηκαν επιτυχώς.`
-                                : `Submissions and scores for ${selectedTeamMeta.name} reset successfully.`
-                            );
-                          }
-                        }}
-                        className="px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95"
-                        title={isEl ? `Μηδενισμός απαντήσεων και σκορ ${selectedTeamMeta.name}` : `Reset submissions and scores for ${selectedTeamMeta.name}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                        <span>{isEl ? 'Μηδενισμός Ομάδας' : 'Reset Team'}</span>
-                      </button>
+                      {confirmResetTeamId === selectedGroup ? (
+                        <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
+                          <button
+                            type="button"
+                            onClick={() => handleExecuteResetTeam(selectedGroup, selectedTeamMeta.name)}
+                            className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-md shadow-rose-600/40 active:scale-95 animate-pulse"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>{isEl ? 'Επιβεβαίωση Μηδενισμού;' : 'Confirm Reset?'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmResetTeamId(null)}
+                            className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer transition-colors"
+                            title={isEl ? 'Ακύρωση' : 'Cancel'}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmResetTeamId(selectedGroup)}
+                          className="px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shadow-sm"
+                          title={isEl ? `Μηδενισμός απαντήσεων και σκορ ${selectedTeamMeta.name}` : `Reset submissions and scores for ${selectedTeamMeta.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                          <span>{isEl ? 'Μηδενισμός Ομάδας' : 'Reset Team'}</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setSelectedGroup('all')}
@@ -3705,28 +3718,36 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const confirm = window.confirm(
-                              isEl
-                                ? `Θέλετε να μηδενίσετε όλες τις απαντήσεις, τα σκορ και τις φωτογραφίες για την ${localizedName};`
-                                : `Reset all answers, scores, photos and submissions for ${localizedName}?`
-                            );
-                            if (confirm) {
-                              onResetTeamSubmissions(team.id);
-                              showNotification(
-                                isEl
-                                  ? `Οι απαντήσεις και το σκορ για την ${localizedName} μηδενίστηκαν επιτυχώς.`
-                                  : `All submissions and scores for ${localizedName} have been cleared.`
-                              );
-                            }
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-xs font-bold text-rose-300 hover:text-rose-100 flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                          <span>{isEl ? 'Μηδενισμός Ομάδας' : 'Reset Team'}</span>
-                        </button>
+                        {confirmResetTeamId === team.id ? (
+                          <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
+                            <button
+                              type="button"
+                              onClick={() => handleExecuteResetTeam(team.id, localizedName)}
+                              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-md shadow-rose-600/40 active:scale-95 animate-pulse"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{isEl ? 'Επιβεβαίωση;' : 'Confirm?'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmResetTeamId(null)}
+                              className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer transition-colors"
+                              title={isEl ? 'Ακύρωση' : 'Cancel'}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmResetTeamId(team.id)}
+                            className="px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-xs font-bold text-rose-300 hover:text-rose-100 flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95"
+                            title={isEl ? `Μηδενισμός απαντήσεων και σκορ ${localizedName}` : `Reset submissions and scores for ${localizedName}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                            <span>{isEl ? 'Μηδενισμός Ομάδας' : 'Reset Team'}</span>
+                          </button>
+                        )}
                         <span className="text-[11px] text-slate-500 font-mono">
                           {teamSubs.length} {isEl ? 'υποβολές' : 'submissions'}
                         </span>
@@ -3749,28 +3770,34 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       : 'Clears all student answers, total points, uploaded photos/videos, reflections, and progress across all teams.'}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const confirm = window.confirm(
-                      isEl
-                        ? 'ΠΡΟΣΟΧΗ: Θέλετε να μηδενίσετε ΟΛΕΣ τις απαντήσεις, τα σκορ και τα τεκμήρια ΟΛΩΝ των ομάδων;\n\nΗ ενέργεια αυτή δεν μπορεί να αναιρεθεί.'
-                        : 'WARNING: Clear ALL answers, scores, photos and progress across ALL 4 teams?\n\nThis action cannot be undone.'
-                    );
-                    if (confirm) {
-                      onResetAllSubmissions();
-                      showNotification(
-                        isEl
-                          ? 'Όλες οι υποβολές, τα σκορ και οι φωτογραφίες μηδενίστηκαν επιτυχώς!'
-                          : 'All submissions, scores and media have been reset successfully!'
-                      );
-                    }
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer shadow-lg shadow-rose-600/30 transition-all hover:scale-102 active:scale-95"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>{isEl ? 'Ολικός Μηδενισμός' : 'Full Reset'}</span>
-                </button>
+                {confirmResetAll ? (
+                  <div className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-150">
+                    <button
+                      type="button"
+                      onClick={handleExecuteResetAll}
+                      className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer shadow-xl shadow-rose-600/50 transition-all active:scale-95 ring-2 ring-white/40 animate-pulse"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>{isEl ? 'Οριστικός Μηδενισμός Όλων!' : 'Confirm Full Reset!'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmResetAll(false)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-bold cursor-pointer transition-colors"
+                    >
+                      {isEl ? 'Ακύρωση' : 'Cancel'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmResetAll(true)}
+                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer shadow-lg shadow-rose-600/30 transition-all hover:scale-102 active:scale-95"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>{isEl ? 'Ολικός Μηδενισμός' : 'Full Reset'}</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

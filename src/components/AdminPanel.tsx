@@ -151,14 +151,12 @@ export const AdminPanel: React.FC<Props> = ({
   };
 
   const handleClearAllSnapshots = () => {
-    if (window.confirm(lang === 'el' ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε όλα τα αποθηκευμένα checkpoints;' : 'Are you sure you want to clear all checkpoints?')) {
-      syncService.clearAllSnapshots();
-      setSnapshots([]);
-      setResetNotification(
-        lang === 'el' ? '✓ Όλα τα σημεία επαναφοράς διαγράφηκαν.' : '✓ All checkpoints cleared.'
-      );
-      setTimeout(() => setResetNotification(null), 2500);
-    }
+    syncService.clearAllSnapshots();
+    setSnapshots([]);
+    setResetNotification(
+      lang === 'el' ? '✓ Όλα τα σημεία επαναφοράς διαγράφηκαν.' : '✓ All checkpoints cleared.'
+    );
+    setTimeout(() => setResetNotification(null), 2500);
   };
 
   const handleExecuteResetAll = () => {

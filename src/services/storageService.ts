@@ -745,9 +745,23 @@ export const storageService = {
   clearTeamData(teamId: string): Record<string, Submission> {
     try {
       const current = this.getSubmissions();
+      const subgroups = this.getSubgroups();
+
+      // Identify all related IDs (including any subgroups assigned to this track or the exact team ID)
+      const matchingIds = new Set<string>([teamId]);
+      for (const sub of subgroups) {
+        if (sub.id === teamId || sub.trackId === teamId) {
+          matchingIds.add(sub.id);
+          if (sub.trackId) matchingIds.add(sub.trackId);
+        }
+      }
+
       const updated: Record<string, Submission> = {};
       for (const [key, sub] of Object.entries(current)) {
-        if (key.startsWith(`${teamId}_`) || sub?.teamId === teamId) {
+        const isMatch =
+          matchingIds.has(sub?.teamId) ||
+          Array.from(matchingIds).some((id) => key.startsWith(`${id}_`));
+        if (isMatch) {
           continue; // Delete this team's submission
         }
         updated[key] = sub;
@@ -759,22 +773,20 @@ export const storageService = {
         const rawRef = safeGetItem(STORAGE_KEYS.TEAM_REFLECTIONS);
         if (rawRef) {
           const refs = JSON.parse(rawRef) || {};
-          if (refs[teamId]) {
-            delete refs[teamId];
-            safeSetItem(STORAGE_KEYS.TEAM_REFLECTIONS, JSON.stringify(refs));
-          }
+          matchingIds.forEach((id) => delete refs[id]);
+          safeSetItem(STORAGE_KEYS.TEAM_REFLECTIONS, JSON.stringify(refs));
         }
       } catch (err) {
         console.warn('Error clearing team reflection:', err);
       }
 
       // Reset team task index bookmark to 0
-      this.saveTeamTaskIndex(teamId, 0);
+      matchingIds.forEach((id) => this.saveTeamTaskIndex(id, 0));
 
       // Dispatch instant UI broadcast
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('boundpad:submissions', { detail: { submissions: updated, resetTeamId: teamId } }));
-        window.dispatchEvent(new CustomEvent('boundpad:teamReset', { detail: { teamId } }));
+        window.dispatchEvent(new CustomEvent('boundpad:submissions', { detail: { submissions: updated, resetTeamId: teamId, matchingIds: Array.from(matchingIds) } }));
+        window.dispatchEvent(new CustomEvent('boundpad:teamReset', { detail: { teamId, matchingIds: Array.from(matchingIds) } }));
         window.dispatchEvent(new Event('storage'));
       }
       return updated;
@@ -790,13 +802,31 @@ export const storageService = {
   clearAllSubmissionsAndProgress(): void {
     try {
       safeSetItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify({}));
-      delete memoryCache[STORAGE_KEYS.SUBMISSIONS];
+      memoryCache[STORAGE_KEYS.SUBMISSIONS] = JSON.stringify({});
 
       safeSetItem(STORAGE_KEYS.TEAM_REFLECTIONS, JSON.stringify({}));
-      delete memoryCache[STORAGE_KEYS.TEAM_REFLECTIONS];
+      memoryCache[STORAGE_KEYS.TEAM_REFLECTIONS] = JSON.stringify({});
 
       safeSetItem(STORAGE_KEYS.TEAM_TASK_INDEXES, JSON.stringify({}));
-      delete memoryCache[STORAGE_KEYS.TEAM_TASK_INDEXES];
+      memoryCache[STORAGE_KEYS.TEAM_TASK_INDEXES] = JSON.stringify({});
+
+      // Also clean up any extra legacy keys in localStorage that might hold submissions
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < window.localStorage.length; i++) {
+            const k = window.localStorage.key(i);
+            if (k && (k.includes('submission') || k.includes('reflection') || k.includes('task_index'))) {
+              if (k !== STORAGE_KEYS.SUBMISSIONS && k !== STORAGE_KEYS.TEAM_REFLECTIONS && k !== STORAGE_KEYS.TEAM_TASK_INDEXES) {
+                keysToRemove.push(k);
+              }
+            }
+          }
+          keysToRemove.forEach((k) => window.localStorage.removeItem(k));
+        } catch (e) {
+          console.warn('Error scanning localStorage keys:', e);
+        }
+      }
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('boundpad:submissions', { detail: { submissions: {}, resetAll: true } }));

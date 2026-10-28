@@ -429,13 +429,7 @@ export default function App() {
   };
 
   // Global reset for all submissions, scores, photos and team reflections
-  const resetAllSubmissions = (skipConfirm = true) => {
-    if (!skipConfirm) {
-      const msg = lang === 'el'
-        ? 'Είστε βέβαιοι ότι θέλετε να μηδενίσετε όλες τις απαντήσεις και την πρόοδο;'
-        : 'Are you sure you want to reset all submissions and progress?';
-      if (!window.confirm(msg)) return;
-    }
+  const resetAllSubmissions = (_skipConfirm?: boolean) => {
     try {
       storageService.clearAllSubmissionsAndProgress();
       setSubmissions({});
