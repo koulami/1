@@ -71,6 +71,7 @@ import { AdminConsole } from './components/AdminConsole';
 import { TeamPresentationArena } from './components/TeamPresentationArena';
 import { FieldQrScannerModal } from './components/FieldQrScannerModal';
 import { FieldMediaPlaybackModal } from './components/FieldMediaPlaybackModal';
+import { AppJoinQrModal } from './components/AppJoinQrModal';
 
 const VALID_TABS = ['home', 'group-1', 'group-2', 'group-3', 'group-4', 'arena'] as const;
 type ValidTab = typeof VALID_TABS[number];
@@ -221,6 +222,7 @@ export default function App() {
   // Field Station QR Scanner & Media Playback Modal states
   const [isFieldScannerOpen, setIsFieldScannerOpen] = useState<boolean>(false);
   const [fieldPlaybackModal, setFieldPlaybackModal] = useState<{ question: Question; fieldSpot: FieldSpotInfo } | null>(null);
+  const [isJoinQrOpen, setIsJoinQrOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const handleTaskOrderChange = () => {
@@ -587,6 +589,17 @@ export default function App() {
               <span>{lang === 'el' ? 'QR Πεδίου' : 'Field QR'}</span>
             </button>
 
+            {/* Student Platform Join QR Code Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsJoinQrOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-sky-950/70 hover:bg-sky-900 text-sky-300 hover:text-sky-200 border border-sky-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
+              title={lang === 'el' ? 'QR Code για Άμεση Σύνδεση Μαθητών από Κινητό/Tablet' : 'Live Platform QR Code for Student Tablets/Mobiles'}
+            >
+              <QrCode className="w-3.5 h-3.5 text-sky-400" />
+              <span>{lang === 'el' ? 'QR Σύνδεσης' : 'Join QR'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsAdminOpen(true)}
@@ -727,6 +740,7 @@ export default function App() {
                   safeSetActiveTab(`group-${idx + 1}` as ValidTab);
                 }}
                 onOpenAdmin={() => setIsAdminOpen(true)}
+                onOpenJoinQr={() => setIsJoinQrOpen(true)}
               />
             </SectionErrorBoundary>
           )}
@@ -979,6 +993,16 @@ export default function App() {
         />
       )}
 
+      {/* Student Platform Live Join QR Modal */}
+      {isJoinQrOpen && (
+        <AppJoinQrModal
+          isOpen={isJoinQrOpen}
+          onClose={() => setIsJoinQrOpen(false)}
+          lang={lang}
+          defaultTab={currentTab}
+        />
+      )}
+
       {/* ================= FOOTER ================= */}
       <footer className="border-t border-slate-800/80 bg-slate-900/60 px-4 py-4 text-center text-xs text-slate-500">
         <p>
@@ -1000,6 +1024,7 @@ interface HomeScreenProps {
   subgroupsByTrack?: Record<CoreTrackId, Team[]>;
   onSelectSubgroupForTrack?: (trackId: CoreTrackId, subgroupId: string) => void;
   onOpenAdmin?: () => void;
+  onOpenJoinQr?: () => void;
 }
 
 function HomeScreen({
@@ -1009,7 +1034,8 @@ function HomeScreen({
   teams,
   subgroupsByTrack,
   onSelectSubgroupForTrack,
-  onOpenAdmin
+  onOpenAdmin,
+  onOpenJoinQr
 }: HomeScreenProps) {
   const isEl = lang === 'el';
   const displayTeams = teams && teams.length > 0 ? teams : masterTeamsPool;
@@ -1065,6 +1091,17 @@ function HomeScreen({
             >
               <Trophy className="w-4 h-4" />
               <span>{isEl ? 'Αρένα Παρουσίασης & Infographic Posters' : 'Team Arena & Infographic Posters'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onOpenJoinQr?.();
+              }}
+              className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-sky-600/30 transition-all cursor-pointer hover:scale-102 active:scale-95"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>{isEl ? 'QR Σύνδεσης Μαθητών' : 'Student Join QR'}</span>
             </button>
           </div>
         </div>

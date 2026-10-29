@@ -68,6 +68,7 @@ import { TaskVisualEditForm } from './TaskVisualEditForm';
 import { processLocalFile } from '../utils/fileUploadHelper';
 import { TaskQrCodeModal } from './TaskQrCodeModal';
 import { FieldMediaPlaybackModal } from './FieldMediaPlaybackModal';
+import { AppJoinQrModal } from './AppJoinQrModal';
 import { FieldSpotInfo } from '../types/game';
 
 interface AdminConsoleProps {
@@ -131,6 +132,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   const [selectedType, setSelectedType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [showJoinQrModal, setShowJoinQrModal] = useState<boolean>(false);
 
   // Subgroups list state
   const [subgroupsList, setSubgroupsList] = useState<Team[]>(() => subgroupsProp || storageService.getSubgroups());
@@ -1447,6 +1449,16 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                 ? (isEl ? 'Επαναφορά σε Lobby' : 'Reset to Lobby')
                 : (isEl ? 'Έναρξη για Όλες τις Ομάδες' : 'Start All Teams')}
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowJoinQrModal(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm active:scale-95"
+            title={isEl ? 'QR Code για Άμεση Σύνδεση Μαθητών από Κινητά/Tablets' : 'Platform Join QR Code for Student Tablets/Mobiles'}
+          >
+            <QrCode className="w-3.5 h-3.5 text-sky-400" />
+            <span>{isEl ? 'QR Σύνδεσης' : 'Join QR'}</span>
           </button>
 
           <button
@@ -3161,6 +3173,88 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
               </div>
             </div>
 
+            {/* Classroom Live QR Code Generator & Projection Card */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-sky-500/30 shadow-xl space-y-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white flex items-center gap-2">
+                      <span>{isEl ? 'QR Code Άμεσης Σύνδεσης Μαθητών & Προβολή Τάξης' : 'Student Live Join QR Code & Classroom Projection'}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 text-[10px] font-black uppercase">
+                        AUTO-GENERATED
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {isEl
+                        ? 'Δημιουργείται αυτόματα με βάση το ενεργό live URL της εφαρμογής για άμεση σάρωση από tablet/κινητά.'
+                        : 'Automatically generated from current live app URL for zero-friction tablet/mobile scanning.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowJoinQrModal(true)}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black flex items-center gap-2 shadow-md shadow-sky-600/30 transition-all cursor-pointer hover:scale-102 active:scale-95"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span>{isEl ? 'Προβολή QR σε Πλήρη Οθόνη (Beamer)' : 'Fullscreen Beamer Mode'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-6 pt-2">
+                <div
+                  onClick={() => setShowJoinQrModal(true)}
+                  className="p-3 bg-white rounded-2xl shadow-lg ring-4 ring-sky-500/20 cursor-pointer hover:scale-105 transition-transform shrink-0"
+                  title={isEl ? 'Κάντε κλικ για μεγέθυνση και προβολή' : 'Click to enlarge and project'}
+                >
+                  <div className="w-36 h-36 flex items-center justify-center relative">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                        typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://ais-dev-c76we52w6koqkel3h2r7ji-874757189421.europe-west2.run.app'
+                      )}&margin=1`}
+                      alt="Classroom Join QR Code"
+                      className="w-full h-full object-contain rounded-xl"
+                    />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-slate-900 border border-amber-400 flex items-center justify-center text-xs shadow-md">
+                      🦅
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 flex-1 min-w-0">
+                  <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800">
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      {isEl ? 'Ενεργός Σύνδεσμος Πλατφόρμας (Live URL):' : 'Active Platform URL:'}
+                    </div>
+                    <div className="font-mono text-xs text-sky-300 break-all select-all">
+                      {typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://ais-dev-c76we52w6koqkel3h2r7ji-874757189421.europe-west2.run.app'}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setShowJoinQrModal(true)}
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <span>{isEl ? '🔍 Προσαρμογή & Εκτύπωση Κάρτας' : '🔍 Customize & Print Card'}</span>
+                    </button>
+                    <span className="text-xs text-slate-400">
+                      {isEl
+                        ? '💡 Συμβουλή: Πατήστε «Προβολή QR σε Πλήρη Οθόνη» για προβολή στον διαδραστικό πίνακα της τάξης.'
+                        : '💡 Tip: Click Fullscreen to project onto classroom smartboard/beamer.'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Group Timers & Deadlines Configuration */}
             <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 flex-wrap gap-2">
@@ -4143,6 +4237,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Platform Join QR Code Modal */}
+      {showJoinQrModal && (
+        <AppJoinQrModal
+          isOpen={showJoinQrModal}
+          onClose={() => setShowJoinQrModal(false)}
+          lang={lang}
+        />
       )}
     </div>
   );
