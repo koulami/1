@@ -74,11 +74,12 @@ export const CORE_THEMATIC_TRACKS: ThematicTrackInfo[] = [
 ];
 
 export const masterTeamsPool: Team[] = [
+  // Thematic Track 1: Identity & Basics (2 Subgroups)
   {
     id: "team-alpha",
     trackId: "team-alpha",
-    name: "Ομάδα 1: Ταυτότητα & Γενικά Χαρακτηριστικά",
-    name_en: "Group 1: Identity & Basics",
+    name: "Ομάδα 1.1: Ταυτότητα & Μορφολογία",
+    name_en: "Team 1.1: Identity & Morphology",
     color: "#10b981",
     avatar: "🧭",
     slogan: "Ανακαλύπτουμε τα πάντα για το Όρνιο!",
@@ -86,10 +87,23 @@ export const masterTeamsPool: Team[] = [
     language: "el"
   },
   {
+    id: "team-alpha-2",
+    trackId: "team-alpha",
+    name: "Ομάδα 1.2: Βιομετρία & Αναγνώριση",
+    name_en: "Team 1.2: Biometrics & Field Identification",
+    color: "#10b981",
+    avatar: "🦅",
+    slogan: "Εξερευνητές των Κυπριακών Ουρανών!",
+    slogan_en: "Explorers of the Cyprus Skies!",
+    language: "en"
+  },
+
+  // Thematic Track 2: Habitat, Nesting & Flight (2 Subgroups)
+  {
     id: "team-beta",
     trackId: "team-beta",
-    name: "Ομάδα 2: Περιβάλλον, Φωλεοποίηση & Πτήση",
-    name_en: "Group 2: Habitat, Nesting & Flight",
+    name: "Ομάδα 2.1: Περιβάλλον & Φωλεοποίηση",
+    name_en: "Team 2.1: Habitat & Nesting",
     color: "#06b6d4",
     avatar: "⚡",
     slogan: "Κυρίαρχοι των γκρεμών και των αιθέρων!",
@@ -97,10 +111,23 @@ export const masterTeamsPool: Team[] = [
     language: "el"
   },
   {
+    id: "team-beta-2",
+    trackId: "team-beta",
+    name: "Ομάδα 2.2: Θερμικά Ρεύματα & Πτήση",
+    name_en: "Team 2.2: Thermal Soaring & Flight",
+    color: "#06b6d4",
+    avatar: "⛰️",
+    slogan: "Καταγράφουμε τους γκρεμούς της Επισκοπής!",
+    slogan_en: "Charting the Episkopi sea cliffs!",
+    language: "en"
+  },
+
+  // Thematic Track 3: Diet & Biology (2 Subgroups)
+  {
     id: "team-gamma",
     trackId: "team-gamma",
-    name: "Ομάδα 3: Διατροφή & Βιολογία",
-    name_en: "Group 3: Diet & Biology",
+    name: "Ομάδα 3.1: Διατροφή & Βιολογία",
+    name_en: "Team 3.1: Diet & Biology",
     color: "#f59e0b",
     avatar: "🚀",
     slogan: "Οι καθαριστές της κυπριακής φύσης!",
@@ -108,15 +135,39 @@ export const masterTeamsPool: Team[] = [
     language: "el"
   },
   {
+    id: "team-gamma-2",
+    trackId: "team-gamma",
+    name: "Ομάδα 3.2: Οικολογικός Ρόλος & Πεπτικό",
+    name_en: "Team 3.2: Ecological Sanitation & Digestion",
+    color: "#f59e0b",
+    avatar: "🥩",
+    slogan: "Υπερασπιστές της οικολογικής ισορροπίας!",
+    slogan_en: "Defenders of ecological balance!",
+    language: "en"
+  },
+
+  // Thematic Track 4: Threats & Conservation (2 Subgroups)
+  {
     id: "team-delta",
     trackId: "team-delta",
-    name: "Ομάδα 4: Απειλές & Προστασία",
-    name_en: "Group 4: Threats & Conservation",
+    name: "Ομάδα 4.1: Απειλές & Δηλητήρια",
+    name_en: "Team 4.1: Threats & Poisoning",
     color: "#8b5cf6",
     avatar: "🔬",
     slogan: "Δράση και λύσεις για το μέλλον!",
     slogan_en: "Action and solutions for the future!",
     language: "el"
+  },
+  {
+    id: "team-delta-2",
+    trackId: "team-delta",
+    name: "Ομάδα 4.2: Μέτρα Προστασίας & Μονάδα K9",
+    name_en: "Team 4.2: Conservation & K9 Unit",
+    color: "#8b5cf6",
+    avatar: "🐕",
+    slogan: "Μηδενική ανοχή στα δηλητήρια και τις φόλες!",
+    slogan_en: "Zero tolerance for poison baits in nature!",
+    language: "en"
   }
 ];
 

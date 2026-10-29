@@ -2,8 +2,8 @@ import { Language } from '../types/game';
 
 export const translations = {
   el: {
-    appTitle: 'BoundPad Arena',
-    appSubtitle: 'Διαδραστικές Αποστολές & Ζωντανός Πίνακας Ομάδων',
+    appTitle: 'Στο χείλος της εξαφάνισης - Οι γύπες στην Κύπρο',
+    appSubtitle: 'Εκπαιδευτικό Πρόγραμμα Περιβαλλοντικής Έρευνας & Δράσης',
     navBoard: 'Πίνακας Padlet',
     navTeamPlay: 'Παιχνίδι Ομάδας',
     navProjector: 'Κοινόχρηστη Οθόνη',
@@ -291,8 +291,8 @@ export const translations = {
     reflectionSavedToast: 'Ο αναστοχασμός αποθηκεύτηκε στο πόστερ της ομάδας!',
   },
   en: {
-    appTitle: 'BoundPad Arena',
-    appSubtitle: 'Interactive Quests & Live Collaborative Team Boards',
+    appTitle: 'On the verge of extinction - Vultures in Cyprus',
+    appSubtitle: 'Environmental Research & Inquiry Action Program',
     navBoard: 'Padlet Board',
     navTeamPlay: 'Team Play',
     navProjector: 'Shared Screen',

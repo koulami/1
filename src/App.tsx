@@ -361,6 +361,13 @@ export default function App() {
     }
   };
 
+  // Dynamic document title synchronization
+  useEffect(() => {
+    document.title = lang === 'el'
+      ? 'Στο χείλος της εξαφάνισης - Οι γύπες στην Κύπρο'
+      : 'On the verge of extinction - Vultures in Cyprus';
+  }, [lang]);
+
   // Real-time synchronization of submissions across tabs/components
   useEffect(() => {
     const handleSubmissionsSync = () => {
@@ -519,13 +526,13 @@ export default function App() {
               🦅
             </div>
             <div>
-              <h1 className="font-extrabold text-lg sm:text-xl tracking-tight text-white flex items-center gap-2">
-                BoundPad <span className="text-amber-400 font-semibold text-sm sm:text-base">• {lang === 'el' ? 'Αρένα Γυπών' : 'Vulture Arena'}</span>
+              <h1 className="font-extrabold text-base sm:text-lg md:text-xl tracking-tight text-white flex items-center gap-2">
+                {lang === 'el' ? 'Στο χείλος της εξαφάνισης - Οι γύπες στην Κύπρο' : 'On the verge of extinction - Vultures in Cyprus'}
               </h1>
               <p className="text-xs text-slate-400">
                 {lang === 'el'
-                  ? 'Master Task Pool • 100% Σταθερότητα & Απομονωμένα Τμήματα'
-                  : 'Master Task Pool • 100% Stability & Isolated Boundaries'}
+                  ? 'Εκπαιδευτικό Πρόγραμμα Περιβαλλοντικής Έρευνας & Δράσης'
+                  : 'Environmental Research & Inquiry Action Program'}
               </p>
             </div>
           </div>
@@ -975,7 +982,7 @@ export default function App() {
       {/* ================= FOOTER ================= */}
       <footer className="border-t border-slate-800/80 bg-slate-900/60 px-4 py-4 text-center text-xs text-slate-500">
         <p>
-          BoundPad • Αρένα των 4 Γυπών (Master Task Pool Architecture • 100% Stability & Isolated Boundaries)
+          {lang === 'el' ? 'Στο χείλος της εξαφάνισης - Οι γύπες στην Κύπρο' : 'On the verge of extinction - Vultures in Cyprus'} • Master Task Pool (61 Missions)
         </p>
       </footer>
     </div>
@@ -1028,8 +1035,8 @@ function HomeScreen({
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
             {isEl
-              ? 'Το Όρνιο στην Κύπρο (Gyps fulvus) • LIFE with Vultures'
-              : 'The Cyprus Griffon Vulture (Gyps fulvus) • LIFE with Vultures'}
+              ? 'Στο χείλος της εξαφάνισης - Οι γύπες στην Κύπρο'
+              : 'On the verge of extinction - Vultures in Cyprus'}
           </h2>
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
             {isEl

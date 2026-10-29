@@ -418,12 +418,13 @@ export const TeamPresentationArena: React.FC<Props> = ({
   const [selectedInspectTask, setSelectedInspectTask] = useState<Question | null>(null);
   const [lightboxMedia, setLightboxMedia] = useState<{ url: string; title: string; caption?: string } | null>(null);
   const [reflectionsVersion, setReflectionsVersion] = useState<number>(0);
-  const [editingReflectionTeam, setEditingReflectionTeam] = useState<{ id: string; name: string; avatar: string; color: string; currentText: string } | null>(null);
+  const [editingReflectionTeam, setEditingReflectionTeam] = useState<{ id: string; name: string; avatar: string; color: string; currentText: string; trackId?: string } | null>(null);
   const [reflectionDraftText, setReflectionDraftText] = useState<string>('');
 
   const handleOpenEditReflection = (team: Team, currentText: string) => {
     setEditingReflectionTeam({
       id: team.id,
+      trackId: team.trackId || team.id,
       name: isEl ? team.name : team.name_en || team.name,
       avatar: team.avatar,
       color: team.color,
@@ -774,14 +775,6 @@ export const TeamPresentationArena: React.FC<Props> = ({
     });
   }, [teamPosters, allPoolTasks, taskOverrides, lang]);
 
-  // Real-time Leaderboard Rankings (Sorted by Total Score descending, then Solved Quests count)
-  const rankedTeams = useMemo(() => {
-    return [...teamPosters].sort((a, b) => {
-      if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-      if (b.solvedTasks.length !== a.solvedTasks.length) return b.solvedTasks.length - a.solvedTasks.length;
-      return a.index - b.index;
-    });
-  }, [teamPosters]);
 
   // Overall Classroom Metrics
   const totalClassroomScore = useMemo(() => teamPosters.reduce((acc, p) => acc + p.totalScore, 0), [teamPosters]);
@@ -1636,7 +1629,8 @@ export const TeamPresentationArena: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => {
-                  const defaultSuggestion = DEFAULT_TEAM_REFLECTIONS[editingReflectionTeam.id]?.[lang] || DEFAULT_TEAM_REFLECTIONS['team-alpha'][lang];
+                  const lookupKey = editingReflectionTeam.trackId || editingReflectionTeam.id;
+                  const defaultSuggestion = DEFAULT_TEAM_REFLECTIONS[lookupKey]?.[lang] || DEFAULT_TEAM_REFLECTIONS[editingReflectionTeam.id]?.[lang] || DEFAULT_TEAM_REFLECTIONS['team-alpha'][lang];
                   setReflectionDraftText(defaultSuggestion);
                 }}
                 className="text-slate-400 hover:text-amber-300 underline font-medium cursor-pointer"

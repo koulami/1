@@ -26,7 +26,7 @@ export const STORAGE_KEYS = {
   TEAM_REFLECTIONS: 'boundpad_team_reflections_v10',
   TASK_ORDER: 'boundpad_task_order_v10',
   CUSTOM_TEAM_TITLES: 'boundpad_custom_team_titles_v10',
-  CUSTOM_SUBGROUPS: 'boundpad_subgroups_v11'
+  CUSTOM_SUBGROUPS: 'boundpad_subgroups_v12'
 } as const;
 
 // In-memory fallback cache in case localStorage is disabled, private, or quota-exceeded
