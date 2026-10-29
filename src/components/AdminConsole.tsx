@@ -942,32 +942,32 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     reader.readAsText(file);
   };
 
-  // Export handlers
+  // Export filter: all tasks or only submitted tasks
+  const [exportOnlySubmitted, setExportOnlySubmitted] = useState<boolean>(false);
+
+  // Export handlers (Strictly 5 core educational fields: Ομάδα, Ερώτηση, Επιλογές, Απάντηση Μαθητών, Επιστημονική Εξήγηση)
   const handleExportCsv = () => {
     exportService.exportDetailedSubmissionsCsv({
       tasks: allTasks,
-      teams: masterTeamsPool,
+      teams: activeTeams,
       submissions,
       taskOverrides,
-      lang
+      lang,
+      onlySubmitted: exportOnlySubmitted
     });
-    showNotification(isEl ? 'Εξαγωγή αναφοράς CSV σε εξέλιξη...' : 'Exporting CSV file...');
+    showNotification(isEl ? 'Εξαγωγή εκπαιδευτικής αναφοράς CSV (5 πεδία) σε εξέλιξη...' : 'Exporting clean CSV report (5 core fields)...');
   };
 
   const handleExportJson = () => {
-    const stats = masterTeamsPool.map((t) =>
-      computeTeamTaskStats(t, submissions, taskOverrides, customQuestions)
-    );
-    exportService.exportFullJsonBackup({
+    exportService.exportCleanJsonReport({
       tasks: allTasks,
-      teams: masterTeamsPool,
-      teamStats: stats,
+      teams: activeTeams,
       submissions,
-      synthesisNotes,
       taskOverrides,
-      lang
+      lang,
+      onlySubmitted: exportOnlySubmitted
     });
-    showNotification(isEl ? 'Εξαγωγή αντιγράφου JSON σε εξέλιξη...' : 'Exporting JSON backup...');
+    showNotification(isEl ? 'Εξαγωγή εκπαιδευτικής αναφοράς JSON (5 πεδία) σε εξέλιξη...' : 'Exporting clean JSON report (5 core fields)...');
   };
 
   // =========================================================================
@@ -3364,57 +3364,161 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
         {/* ================================================================= */}
         {/* TAB 4: EXPORT DATA (JSON / CSV)                                   */}
         {/* ================================================================= */}
+        {/* ================================================================= */}
+        {/* TAB 4: EXPORT DATA (CSV / JSON EDUCATIONAL REPORT)                 */}
+        {/* ================================================================= */}
         {activeTab === 'export' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* CSV Export Card */}
-              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center text-2xl font-bold">
-                  📊
+            {/* Header Card Explaining the 5 Core Fields */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center text-2xl font-bold shrink-0">
+                    📋
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white flex items-center gap-2">
+                      <span>{isEl ? 'Εξαγωγή Εκπαιδευτικής Αναφοράς (CSV / JSON)' : 'Educational Report Export (CSV / JSON)'}</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black uppercase">
+                        5 CORE FIELDS
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                      {isEl
+                        ? 'Καθαρή εξαγωγή εστιασμένη αποκλειστικά στα 5 ζητούμενα παιδαγωγικά πεδία, απαλλαγμένη από τεχνικά αναγνωριστικά και περιττές πληροφορίες.'
+                        : 'Clean export strictly focused on the 5 essential pedagogical fields, eliminating clutter and technical IDs.'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-black text-white">
-                    {isEl ? 'Εξαγωγή σε Excel / CSV' : 'Export to Excel / CSV'}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    {isEl
-                      ? 'Κατεβάστε αναλυτικό αρχείο με όλες τις υποβολές, βαθμολογίες, ημερομηνίες και απαντήσεις των 4 ομάδων.'
-                      : 'Download a spreadsheet containing all submissions, scores, timestamps and team answers.'}
-                  </p>
+
+                {/* Scope Filter Toggle */}
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setExportOnlySubmitted(false)}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      !exportOnlySubmitted
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {isEl ? 'Όλες οι Αποστολές' : 'All Tasks'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExportOnlySubmitted(true)}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      exportOnlySubmitted
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {isEl ? 'Μόνο Υποβληθείσες Απαντήσεις' : 'Submitted Only'}
+                  </button>
                 </div>
+              </div>
+
+              {/* Badges of the 5 exact fields */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {isEl ? 'Στήλες Εξαγωγής (Export Schema):' : 'Export Columns Schema:'}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'team', label: isEl ? '1. Ομάδα' : '1. Team Name', sub: isEl ? 'Όνομα Ομάδας / Υποομάδας' : 'Team / Subgroup Name' },
+                    { id: 'question', label: isEl ? '2. Ερώτηση' : '2. Question', sub: isEl ? 'Κείμενο Ερώτησης' : 'Question Prompt Text' },
+                    { id: 'options', label: isEl ? '3. Επιλογές' : '3. Options', sub: isEl ? 'Διαθέσιμες Επιλογές (αν υπάρχουν)' : 'Available choices/options' },
+                    { id: 'answer', label: isEl ? '4. Απάντηση Μαθητών' : '4. Student Answer', sub: isEl ? 'Υποβληθείσα απάντηση' : 'Submitted student answer' },
+                    { id: 'explanation', label: isEl ? '5. Επιστημονική Εξήγηση' : '5. Scientific Explanation', sub: isEl ? 'Ανατροφοδότηση / Fact' : 'Scientific feedback' }
+                  ].map((col) => (
+                    <div
+                      key={col.id}
+                      className="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-200 flex items-center gap-2"
+                    >
+                      <span className="font-extrabold text-amber-400">{col.label}</span>
+                      <span className="text-[11px] text-slate-500">({col.sub})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons: CSV & JSON */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <button
                   type="button"
                   onClick={handleExportCsv}
-                  className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+                  className="py-3.5 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-98"
                 >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  <span>{isEl ? 'Λήψη Υπολογιστικού Φύλλου CSV' : 'Download CSV Spreadsheet'}</span>
+                  <FileSpreadsheet className="w-5 h-5 stroke-[2.5]" />
+                  <span>{isEl ? 'Λήψη Αναφοράς CSV (Excel / Google Sheets)' : 'Download Clean CSV Report (Excel)'}</span>
                 </button>
-              </div>
 
-              {/* JSON Backup Card */}
-              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-2xl font-bold">
-                  💾
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-white">
-                    {isEl ? 'Πλήρες Αντίγραφο Ασφαλείας (JSON)' : 'Complete State Backup (JSON)'}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    {isEl
-                      ? 'Αποθηκεύστε όλα τα δεδομένα (απαντήσεις, τροποποιημένες αποστολές, ρυθμίσεις) για μεταφορά σε άλλη συσκευή.'
-                      : 'Backup all state (answers, custom questions, settings) for easy restoration on other devices.'}
-                  </p>
-                </div>
                 <button
                   type="button"
                   onClick={handleExportJson}
-                  className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-amber-500/20"
+                  className="py-3.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-lg shadow-amber-500/20 active:scale-98"
                 >
-                  <FileJson className="w-4 h-4" />
-                  <span>{isEl ? 'Λήψη Αντιγράφου JSON' : 'Download JSON Backup'}</span>
+                  <FileJson className="w-5 h-5 stroke-[2.5]" />
+                  <span>{isEl ? 'Λήψη Αναφοράς JSON (5 Πεδία ανά Εγγραφή)' : 'Download Clean JSON Report (5 Fields)'}</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Live Table Preview of the Export Data */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between gap-4 flex-wrap pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <h4 className="text-sm font-black text-white">
+                    {isEl ? 'Προεπισκόπηση Δεδομένων Εξαγωγής' : 'Export Data Live Preview'}
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[11px] font-mono">
+                    {exportService.generateCleanReportRecords({
+                      tasks: allTasks,
+                      teams: activeTeams,
+                      submissions,
+                      taskOverrides,
+                      lang,
+                      onlySubmitted: exportOnlySubmitted
+                    }).length}{' '}
+                    {isEl ? 'γραμμές' : 'rows'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-400">
+                  {isEl ? 'Ακριβώς οι 5 στήλες που θα περιλαμβάνονται στο αρχείο' : 'Exact 5 columns that will be in the file'}
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto rounded-2xl border border-slate-800 max-h-[420px] overflow-y-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
+                    <tr>
+                      <th className="p-3 font-black text-amber-400 whitespace-nowrap">{isEl ? 'Ομάδα' : 'Team Name'}</th>
+                      <th className="p-3 font-black text-white min-w-[220px]">{isEl ? 'Ερώτηση' : 'Question'}</th>
+                      <th className="p-3 font-black text-slate-300 min-w-[200px]">{isEl ? 'Επιλογές' : 'Options'}</th>
+                      <th className="p-3 font-black text-emerald-400 min-w-[180px]">{isEl ? 'Απάντηση Μαθητών' : 'Student Answer'}</th>
+                      <th className="p-3 font-black text-sky-400 min-w-[240px]">{isEl ? 'Επιστημονική Εξήγηση' : 'Scientific Explanation'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 bg-slate-900/60 font-medium">
+                    {exportService.generateCleanReportRecords({
+                      tasks: allTasks,
+                      teams: activeTeams,
+                      submissions,
+                      taskOverrides,
+                      lang,
+                      onlySubmitted: exportOnlySubmitted
+                    }).slice(0, 15).map((row, rIdx) => (
+                      <tr key={rIdx} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="p-3 font-bold text-amber-300 whitespace-nowrap align-top">{row.teamName}</td>
+                        <td className="p-3 text-slate-200 leading-relaxed align-top">{row.question}</td>
+                        <td className="p-3 text-slate-400 font-mono text-[11px] leading-relaxed align-top">{row.options}</td>
+                        <td className="p-3 font-bold text-emerald-300 leading-relaxed align-top">{row.studentAnswer}</td>
+                        <td className="p-3 text-slate-300 text-[11px] leading-relaxed align-top italic">{row.explanation}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
