@@ -7,6 +7,7 @@ import fs from 'fs';
 import { generateVultureQuestsPdf } from './server/pdfService.ts';
 import { generatePrintableQuestsHtml } from './server/printHtmlService.ts';
 import { INITIAL_GAME_STATE } from './src/data/defaultGame.ts';
+import { serverSyncStore } from './server/syncStore.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +24,96 @@ async function startServer() {
   }
 
   app.use(express.json({ limit: '10mb' }));
+
+  // ============================================================================
+  // REAL-TIME MULTI-DEVICE SUBGROUPS & ADMIN-STUDENT SYNCHRONIZATION API
+  // ============================================================================
+
+  // Get current authoritative active subgroups and deleted list
+  app.get('/api/sync/subgroups', (_req, res) => {
+    try {
+      const state = serverSyncStore.getState();
+      return res.json({ success: true, ...state });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to fetch subgroups' });
+    }
+  });
+
+  // Update active subgroups (add, edit, or batch update)
+  app.post('/api/sync/subgroups', (req, res) => {
+    try {
+      const { subgroups, customTeamTitles, deletedSubgroupId } = req.body || {};
+      if (!Array.isArray(subgroups)) {
+        return res.status(400).json({ error: 'subgroups array required' });
+      }
+      const updated = serverSyncStore.updateSubgroups(subgroups, {
+        deletedSubgroupId,
+        customTeamTitles
+      });
+      return res.json({ success: true, ...updated });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to save subgroups' });
+    }
+  });
+
+  // Delete a specific subgroup and record it in the deleted tombstones list
+  app.post('/api/sync/delete-subgroup', (req, res) => {
+    try {
+      const { subgroupId } = req.body || {};
+      if (!subgroupId || typeof subgroupId !== 'string') {
+        return res.status(400).json({ error: 'subgroupId string required' });
+      }
+      const updated = serverSyncStore.deleteSubgroup(subgroupId);
+      return res.json({ success: true, ...updated });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to delete subgroup' });
+    }
+  });
+
+  // Reset active subgroups back to default 4 base groups
+  app.post('/api/sync/reset-subgroups', (_req, res) => {
+    try {
+      const updated = serverSyncStore.resetToDefault();
+      return res.json({ success: true, ...updated });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to reset subgroups' });
+    }
+  });
+
+  // Server-Sent Events (SSE) stream for instant real-time sync across all connected student devices
+  app.get('/api/sync/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    // Send initial state upon connection
+    const initialState = serverSyncStore.getState();
+    res.write(`data: ${JSON.stringify({ type: 'init', state: initialState })}\n\n`);
+
+    const unsubscribe = serverSyncStore.subscribe((state) => {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'subgroups_updated', state })}\n\n`);
+      } catch (err) {
+        console.warn('[SSE] Error sending update to client:', err);
+      }
+    });
+
+    // Heartbeat keep-alive every 20 seconds
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(': heartbeat\n\n');
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 20000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
+  });
 
   const ai = new GoogleGenAI();
 

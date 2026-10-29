@@ -34,7 +34,8 @@ import {
   Lock,
   Hourglass,
   AlertTriangle,
-  Users
+  Users,
+  Settings
 } from 'lucide-react';
 import {
   masterTeamsPool,
@@ -224,6 +225,29 @@ export default function App() {
   const [fieldPlaybackModal, setFieldPlaybackModal] = useState<{ question: Question; fieldSpot: FieldSpotInfo } | null>(null);
   const [isJoinQrOpen, setIsJoinQrOpen] = useState<boolean>(false);
 
+  // Teacher Mode vs Student Participant View
+  const [isTeacherMode, setIsTeacherMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mode') === 'teacher' || params.get('admin') === 'true' || params.get('admin') === '1') {
+        return true;
+      }
+    }
+    return storageService.isAdminAuthenticated();
+  });
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setIsTeacherMode(storageService.isAdminAuthenticated());
+    };
+    window.addEventListener('boundpad:adminAuth', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+    return () => {
+      window.removeEventListener('boundpad:adminAuth', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
+  }, []);
+
   useEffect(() => {
     const handleTaskOrderChange = () => {
       setTaskOrder(storageService.getTaskOrder());
@@ -271,12 +295,60 @@ export default function App() {
   });
 
   useEffect(() => {
+    // 1. Initial fetch from server to get authoritative state immediately
+    storageService.fetchServerSubgroups().then((fetched) => {
+      if (fetched && fetched.length > 0) {
+        setSubgroups(fetched);
+      }
+    });
+
+    // 2. Connect to real-time SSE stream for instant 0ms cross-device synchronization
+    let eventSource: EventSource | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'EventSource' in window) {
+        eventSource = new EventSource('/api/sync/stream');
+        eventSource.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload && payload.state && Array.isArray(payload.state.subgroups)) {
+              storageService.applyAuthoritativeSubgroups(
+                payload.state.subgroups,
+                payload.state.deletedSubgroupIds || [],
+                payload.state.version
+              );
+              setSubgroups(payload.state.subgroups);
+              if (payload.state.customTeamTitles) {
+                setCustomTeamTitles(payload.state.customTeamTitles);
+              }
+            }
+          } catch (err) {
+            console.warn('Error parsing SSE sync message:', err);
+          }
+        };
+      }
+    } catch (err) {
+      console.warn('SSE connection failed, falling back to polling:', err);
+    }
+
+    // 3. Fallback polling every 2.5 seconds (resilient to mobile sleep/wake cycles)
+    const pollTimer = setInterval(() => {
+      storageService.fetchServerSubgroups().then((fetched) => {
+        if (fetched && fetched.length > 0) {
+          setSubgroups(fetched);
+        }
+      });
+    }, 2500);
+
+    // 4. Local storage and cross-window events
     const syncSubgroups = () => {
       setSubgroups(storageService.getSubgroups());
     };
     window.addEventListener('boundpad:subgroups', syncSubgroups);
     window.addEventListener('storage', syncSubgroups);
+
     return () => {
+      if (eventSource) eventSource.close();
+      clearInterval(pollTimer);
       window.removeEventListener('boundpad:subgroups', syncSubgroups);
       window.removeEventListener('storage', syncSubgroups);
     };
@@ -289,6 +361,23 @@ export default function App() {
     'team-gamma': 'team-gamma',
     'team-delta': 'team-delta'
   });
+
+  // Whenever subgroups change (e.g. deletion from admin), purge deleted IDs from selectedSubgroupIds
+  useEffect(() => {
+    const validIds = new Set(subgroups.map((s) => s.id));
+    setSelectedSubgroupIds((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [trackId, subId] of Object.entries(next)) {
+        if (!validIds.has(subId)) {
+          const trackSubs = subgroups.filter((s) => (s.trackId || s.id) === trackId);
+          next[trackId] = trackSubs[0]?.id || trackId;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [subgroups]);
 
   const handleSelectSubgroupForTrack = (trackId: string, subgroupId: string) => {
     setSelectedSubgroupIds((prev) => ({
@@ -513,8 +602,70 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      {/* ===================== TEACHER MODE TOP BANNER ===================== */}
+      {isTeacherMode && (
+        <div className="bg-amber-500/20 border-b border-amber-500/40 px-4 py-2 text-xs flex items-center justify-between gap-3 flex-wrap sticky top-0 z-50 backdrop-blur-md">
+          <div className="flex items-center gap-2 text-amber-300 font-bold">
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>{lang === 'el' ? '🎓 Λειτουργία Εκπαιδευτικού (Admin Mode)' : '🎓 Teacher Management Mode'}</span>
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-200 border border-amber-500/50 text-[10px] font-black uppercase">
+              ACTIVE
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsAdminOpen(true)}
+              className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{lang === 'el' ? 'Κονσόλα Admin & Εξαγωγές' : 'Admin Console'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsJoinQrOpen(true)}
+              className="px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>{lang === 'el' ? 'QR Σύνδεσης' : 'Join QR'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleGameStarted}
+              className={`px-3 py-1 rounded-lg font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs ${
+                gameStarted ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+              }`}
+            >
+              {gameStarted ? <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" /> : <Play className="w-3 h-3" />}
+              <span>{gameStarted ? (lang === 'el' ? 'Lobby: Ενεργό' : 'Lobby: Active') : (lang === 'el' ? 'Έναρξη Δράσης' : 'Start Session')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => resetAllSubmissions(false)}
+              className="px-3 py-1 rounded-lg bg-rose-600/80 hover:bg-rose-500 text-white font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              title={lang === 'el' ? 'Ολικός Μηδενισμός Υποβολών' : 'Reset All Submissions'}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>{lang === 'el' ? 'Μηδενισμός' : 'Reset'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                storageService.setAdminAuthenticated(false);
+                setIsTeacherMode(false);
+              }}
+              className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title={lang === 'el' ? 'Επιστροφή σε καθαρή προβολή μαθητή' : 'Switch to clean student view'}
+            >
+              <span>{lang === 'el' ? '👁️ Προβολή Μαθητή' : '👁️ Student View'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ===================== TOP HEADER ===================== */}
-      <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-lg px-4 py-3">
+      <header className={`sticky ${isTeacherMode ? 'top-10' : 'top-0'} z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-lg px-4 py-3 transition-all`}>
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           {/* Logo */}
           <div
@@ -551,74 +702,47 @@ export default function App() {
               <span>{lang === 'el' ? 'English' : 'Ελληνικά'}</span>
             </button>
 
-            {/* Master Start / Lobby Button for Teachers */}
-            <button
-              type="button"
-              onClick={toggleGameStarted}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
-                gameStarted
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                  : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-400/40'
-              }`}
-              title={
-                gameStarted
-                  ? (lang === 'el' ? 'Η δράση είναι ενεργή για όλες τις ομάδες. Κάντε κλικ για επαναφορά σε Lobby.' : 'Session is active. Click to reset to Lobby.')
-                  : (lang === 'el' ? 'Κάντε κλικ για ταυτόχρονη έναρξη της δράσης για όλες τις ομάδες.' : 'Click to start session for all teams simultaneously.')
-              }
-            >
-              {gameStarted ? (
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              ) : (
-                <Play className="w-3.5 h-3.5 fill-slate-950" />
-              )}
-              <span>
-                {gameStarted
-                  ? (lang === 'el' ? 'Ενεργή' : 'Active')
-                  : (lang === 'el' ? 'Έναρξη Δράσης' : 'Start Session')}
-              </span>
-            </button>
+            {/* In Student View: If inside a team, show simple "Select Team" button */}
+            {!isTeacherMode && currentTab !== 'home' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  safeSetActiveTab('home');
+                }}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{lang === 'el' ? 'Επιλογή Ομάδας' : 'Change Team'}</span>
+              </button>
+            )}
 
-            {/* Field Station QR Scanner Trigger */}
-            <button
-              type="button"
-              onClick={() => setIsFieldScannerOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-purple-950/70 hover:bg-purple-900 text-purple-300 hover:text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
-              title={lang === 'el' ? 'Σάρωση QR Code Σταθμού Πεδίου & Αναπαραγωγή' : 'Scan Field Station QR Code & Play Media'}
-            >
-              <Camera className="w-3.5 h-3.5 text-purple-400" />
-              <span>{lang === 'el' ? 'QR Πεδίου' : 'Field QR'}</span>
-            </button>
-
-            {/* Student Platform Join QR Code Trigger */}
-            <button
-              type="button"
-              onClick={() => setIsJoinQrOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-sky-950/70 hover:bg-sky-900 text-sky-300 hover:text-sky-200 border border-sky-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
-              title={lang === 'el' ? 'QR Code για Άμεση Σύνδεση Μαθητών από Κινητό/Tablet' : 'Live Platform QR Code for Student Tablets/Mobiles'}
-            >
-              <QrCode className="w-3.5 h-3.5 text-sky-400" />
-              <span>{lang === 'el' ? 'QR Σύνδεσης' : 'Join QR'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsAdminOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title={lang === 'el' ? 'Κονσόλα Διαχείρισης Εκπαιδευτικού & Εξαγωγές' : 'Admin Console & Exports'}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>{lang === 'el' ? 'Διαχείριση' : 'Admin'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => resetAllSubmissions(false)}
-              className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title={lang === 'el' ? 'Επαναφορά Απαντήσεων Όλων των Ομάδων' : 'Reset All Teams Submissions'}
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{lang === 'el' ? 'Επαναφορά' : 'Reset'}</span>
-            </button>
+            {/* Discreet, Professional Teacher/Admin Access Toggle */}
+            {!isTeacherMode ? (
+              <button
+                type="button"
+                onClick={() => setIsAdminOpen(true)}
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-amber-400 border border-slate-700/60 hover:border-amber-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer group shadow-xs"
+                title={lang === 'el' ? 'Πρόσβαση Εκπαιδευτικού (Admin Mode)' : 'Teacher / Facilitator Access'}
+                aria-label={lang === 'el' ? 'Πρόσβαση Εκπαιδευτικού' : 'Teacher Access'}
+              >
+                <Lock className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition-colors" />
+                <span className="hidden sm:inline text-[11px] text-slate-400 group-hover:text-amber-300 font-medium">
+                  {lang === 'el' ? 'Εκπαιδευτικός' : 'Teacher'}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAdminOpen(true)}
+                className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs group"
+                title={lang === 'el' ? 'Κονσόλα Διαχείρισης Εκπαιδευτικού' : 'Teacher Management Console'}
+                aria-label="Admin Console"
+              >
+                <Settings className="w-3.5 h-3.5 transition-transform group-hover:rotate-45" />
+                <span className="text-[11px] font-bold">Admin</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -682,7 +806,7 @@ export default function App() {
                     {trackSubgroups.length}
                   </span>
                 )}
-                {stat && (
+                {isTeacherMode && stat && (
                   <span
                     style={{ backgroundColor: `${currentSubgroup.color}25`, color: currentSubgroup.color }}
                     className="px-1.5 py-0.5 rounded-md text-[10px] font-bold ml-0.5"
@@ -712,14 +836,16 @@ export default function App() {
           </button>
 
           {/* Admin Console Shortcut in Navbar */}
-          <button
-            type="button"
-            onClick={() => setIsAdminOpen(true)}
-            className="ml-auto px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-slate-800/80 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400 shadow-sm transition-all cursor-pointer"
-          >
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-            <span>{lang === 'el' ? 'Κονσόλα Admin & Εξαγωγές' : 'Admin & Exports'}</span>
-          </button>
+          {isTeacherMode && (
+            <button
+              type="button"
+              onClick={() => setIsAdminOpen(true)}
+              className="ml-auto px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-slate-800/80 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400 shadow-sm transition-all cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>{lang === 'el' ? 'Κονσόλα Admin & Εξαγωγές' : 'Admin & Exports'}</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -741,6 +867,7 @@ export default function App() {
                 }}
                 onOpenAdmin={() => setIsAdminOpen(true)}
                 onOpenJoinQr={() => setIsJoinQrOpen(true)}
+                isTeacherMode={isTeacherMode}
               />
             </SectionErrorBoundary>
           )}
@@ -762,6 +889,7 @@ export default function App() {
                 onStartGame={toggleGameStarted}
                 onSaveSubmission={saveSubmission}
                 onGoHome={() => safeSetActiveTab('home')}
+                isTeacherMode={isTeacherMode}
               />
             </SectionErrorBoundary>
           )}
@@ -783,6 +911,7 @@ export default function App() {
                 onStartGame={toggleGameStarted}
                 onSaveSubmission={saveSubmission}
                 onGoHome={() => safeSetActiveTab('home')}
+                isTeacherMode={isTeacherMode}
               />
             </SectionErrorBoundary>
           )}
@@ -804,6 +933,7 @@ export default function App() {
                 onStartGame={toggleGameStarted}
                 onSaveSubmission={saveSubmission}
                 onGoHome={() => safeSetActiveTab('home')}
+                isTeacherMode={isTeacherMode}
               />
             </SectionErrorBoundary>
           )}
@@ -825,6 +955,7 @@ export default function App() {
                 onStartGame={toggleGameStarted}
                 onSaveSubmission={saveSubmission}
                 onGoHome={() => safeSetActiveTab('home')}
+                isTeacherMode={isTeacherMode}
               />
             </SectionErrorBoundary>
           )}
@@ -1004,10 +1135,38 @@ export default function App() {
       )}
 
       {/* ================= FOOTER ================= */}
-      <footer className="border-t border-slate-800/80 bg-slate-900/60 px-4 py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-800/80 bg-slate-900/60 px-4 py-6 text-center text-xs text-slate-500 space-y-2.5">
         <p>
           {lang === 'el' ? 'Στο χείλος της εξαφάνισης - Οι γύπες στην Κύπρο' : 'On the verge of extinction - Vultures in Cyprus'} • Master Task Pool (61 Missions)
         </p>
+
+        <div className="pt-1 flex items-center justify-center gap-3">
+          {!isTeacherMode ? (
+            <button
+              type="button"
+              onClick={() => setIsAdminOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-slate-500 hover:text-amber-400 hover:bg-slate-800/60 border border-transparent hover:border-slate-800 transition-all cursor-pointer text-[11px]"
+              title={lang === 'el' ? 'Σύνδεση Εκπαιδευτικού για διαχείριση, QR code, χρονόμετρα και εξαγωγές' : 'Teacher access for management, QR code, timers, and exports'}
+            >
+              <Lock className="w-3 h-3" />
+              <span>{lang === 'el' ? 'Πρόσβαση Εκπαιδευτικού (Admin Mode)' : 'Teacher / Facilitator Access'}</span>
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-3 text-amber-400 text-xs">
+              <span className="font-bold">● {lang === 'el' ? 'Ενεργή Λειτουργία Εκπαιδευτικού' : 'Teacher Mode Active'}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  storageService.setAdminAuthenticated(false);
+                  setIsTeacherMode(false);
+                }}
+                className="underline hover:text-white cursor-pointer"
+              >
+                {lang === 'el' ? 'Έξοδος σε Προβολή Μαθητή' : 'Exit to Student View'}
+              </button>
+            </div>
+          )}
+        </div>
       </footer>
     </div>
   );
@@ -1025,6 +1184,7 @@ interface HomeScreenProps {
   onSelectSubgroupForTrack?: (trackId: CoreTrackId, subgroupId: string) => void;
   onOpenAdmin?: () => void;
   onOpenJoinQr?: () => void;
+  isTeacherMode?: boolean;
 }
 
 function HomeScreen({
@@ -1035,7 +1195,8 @@ function HomeScreen({
   subgroupsByTrack,
   onSelectSubgroupForTrack,
   onOpenAdmin,
-  onOpenJoinQr
+  onOpenJoinQr,
+  isTeacherMode = false
 }: HomeScreenProps) {
   const isEl = lang === 'el';
   const displayTeams = teams && teams.length > 0 ? teams : masterTeamsPool;
@@ -1056,7 +1217,7 @@ function HomeScreen({
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
             <span>
-              {isEl ? 'Ενιαίο Master Task Pool (61 Αποστολές Έρευνας)' : 'Master Task Pool (61 Research Missions)'}
+              {isEl ? 'Περιβαλλοντικό Εκπαιδευτικό Πρόγραμμα' : 'Environmental Inquiry Program'}
             </span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
@@ -1066,122 +1227,209 @@ function HomeScreen({
           </h2>
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
             {isEl
-              ? 'Διαδραστική εκπαιδευτική αρένα 61 πραγματικών αποστολών. Πολλαπλές μαθητικές υποομάδες μπορούν να εργαστούν ταυτόχρονα σε κάθε θεματικό πυλώνα με ανεξάρτητη επιλογή γλώσσας (Ελληνικά ή English), μοιραζόμενες το ίδιο επιστημονικό σώμα ερωτήσεων!'
-              : 'Interactive inquiry arena with 61 real missions. Multiple student subgroups can work concurrently on any thematic track with independent language preferences (Greek or English), sharing the exact same scientific task curriculum!'}
+              ? 'Διαδραστική εκπαιδευτική έρευνα για την προστασία του Όρνιου (Gyps fulvus) στην Κύπρο. Επιλέξτε την ομάδα σας παρακάτω για να μεταβείτε απευθείας στις αποστολές και τα καθήκοντα της υποομάδας σας!'
+              : 'Interactive inquiry research on the conservation of the Griffon Vulture (Gyps fulvus) in Cyprus. Select your team below to enter exclusively the missions and tasks assigned to your subgroup!'}
           </p>
           <div className="pt-2 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                onSelectTab('group-1');
-              }}
-              className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
-            >
-              <span>{isEl ? 'Έναρξη Αποστολών (Πυλώνες 1-4)' : 'Start Missions (Tracks 1-4)'}</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                onSelectTab('arena');
-              }}
-              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
-            >
-              <Trophy className="w-4 h-4" />
-              <span>{isEl ? 'Αρένα Παρουσίασης & Infographic Posters' : 'Team Arena & Infographic Posters'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                onOpenJoinQr?.();
-              }}
-              className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-sky-600/30 transition-all cursor-pointer hover:scale-102 active:scale-95"
-            >
-              <QrCode className="w-4 h-4" />
-              <span>{isEl ? 'QR Σύνδεσης Μαθητών' : 'Student Join QR'}</span>
-            </button>
+            {isTeacherMode ? (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSelectTab('group-1');
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                >
+                  <span>{isEl ? 'Έναρξη Αποστολών (Πυλώνες 1-4)' : 'Start Missions (Tracks 1-4)'}</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSelectTab('arena');
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                >
+                  <Trophy className="w-4 h-4" />
+                  <span>{isEl ? 'Αρένα Παρουσίασης & Infographic Posters' : 'Team Arena & Infographic Posters'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onOpenJoinQr?.();
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-sky-600/30 transition-all cursor-pointer hover:scale-102 active:scale-95"
+                >
+                  <QrCode className="w-4 h-4" />
+                  <span>{isEl ? 'QR Σύνδεσης Μαθητών' : 'Student Join QR'}</span>
+                </button>
+              </>
+            ) : (
+              <a
+                href="#subgroup-selection-grid"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('subgroup-selection-grid')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer hover:scale-102 active:scale-95"
+              >
+                <Users className="w-4 h-4" />
+                <span>{isEl ? 'Επιλέξτε την Ομάδα σας για να Ξεκινήσετε ↓' : 'Select Your Team to Begin ↓'}</span>
+              </a>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Live Scores for All Active Student Subgroups */}
-      <div>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Award className="w-5 h-5 text-amber-400" />
-            <span>{isEl ? 'Δυναμική Βαθμολογία Μαθητικών Υποομάδων' : 'Dynamic Student Subgroups Scoreboard'}</span>
-          </h3>
-          <span className="text-xs text-slate-400">
-            {displayTeams.length} {isEl ? 'ενεργές υποομάδες' : 'active subgroups'}
-          </span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {displayTeams.map((team, idx) => {
-            const stat = teamStats.find((s) => s.team.id === team.id || s.teamId === team.id);
-            const trackId = ((team.trackId || (masterTeamsPool[idx]?.id as CoreTrackId) || 'team-alpha')) as CoreTrackId;
-            const trackIdx = CORE_THEMATIC_TRACKS.findIndex((t) => t.id === trackId || t.trackId === trackId);
-            const teamLang = team.language || 'el';
+      {/* ================= MAIN CONTENT AREA ================= */}
+      {!isTeacherMode ? (
+        /* Student View: Clean Non-Competitive Team Selection Grid */
+        <div id="subgroup-selection-grid" className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-xl font-black text-white flex items-center gap-2.5">
+                <Users className="w-6 h-6 text-emerald-400" />
+                <span>{isEl ? 'Επιλογή Ομάδας Εργασίας' : 'Select Your Research Team'}</span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {isEl
+                  ? 'Πατήστε στην ομάδα σας για να ανοίξετε αποκλειστικά τις αποστολές και ερωτήσεις σας.'
+                  : 'Click on your team to enter exclusively the questions and tasks assigned to your subgroup.'}
+              </p>
+            </div>
+          </div>
 
-            return (
-              <div
-                key={team.id}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleSubgroupClick(trackId, team.id, trackIdx >= 0 ? trackIdx : idx);
-                }}
-                style={{ borderColor: `${team.color}40` }}
-                className="p-5 rounded-2xl bg-slate-900 border hover:border-slate-600 transition-all cursor-pointer group shadow-lg flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-3xl p-2 rounded-xl bg-slate-800/80 border border-slate-700/60 group-hover:scale-110 transition-transform">
-                      {team.avatar}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 border border-slate-700 text-slate-300">
-                        {teamLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {displayTeams.map((team, idx) => {
+              const trackId = ((team.trackId || (masterTeamsPool[idx]?.id as CoreTrackId) || 'team-alpha')) as CoreTrackId;
+              const trackIdx = CORE_THEMATIC_TRACKS.findIndex((t) => t.id === trackId || t.trackId === trackId);
+              const teamLang = team.language || 'el';
+
+              return (
+                <div
+                  key={team.id}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubgroupClick(trackId, team.id, trackIdx >= 0 ? trackIdx : idx);
+                  }}
+                  style={{ borderColor: `${team.color}50` }}
+                  className="p-5 rounded-2xl bg-slate-900 border-2 hover:border-emerald-500 transition-all cursor-pointer group shadow-xl flex flex-col justify-between hover:scale-102"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-4xl p-2.5 rounded-2xl bg-slate-800 border border-slate-700/80 group-hover:scale-110 transition-transform">
+                        {team.avatar}
                       </span>
-                      <div
-                        style={{ backgroundColor: `${team.color}20`, color: team.color }}
-                        className="px-2.5 py-1 rounded-full font-extrabold text-xs border border-current/30"
-                      >
-                        {stat ? stat.totalScore : 0} pts
-                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-800 border border-slate-700 text-slate-300">
+                        {teamLang === 'el' ? '🇬🇷 Ελληνικά' : '🇬🇧 English'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-extrabold text-white text-lg group-hover:text-emerald-400 transition-colors">
+                        {getLocalizedTeamName(team, lang)}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1 italic line-clamp-2">
+                        «{getLocalizedTeamSlogan(team, lang)}»
+                      </p>
                     </div>
                   </div>
-                  <h4 className="font-bold text-white text-base group-hover:text-amber-300 transition-colors">
-                    {getLocalizedTeamName(team, lang)}
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-1">
-                    {getLocalizedTeamSlogan(team, lang)}
-                  </p>
-                </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-800">
-                  <div className="flex justify-between text-xs text-slate-400 mb-1.5">
-                    <span>{isEl ? 'Ενεργές Αποστολές' : 'Active Quests'}</span>
-                    <span className="font-semibold text-slate-200">
-                      {stat ? `${stat.completedTasks} / ${stat.totalActiveTasks} (${stat.progressPercent}%)` : '0'}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-                    <div
-                      style={{
-                        width: `${stat ? stat.progressPercent : 0}%`,
-                        backgroundColor: team.color
-                      }}
-                      className="h-full rounded-full transition-all duration-500"
-                    />
+                  <div className="mt-5 pt-4 border-t border-slate-800">
+                    <button
+                      type="button"
+                      style={{ backgroundColor: team.color }}
+                      className="w-full py-2.5 rounded-xl text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all group-hover:opacity-95"
+                    >
+                      <span>{isEl ? 'Είσοδος στην Ομάδα' : 'Enter Team Missions'}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Teacher Mode: Full Dynamic Scoreboard with Points and Progress */
+        <div>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Award className="w-5 h-5 text-amber-400" />
+              <span>{isEl ? 'Δυναμική Βαθμολογία Μαθητικών Υποομάδων' : 'Dynamic Student Subgroups Scoreboard'}</span>
+            </h3>
+            <span className="text-xs text-slate-400">
+              {displayTeams.length} {isEl ? 'ενεργές υποομάδες' : 'active subgroups'}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {displayTeams.map((team, idx) => {
+              const stat = teamStats.find((s) => s.team.id === team.id || s.teamId === team.id);
+              const trackId = ((team.trackId || (masterTeamsPool[idx]?.id as CoreTrackId) || 'team-alpha')) as CoreTrackId;
+              const trackIdx = CORE_THEMATIC_TRACKS.findIndex((t) => t.id === trackId || t.trackId === trackId);
+              const teamLang = team.language || 'el';
+
+              return (
+                <div
+                  key={team.id}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubgroupClick(trackId, team.id, trackIdx >= 0 ? trackIdx : idx);
+                  }}
+                  style={{ borderColor: `${team.color}40` }}
+                  className="p-5 rounded-2xl bg-slate-900 border hover:border-slate-600 transition-all cursor-pointer group shadow-lg flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-3xl p-2 rounded-xl bg-slate-800/80 border border-slate-700/60 group-hover:scale-110 transition-transform">
+                        {team.avatar}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 border border-slate-700 text-slate-300">
+                          {teamLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}
+                        </span>
+                        <div
+                          style={{ backgroundColor: `${team.color}20`, color: team.color }}
+                          className="px-2.5 py-1 rounded-full font-extrabold text-xs border border-current/30"
+                        >
+                          {stat ? stat.totalScore : 0} pts
+                        </div>
+                      </div>
+                    </div>
+                    <h4 className="font-bold text-white text-base group-hover:text-amber-300 transition-colors">
+                      {getLocalizedTeamName(team, lang)}
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-1">
+                      {getLocalizedTeamSlogan(team, lang)}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-slate-800">
+                    <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                      <span>{isEl ? 'Ενεργές Αποστολές' : 'Active Quests'}</span>
+                      <span className="font-semibold text-slate-200">
+                        {stat ? `${stat.completedTasks} / ${stat.totalActiveTasks} (${stat.progressPercent}%)` : '0'}
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        style={{
+                          width: `${stat ? stat.progressPercent : 0}%`,
+                          backgroundColor: team.color
+                        }}
+                        className="h-full rounded-full transition-all duration-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 4 Thematic Pillars with assigned student subgroups */}
       <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4">
@@ -1194,7 +1442,7 @@ function HomeScreen({
                 : 'The 4 Thematic Tracks & Subgroup Assignments'}
             </span>
           </h3>
-          {onOpenAdmin && (
+          {isTeacherMode && onOpenAdmin && (
             <button
               type="button"
               onClick={onOpenAdmin}
@@ -1247,7 +1495,7 @@ function HomeScreen({
                           <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400">
                             {subLang === 'el' ? '🇬🇷' : '🇬🇧'}
                           </span>
-                          {subStat && (
+                          {isTeacherMode && subStat && (
                             <span style={{ color: sub.color }} className="font-extrabold text-[10px]">
                               {subStat.totalScore}p
                             </span>
@@ -1427,6 +1675,7 @@ interface GroupMissionsViewProps {
   subgroupsInTrack?: Team[];
   onSelectSubgroup?: (subgroupId: string) => void;
   onToggleSubgroupLanguage?: (subgroupId: string) => void;
+  isTeacherMode?: boolean;
 }
 
 function GroupMissionsView({
@@ -1443,7 +1692,8 @@ function GroupMissionsView({
   teamProp,
   subgroupsInTrack,
   onSelectSubgroup,
-  onToggleSubgroupLanguage
+  onToggleSubgroupLanguage,
+  isTeacherMode = false
 }: GroupMissionsViewProps) {
   const team = teamProp || masterTeamsPool[teamIndex] || masterTeamsPool[0];
   const effectiveLang = getTeamEffectiveLanguage(team, lang);
@@ -1544,8 +1794,9 @@ function GroupMissionsView({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // If game has not been started by teacher, present the dedicated Lobby Screen
-  if (!gameStarted) {
+  // If game has not been started by teacher, present the dedicated Lobby Screen ONLY in Teacher Mode
+  // For students, allow them immediate entry to their assigned tasks!
+  if (!gameStarted && isTeacherMode) {
     return (
       <TeamLobbyWaitingScreen
         team={team}
@@ -1634,12 +1885,14 @@ function GroupMissionsView({
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-900 border border-slate-700">
                     {subLang === 'el' ? '🇬🇷 GR' : '🇬🇧 EN'}
                   </span>
-                  <span
-                    style={{ color: sub.color }}
-                    className="text-[11px] font-black"
-                  >
-                    {subStat.totalScore}p
-                  </span>
+                  {isTeacherMode && (
+                    <span
+                      style={{ color: sub.color }}
+                      className="text-[11px] font-black"
+                    >
+                      {subStat.totalScore}p
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -1691,15 +1944,17 @@ function GroupMissionsView({
 
         {/* Score & Progress */}
         <div className="flex items-center gap-3">
-          <div className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-center">
-            <div className="text-xs text-slate-400">{effectiveLang === 'el' ? 'Βαθμολογία' : 'Score'}</div>
-            <div
-              style={{ color: team.color }}
-              className="text-xl font-black"
-            >
-              {totalScore} pts
+          {isTeacherMode && (
+            <div className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-center">
+              <div className="text-xs text-slate-400">{effectiveLang === 'el' ? 'Βαθμολογία' : 'Score'}</div>
+              <div
+                style={{ color: team.color }}
+                className="text-xl font-black"
+              >
+                {totalScore} pts
+              </div>
             </div>
-          </div>
+          )}
           <div className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-center">
             <div className="text-xs text-slate-400">{effectiveLang === 'el' ? 'Πρόοδος' : 'Progress'}</div>
             <div className="text-xl font-black text-emerald-400">
@@ -1709,8 +1964,8 @@ function GroupMissionsView({
         </div>
       </div>
 
-      {/* ================= LIVE COUNTDOWN TIMER & DEADLINE STATUS BANNER ================= */}
-      {timeLimitMinutes > 0 && (
+      {/* ================= LIVE COUNTDOWN TIMER & DEADLINE STATUS BANNER (TEACHER / ADMIN ONLY) ================= */}
+      {timeLimitMinutes > 0 && isTeacherMode && (
         <div
           className={`p-4 rounded-2xl border flex items-center justify-between flex-wrap gap-3 shadow-lg transition-all ${
             isTimeExpired

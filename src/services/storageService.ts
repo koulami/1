@@ -26,7 +26,8 @@ export const STORAGE_KEYS = {
   TEAM_REFLECTIONS: 'boundpad_team_reflections_v10',
   TASK_ORDER: 'boundpad_task_order_v10',
   CUSTOM_TEAM_TITLES: 'boundpad_custom_team_titles_v10',
-  CUSTOM_SUBGROUPS: 'boundpad_subgroups_v12'
+  CUSTOM_SUBGROUPS: 'boundpad_subgroups_v12',
+  SYNC_VERSION: 'boundpad_sync_version_v12'
 } as const;
 
 // In-memory fallback cache in case localStorage is disabled, private, or quota-exceeded
@@ -453,6 +454,9 @@ export const storageService = {
       } else {
         safeRemoveItem(STORAGE_KEYS.ADMIN_AUTH);
       }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:adminAuth', { detail: auth }));
+      }
     } catch (e) {
       console.warn('[StorageService] Error setting admin auth:', e);
     }
@@ -692,15 +696,33 @@ export const storageService = {
   ): Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }> {
     try {
       const current = this.getCustomTeamTitles();
-      const updated = {
+      const updatedTitles = {
         ...current,
         [teamId]: {
           ...(current[teamId] || {}),
           ...titleData
         }
       };
-      this.saveCustomTeamTitles(updated);
-      return updated;
+      this.saveCustomTeamTitles(updatedTitles);
+
+      // Directly update the team in the active subgroups pool
+      const currentSubgroups = this.getSubgroups();
+      const updatedSubgroups = currentSubgroups.map((s) => {
+        if (s.id === teamId) {
+          return {
+            ...s,
+            name: titleData.name && titleData.name.trim().length > 0 ? titleData.name.trim() : s.name,
+            name_en: titleData.name_en && titleData.name_en.trim().length > 0 ? titleData.name_en.trim() : (s.name_en || s.name),
+            slogan: titleData.slogan && titleData.slogan.trim().length > 0 ? titleData.slogan.trim() : s.slogan,
+            slogan_en: titleData.slogan_en && titleData.slogan_en.trim().length > 0 ? titleData.slogan_en.trim() : (s.slogan_en || s.slogan)
+          };
+        }
+        return s;
+      });
+      this.saveSubgroups(updatedSubgroups);
+      this.syncSubgroupsToServer(updatedSubgroups);
+
+      return updatedTitles;
     } catch (e) {
       console.warn('[StorageService] Error saving custom team title:', e);
       return {};
@@ -717,6 +739,26 @@ export const storageService = {
       const current = this.getCustomTeamTitles();
       delete current[teamId];
       this.saveCustomTeamTitles(current);
+
+      const defaultTeam = masterTeamsPool.find((t) => t.id === teamId);
+      if (defaultTeam) {
+        const currentSubgroups = this.getSubgroups();
+        const updatedSubgroups = currentSubgroups.map((s) => {
+          if (s.id === teamId) {
+            return {
+              ...s,
+              name: defaultTeam.name,
+              name_en: defaultTeam.name_en,
+              slogan: defaultTeam.slogan,
+              slogan_en: defaultTeam.slogan_en
+            };
+          }
+          return s;
+        });
+        this.saveSubgroups(updatedSubgroups);
+        this.syncSubgroupsToServer(updatedSubgroups);
+      }
+
       return current;
     } catch (e) {
       console.warn('[StorageService] Error resetting custom team title:', e);
@@ -730,6 +772,23 @@ export const storageService = {
   resetAllCustomTeamTitles(): void {
     try {
       safeRemoveItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES);
+      const currentSubgroups = this.getSubgroups();
+      const updatedSubgroups = currentSubgroups.map((s) => {
+        const defaultTeam = masterTeamsPool.find((t) => t.id === s.id);
+        if (defaultTeam) {
+          return {
+            ...s,
+            name: defaultTeam.name,
+            name_en: defaultTeam.name_en,
+            slogan: defaultTeam.slogan,
+            slogan_en: defaultTeam.slogan_en
+          };
+        }
+        return s;
+      });
+      this.saveSubgroups(updatedSubgroups);
+      this.syncSubgroupsToServer(updatedSubgroups);
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('boundpad:teamTitles', { detail: { titles: {} } }));
         window.dispatchEvent(new Event('storage'));
@@ -884,6 +943,237 @@ export const storageService = {
   },
 
   /**
+   * Completely purge deleted subgroups and their orphaned data from localStorage
+   * so student devices never retain old deleted items.
+   */
+  purgeDeletedSubgroupsFromLocalStorage(activeSubgroups: Team[], explicitDeletedIds: string[] = []): void {
+    try {
+      const activeIdSet = new Set(activeSubgroups.map((s) => s.id));
+      const deletedSet = new Set(explicitDeletedIds);
+
+      // Save strictly the active subgroups to local storage and memory cache
+      safeSetItem(STORAGE_KEYS.CUSTOM_SUBGROUPS, JSON.stringify(activeSubgroups));
+
+      // 1. Purge from task indexes
+      try {
+        const rawIndexes = safeGetItem(STORAGE_KEYS.TEAM_TASK_INDEXES);
+        if (rawIndexes) {
+          const parsed = JSON.parse(rawIndexes);
+          if (parsed && typeof parsed === 'object') {
+            let changed = false;
+            for (const key of Object.keys(parsed)) {
+              if (deletedSet.has(key) || !activeIdSet.has(key)) {
+                delete parsed[key];
+                changed = true;
+              }
+            }
+            if (changed) {
+              safeSetItem(STORAGE_KEYS.TEAM_TASK_INDEXES, JSON.stringify(parsed));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error purging task indexes:', err);
+      }
+
+      // 2. Purge from submissions
+      try {
+        const rawSubs = safeGetItem(STORAGE_KEYS.SUBMISSIONS);
+        if (rawSubs) {
+          const parsed = JSON.parse(rawSubs);
+          if (parsed && typeof parsed === 'object') {
+            let changed = false;
+            for (const [key, sub] of Object.entries(parsed as Record<string, any>)) {
+              const teamId = sub?.teamId || key.split('_')[0];
+              if (deletedSet.has(teamId) || (teamId && !activeIdSet.has(teamId))) {
+                delete parsed[key];
+                changed = true;
+              }
+            }
+            if (changed) {
+              safeSetItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(parsed));
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('boundpad:submissions', { detail: { submissions: parsed } }));
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error purging submissions:', err);
+      }
+
+      // 3. Purge from reflections
+      try {
+        const rawReflections = safeGetItem(STORAGE_KEYS.TEAM_REFLECTIONS);
+        if (rawReflections) {
+          const parsed = JSON.parse(rawReflections);
+          if (parsed && typeof parsed === 'object') {
+            let changed = false;
+            for (const key of Object.keys(parsed)) {
+              if (deletedSet.has(key) || !activeIdSet.has(key)) {
+                delete parsed[key];
+                changed = true;
+              }
+            }
+            if (changed) {
+              safeSetItem(STORAGE_KEYS.TEAM_REFLECTIONS, JSON.stringify(parsed));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error purging reflections:', err);
+      }
+
+      // 4. Purge from team titles
+      try {
+        const rawTitles = safeGetItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES);
+        if (rawTitles) {
+          const parsed = JSON.parse(rawTitles);
+          if (parsed && typeof parsed === 'object') {
+            let changed = false;
+            for (const key of Object.keys(parsed)) {
+              if (deletedSet.has(key) || !activeIdSet.has(key)) {
+                delete parsed[key];
+                changed = true;
+              }
+            }
+            if (changed) {
+              safeSetItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES, JSON.stringify(parsed));
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('boundpad:teamTitles', { detail: { titles: parsed } }));
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error purging titles:', err);
+      }
+
+      // 5. Purge from group timers
+      try {
+        const rawTimers = safeGetItem(STORAGE_KEYS.GROUP_TIMERS);
+        if (rawTimers) {
+          const parsed = JSON.parse(rawTimers);
+          if (parsed && typeof parsed === 'object') {
+            let changed = false;
+            for (const key of Object.keys(parsed)) {
+              if (deletedSet.has(key) || (!['team-alpha', 'team-beta', 'team-gamma', 'team-delta'].includes(key) && !activeIdSet.has(key))) {
+                delete parsed[key];
+                changed = true;
+              }
+            }
+            if (changed) {
+              safeSetItem(STORAGE_KEYS.GROUP_TIMERS, JSON.stringify(parsed));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error purging timers:', err);
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:subgroups', { detail: { subgroups: activeSubgroups } }));
+        window.dispatchEvent(new Event('storage'));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error during localStorage purge of deleted subgroups:', e);
+    }
+  },
+
+  /**
+   * Apply authoritative state from server, purging any deleted items
+   */
+  applyAuthoritativeSubgroups(serverSubgroups: Team[], deletedIds: string[] = [], serverVersion?: number): boolean {
+    if (!Array.isArray(serverSubgroups) || serverSubgroups.length === 0) {
+      return false;
+    }
+    this.purgeDeletedSubgroupsFromLocalStorage(serverSubgroups, deletedIds);
+    if (typeof serverVersion === 'number') {
+      safeSetItem(STORAGE_KEYS.SYNC_VERSION, serverVersion.toString());
+    }
+    return true;
+  },
+
+  /**
+   * Fetch current authoritative subgroups from server and sync localStorage
+   */
+  async fetchServerSubgroups(): Promise<Team[] | null> {
+    try {
+      if (typeof window === 'undefined') return null;
+      const res = await fetch('/api/sync/subgroups', {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store'
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data && Array.isArray(data.subgroups) && data.subgroups.length > 0) {
+        this.applyAuthoritativeSubgroups(data.subgroups, data.deletedSubgroupIds || [], data.version);
+        if (data.customTeamTitles && typeof data.customTeamTitles === 'object') {
+          safeSetItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES, JSON.stringify(data.customTeamTitles));
+          window.dispatchEvent(new CustomEvent('boundpad:teamTitles', { detail: { titles: data.customTeamTitles } }));
+        }
+        return data.subgroups;
+      }
+      return null;
+    } catch (err) {
+      console.warn('[StorageService] fetchServerSubgroups error:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Asynchronously push subgroups updates to server
+   */
+  async syncSubgroupsToServer(subgroups: Team[], options?: { deletedSubgroupId?: string }): Promise<void> {
+    try {
+      if (typeof window === 'undefined') return;
+      const currentTitles = this.getCustomTeamTitles();
+      await fetch('/api/sync/subgroups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subgroups,
+          customTeamTitles: currentTitles,
+          deletedSubgroupId: options?.deletedSubgroupId
+        })
+      });
+    } catch (err) {
+      console.warn('[StorageService] syncSubgroupsToServer error:', err);
+    }
+  },
+
+  /**
+   * Asynchronously push subgroup deletion to server
+   */
+  async syncDeleteSubgroupToServer(teamId: string): Promise<void> {
+    try {
+      if (typeof window === 'undefined') return;
+      await fetch('/api/sync/delete-subgroup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subgroupId: teamId })
+      });
+    } catch (err) {
+      console.warn('[StorageService] syncDeleteSubgroupToServer error:', err);
+    }
+  },
+
+  /**
+   * Asynchronously push reset to server
+   */
+  async syncResetSubgroupsToServer(): Promise<void> {
+    try {
+      if (typeof window === 'undefined') return;
+      await fetch('/api/sync/reset-subgroups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (err) {
+      console.warn('[StorageService] syncResetSubgroupsToServer error:', err);
+    }
+  },
+
+  /**
    * Save active subgroups list and broadcast event
    */
   saveSubgroups(subgroups: Team[]): boolean {
@@ -911,6 +1201,16 @@ export const storageService = {
       const finalId = exists ? `${subgroup.id}-${Date.now().toString().slice(-4)}` : subgroup.id;
       const updated = [...current, { ...subgroup, id: finalId }];
       this.saveSubgroups(updated);
+
+      if (crossTabChannel) {
+        try {
+          crossTabChannel.postMessage({ type: 'UPDATE_SUBGROUPS', subgroups: updated });
+        } catch {}
+      }
+
+      // Sync with server immediately
+      this.syncSubgroupsToServer(updated);
+
       return updated;
     } catch (e) {
       console.warn('[StorageService] Error adding subgroup:', e);
@@ -926,6 +1226,16 @@ export const storageService = {
       const current = this.getSubgroups();
       const updated = current.map((s) => (s.id === teamId ? { ...s, ...updates } : s));
       this.saveSubgroups(updated);
+
+      if (crossTabChannel) {
+        try {
+          crossTabChannel.postMessage({ type: 'UPDATE_SUBGROUPS', subgroups: updated });
+        } catch {}
+      }
+
+      // Sync with server immediately
+      this.syncSubgroupsToServer(updated);
+
       return updated;
     } catch (e) {
       console.warn('[StorageService] Error updating subgroup:', e);
@@ -934,7 +1244,7 @@ export const storageService = {
   },
 
   /**
-   * Delete a custom subgroup
+   * Delete a custom subgroup and purge all traces from localStorage
    */
   deleteSubgroup(teamId: string): Team[] {
     try {
@@ -942,8 +1252,20 @@ export const storageService = {
       // Prevent deleting if it would leave zero subgroups
       if (current.length <= 1) return current;
       const updated = current.filter((s) => s.id !== teamId);
-      this.saveSubgroups(updated);
+
+      // Clean all team data and purge deleted subgroup from all localStorage caches!
+      this.purgeDeletedSubgroupsFromLocalStorage(updated, [teamId]);
       this.clearTeamData(teamId);
+
+      if (crossTabChannel) {
+        try {
+          crossTabChannel.postMessage({ type: 'DELETE_SUBGROUP', teamId, subgroups: updated });
+        } catch {}
+      }
+
+      // Immediately sync with server so student devices update instantaneously
+      this.syncDeleteSubgroupToServer(teamId);
+
       return updated;
     } catch (e) {
       console.warn('[StorageService] Error deleting subgroup:', e);
@@ -956,11 +1278,15 @@ export const storageService = {
    */
   resetSubgroupsToDefault(): Team[] {
     try {
-      safeRemoveItem(STORAGE_KEYS.CUSTOM_SUBGROUPS);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('boundpad:subgroups', { detail: { subgroups: masterTeamsPool } }));
-        window.dispatchEvent(new Event('storage'));
+      this.purgeDeletedSubgroupsFromLocalStorage(masterTeamsPool);
+
+      if (crossTabChannel) {
+        try {
+          crossTabChannel.postMessage({ type: 'RESET_SUBGROUPS', subgroups: masterTeamsPool });
+        } catch {}
       }
+
+      this.syncResetSubgroupsToServer();
       return masterTeamsPool;
     } catch (e) {
       console.warn('[StorageService] Error resetting subgroups:', e);
@@ -968,3 +1294,25 @@ export const storageService = {
     }
   }
 };
+
+// ============================================================================
+// CROSS-TAB BROADCAST CHANNEL INITIALIZATION
+// ============================================================================
+let crossTabChannel: BroadcastChannel | null = null;
+if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+  try {
+    crossTabChannel = new BroadcastChannel('boundpad_subgroups_sync_channel');
+    crossTabChannel.onmessage = (event) => {
+      const data = event.data;
+      if (data && data.subgroups && Array.isArray(data.subgroups)) {
+        storageService.purgeDeletedSubgroupsFromLocalStorage(
+          data.subgroups,
+          data.teamId ? [data.teamId] : []
+        );
+      }
+    };
+  } catch (e) {
+    console.warn('BroadcastChannel error:', e);
+  }
+}
+

@@ -250,6 +250,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   // Inline reset confirmation states (100% reliable inside iframes, zero window.confirm blocking)
   const [confirmResetTeamId, setConfirmResetTeamId] = useState<string | null>(null);
   const [confirmResetAll, setConfirmResetAll] = useState<boolean>(false);
+  const [confirmDeleteSubgroupId, setConfirmDeleteSubgroupId] = useState<string | null>(null);
 
   const handleExecuteResetTeam = (targetTeamId: string, teamLabel?: string) => {
     try {
@@ -313,6 +314,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     if (onUpdateCustomTeamTitles) {
       onUpdateCustomTeamTitles(updated);
     }
+    const updatedSubs = storageService.getSubgroups();
+    setSubgroupsList(updatedSubs);
+    if (onUpdateSubgroups) {
+      onUpdateSubgroups(updatedSubs);
+    }
     showNotification(
       isEl
         ? 'Ο τίτλος και το σύνθημα της ομάδας αποθηκεύτηκαν επιτυχώς!'
@@ -331,6 +337,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     if (onUpdateCustomTeamTitles) {
       onUpdateCustomTeamTitles(updated);
     }
+    const updatedSubs = storageService.getSubgroups();
+    setSubgroupsList(updatedSubs);
+    if (onUpdateSubgroups) {
+      onUpdateSubgroups(updatedSubs);
+    }
     showNotification(
       isEl
         ? 'Επαναφορά προεπιλεγμένου τίτλου και συνθήματος ομάδας.'
@@ -347,6 +358,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     setTeamTitleDrafts({});
     if (onUpdateCustomTeamTitles) {
       onUpdateCustomTeamTitles({});
+    }
+    const updatedSubs = storageService.getSubgroups();
+    setSubgroupsList(updatedSubs);
+    if (onUpdateSubgroups) {
+      onUpdateSubgroups(updatedSubs);
     }
     showNotification(
       isEl
@@ -1649,17 +1665,22 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                   className="p-5 sm:p-6 rounded-3xl border-2 shadow-xl space-y-4"
                 >
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3.5">
+                    <div
+                      onClick={() => setQuickRenameTeam(selectedTeamMeta)}
+                      className="flex items-center gap-3.5 cursor-pointer group hover:opacity-95"
+                      title={isEl ? `Κάντε κλικ για μετονομασία: ${selectedTeamMeta.name}` : `Click to rename: ${selectedTeamMeta.name}`}
+                    >
                       <div
                         style={{ borderColor: `${selectedTeamMeta.color}80` }}
-                        className="w-14 h-14 rounded-2xl bg-slate-900 border-2 flex items-center justify-center text-3xl shadow-lg shrink-0"
+                        className="w-14 h-14 rounded-2xl bg-slate-900 border-2 flex items-center justify-center text-3xl shadow-lg shrink-0 group-hover:scale-105 transition-transform"
                       >
                         {selectedTeamMeta.avatar}
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h2 className="text-xl sm:text-2xl font-black text-white">
-                            {getLocalizedTeamName(selectedTeamMeta, lang)}
+                          <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-amber-300 transition-colors flex items-center gap-2">
+                            <span>{getLocalizedTeamName(selectedTeamMeta, lang)}</span>
+                            <Edit3 className="w-4 h-4 text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
                           </h2>
                           <span
                             style={{
@@ -3612,22 +3633,28 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       <div className="space-y-2">
                         {trackSubs.map((sub) => {
                           const subLang = sub.language || 'el';
-                          const isDefault = ['team-alpha', 'team-beta', 'team-gamma', 'team-delta'].includes(sub.id);
                           const subSubs = Object.values(submissions).filter((s) => s.teamId === sub.id);
                           const correctCount = subSubs.filter((s) => s.status === 'correct').length;
                           const totalScore = subSubs.filter((s) => s.status === 'correct').reduce((a, s) => a + (s.scoreEarned || 0), 0);
+                          const isConfirmingDelete = confirmDeleteSubgroupId === sub.id;
 
                           return (
                             <div
                               key={sub.id}
                               style={{ borderColor: `${sub.color}35` }}
-                              className="p-3 rounded-xl bg-slate-900 border flex items-center justify-between gap-3 flex-wrap shadow-xs"
+                              className="p-3 rounded-xl bg-slate-900 border flex items-center justify-between gap-3 flex-wrap shadow-xs hover:border-slate-700 transition-colors"
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="text-2xl">{sub.avatar}</span>
+                              {/* Clickable Subgroup Avatar & Title for Instant Rename */}
+                              <div
+                                onClick={() => setQuickRenameTeam(sub)}
+                                className="flex items-center gap-2.5 min-w-0 cursor-pointer group hover:opacity-95"
+                                title={isEl ? `Κάντε κλικ για μετονομασία: ${sub.name}` : `Click to rename: ${sub.name}`}
+                              >
+                                <span className="text-2xl group-hover:scale-110 transition-transform">{sub.avatar}</span>
                                 <div className="min-w-0">
-                                  <div className="font-bold text-xs text-white truncate">
-                                    {getLocalizedTeamName(sub, lang)}
+                                  <div className="font-bold text-xs text-white truncate group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
+                                    <span>{getLocalizedTeamName(sub, lang)}</span>
+                                    <Edit3 className="w-3 h-3 text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
                                   </div>
                                   <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
                                     <span style={{ color: sub.color }} className="font-black font-mono">
@@ -3640,6 +3667,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               </div>
 
                               <div className="flex items-center gap-1.5">
+                                {/* Dedicated Rename Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => setQuickRenameTeam(sub)}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-xs font-bold text-amber-300 flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                                  title={isEl ? `Μετονομασία τίτλου και συνθήματος για την ${sub.name}` : `Rename title and slogan for ${sub.name}`}
+                                >
+                                  <Edit3 className="w-3 h-3 text-amber-400" />
+                                  <span>{isEl ? 'Μετονομασία' : 'Rename'}</span>
+                                </button>
+
                                 {/* 1-Click Language Toggle */}
                                 <button
                                   type="button"
@@ -3651,16 +3689,39 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                                   <span className="text-[10px] text-amber-400">⇄</span>
                                 </button>
 
-                                {/* Delete Subgroup if custom */}
-                                {!isDefault && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteSubgroup(sub.id, sub.name)}
-                                    className="p-1 rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/50 cursor-pointer transition-colors"
-                                    title={isEl ? 'Διαγραφή υποομάδας' : 'Delete subgroup'}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                {/* Delete Subgroup: Any team can be deleted if at least 1 team remains */}
+                                {subgroupsList.length > 1 && (
+                                  isConfirmingDelete ? (
+                                    <div className="flex items-center gap-1 bg-rose-950/80 border border-rose-500/60 p-1 rounded-lg animate-in fade-in">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          handleDeleteSubgroup(sub.id, sub.name);
+                                          setConfirmDeleteSubgroupId(null);
+                                        }}
+                                        className="px-2 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-[10px] font-black text-white cursor-pointer shadow-xs"
+                                      >
+                                        {isEl ? 'Διαγραφή;' : 'Delete?'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmDeleteSubgroupId(null)}
+                                        className="p-0.5 text-slate-400 hover:text-white cursor-pointer"
+                                        title={isEl ? 'Ακύρωση' : 'Cancel'}
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteSubgroupId(sub.id)}
+                                      className="p-1 rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/50 cursor-pointer transition-colors"
+                                      title={isEl ? `Διαγραφή υποομάδας ${sub.name}` : `Delete subgroup ${sub.name}`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )
                                 )}
                               </div>
                             </div>
@@ -3710,11 +3771,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {activeTeams.map((team, tIdx) => {
                   const draft = teamTitleDrafts[team.id] || {};
-                  const defaultTeam = masterTeamsPool[tIdx] || team;
-                  const currentNameEl = draft.name !== undefined ? draft.name : (customTeamTitles?.[team.id]?.name || defaultTeam.name);
-                  const currentNameEn = draft.name_en !== undefined ? draft.name_en : (customTeamTitles?.[team.id]?.name_en || defaultTeam.name_en || defaultTeam.name);
-                  const currentSloganEl = draft.slogan !== undefined ? draft.slogan : (customTeamTitles?.[team.id]?.slogan || defaultTeam.slogan);
-                  const currentSloganEn = draft.slogan_en !== undefined ? draft.slogan_en : (customTeamTitles?.[team.id]?.slogan_en || defaultTeam.slogan_en || defaultTeam.slogan);
+                  const defaultTeam = masterTeamsPool.find((t) => t.id === team.id) || team;
+                  const currentNameEl = draft.name !== undefined ? draft.name : (customTeamTitles?.[team.id]?.name || team.name || defaultTeam.name);
+                  const currentNameEn = draft.name_en !== undefined ? draft.name_en : (customTeamTitles?.[team.id]?.name_en || team.name_en || team.name || defaultTeam.name_en || defaultTeam.name);
+                  const currentSloganEl = draft.slogan !== undefined ? draft.slogan : (customTeamTitles?.[team.id]?.slogan || team.slogan || defaultTeam.slogan);
+                  const currentSloganEn = draft.slogan_en !== undefined ? draft.slogan_en : (customTeamTitles?.[team.id]?.slogan_en || team.slogan_en || team.slogan || defaultTeam.slogan_en || defaultTeam.slogan);
 
                   const isCustomized = Boolean(
                     customTeamTitles?.[team.id]?.name ||
