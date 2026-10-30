@@ -50,11 +50,15 @@ import {
   getLocalizedTeamName,
   getLocalizedTeamSlogan,
   getActiveTasksForTeam,
-  CORE_THEMATIC_TRACKS
+  CORE_THEMATIC_TRACKS,
+  getSubgroupCode,
+  getCleanThematicTitle,
+  getMainTeams
 } from '../data/masterTaskPool';
 import { storageService } from '../services/storageService';
 import { processLocalFile } from '../utils/fileUploadHelper';
 import { extractScientificFact, ScientificFactRecord } from '../utils/scientificFactHelper';
+import { SubgroupCodeTag } from './SubgroupCodeTag';
 
 interface Props {
   lang: 'el' | 'en';
@@ -67,6 +71,7 @@ interface Props {
   taskOrder?: string[];
   customTeamTitles?: Record<string, CustomTeamTitleRecord>;
   subgroups?: Team[];
+  isSubgroupsMode?: boolean;
 }
 
 // Curated authentic scientific Wow-Moments per Cyprus Vulture Group
@@ -380,10 +385,40 @@ export const TeamPresentationArena: React.FC<Props> = ({
   onSelectTeamMissions,
   taskOrder,
   customTeamTitles,
-  subgroups: subgroupsProp
+  subgroups: subgroupsProp,
+  isSubgroupsMode: isSubgroupsModeProp
 }) => {
   const isEl = lang === 'el';
   const allPoolTasks = useMemo(() => getAllTasks(customQuestions, taskOrder), [customQuestions, taskOrder]);
+
+  const [localSubgroupsMode, setLocalSubgroupsMode] = useState<boolean>(() => {
+    return isSubgroupsModeProp !== undefined ? isSubgroupsModeProp : storageService.getSubgroupsModeEnabled();
+  });
+
+  const isSubgroupsMode = isSubgroupsModeProp !== undefined ? isSubgroupsModeProp : localSubgroupsMode;
+
+  useEffect(() => {
+    if (isSubgroupsModeProp !== undefined) {
+      setLocalSubgroupsMode((prev) => (prev !== isSubgroupsModeProp ? isSubgroupsModeProp : prev));
+    }
+  }, [isSubgroupsModeProp]);
+
+  useEffect(() => {
+    const handleSubgroupsModeSync = (e: any) => {
+      if (e?.detail && typeof e.detail.enabled === 'boolean') {
+        setLocalSubgroupsMode((prev) => (prev !== e.detail.enabled ? e.detail.enabled : prev));
+      } else if (e instanceof StorageEvent && e.key === 'boundpad_subgroups_mode_enabled_v1' && e.newValue !== null) {
+        const val = e.newValue === 'true';
+        setLocalSubgroupsMode((prev) => (prev !== val ? val : prev));
+      }
+    };
+    window.addEventListener('boundpad:subgroupsMode', handleSubgroupsModeSync);
+    window.addEventListener('storage', handleSubgroupsModeSync);
+    return () => {
+      window.removeEventListener('boundpad:subgroupsMode', handleSubgroupsModeSync);
+      window.removeEventListener('storage', handleSubgroupsModeSync);
+    };
+  }, []);
 
   const [storedSubgroups, setStoredSubgroups] = useState<Team[]>(() => subgroupsProp || storageService.getSubgroups());
 
@@ -407,8 +442,11 @@ export const TeamPresentationArena: React.FC<Props> = ({
 
   // Derived teams with custom Greek/English titles and slogans
   const activeTeams = useMemo(() => {
+    if (!isSubgroupsMode) {
+      return getMainTeams(storedSubgroups, customTeamTitles);
+    }
     return getTeamsWithCustomTitles(customTeamTitles, storedSubgroups);
-  }, [customTeamTitles, storedSubgroups]);
+  }, [isSubgroupsMode, customTeamTitles, storedSubgroups]);
 
   // Display Mode: 'leaderboard' vs 'spotlight' vs 'grid'
   const [viewMode, setViewMode] = useState<'leaderboard' | 'spotlight' | 'grid'>('leaderboard');
@@ -1104,22 +1142,13 @@ export const TeamPresentationArena: React.FC<Props> = ({
                     <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                       {/* Left: Team/Subgroup Number + Avatar + Title & Slogan */}
                       <div className="flex items-start sm:items-center gap-4 sm:gap-5 min-w-0 flex-1">
-                        {/* Team Indicator (Neutral, non-ranking) */}
-                        <div
-                          style={{
-                            backgroundColor: `${poster.team.color}18`,
-                            borderColor: `${poster.team.color}50`,
-                            color: poster.team.color
-                          }}
-                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-2 flex flex-col items-center justify-center font-mono shadow-sm shrink-0"
-                        >
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                            {isEl ? 'ΟΜΑΔΑ' : 'TEAM'}
-                          </span>
-                          <span className="text-xl sm:text-2xl font-black leading-none mt-0.5">
-                            {poster.index + 1}
-                          </span>
-                        </div>
+                        {/* Subgroup Code / Team Code Tag */}
+                        <SubgroupCodeTag
+                          code={getSubgroupCode(poster.team, activeTeams, isSubgroupsMode)}
+                          color={poster.team.color}
+                          size="lg"
+                          isMainTeam={!isSubgroupsMode}
+                        />
 
                         {/* Team Avatar */}
                         <div
@@ -1132,8 +1161,14 @@ export const TeamPresentationArena: React.FC<Props> = ({
                         {/* Title, Thematic Track Badge & Slogan */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
+                            <SubgroupCodeTag
+                              code={getSubgroupCode(poster.team, activeTeams, isSubgroupsMode)}
+                              color={poster.team.color}
+                              size="md"
+                              isMainTeam={!isSubgroupsMode}
+                            />
                             <h4 className="text-lg sm:text-xl font-black text-white truncate">
-                              {isEl ? poster.team.name : poster.team.name_en || poster.team.name}
+                              {getCleanThematicTitle(poster.team, lang, isSubgroupsMode)}
                             </h4>
 
                             {/* Thematic Track Pill */}
@@ -1290,9 +1325,15 @@ export const TeamPresentationArena: React.FC<Props> = ({
                         : 'bg-slate-900/80 text-slate-300 hover:bg-slate-850'
                     }`}
                   >
+                    <SubgroupCodeTag
+                      code={getSubgroupCode(tp.team, activeTeams, isSubgroupsMode)}
+                      color={tp.team.color}
+                      size="xs"
+                      isMainTeam={!isSubgroupsMode}
+                    />
                     <span>{tp.team.avatar}</span>
-                    <span className="text-[11px]">
-                      {isEl ? tp.team.name.split(':')[0] : tp.team.name_en?.split(':')[0] || tp.team.name}
+                    <span className="text-[11px] font-bold">
+                      {getCleanThematicTitle(tp.team, lang, isSubgroupsMode)}
                     </span>
                     <span className="px-1.5 py-0.5 rounded-md bg-slate-950 text-[10px] font-mono text-cyan-300 font-bold">
                       {tp.progressPercent}%
@@ -1404,6 +1445,8 @@ export const TeamPresentationArena: React.FC<Props> = ({
             onGoToMissions={() => onSelectTeamMissions && onSelectTeamMissions(currentPoster.trackIndex)}
             onDirectUpload={(teamId, file) => handleDirectUpload(teamId, file)}
             onEditReflection={handleOpenEditReflection}
+            activeTeams={activeTeams}
+            isSubgroupsMode={isSubgroupsMode}
           />
         </div>
       )}
@@ -1421,6 +1464,8 @@ export const TeamPresentationArena: React.FC<Props> = ({
               onGoToMissions={() => onSelectTeamMissions && onSelectTeamMissions(poster.trackIndex)}
               onDirectUpload={(teamId, file) => handleDirectUpload(teamId, file)}
               onEditReflection={handleOpenEditReflection}
+              activeTeams={activeTeams}
+              isSubgroupsMode={isSubgroupsMode}
             />
           ))}
         </div>
@@ -1680,6 +1725,8 @@ interface PosterProps {
   onGoToMissions: () => void;
   onDirectUpload?: (teamId: string, file: File) => void;
   onEditReflection: (team: Team, currentText: string) => void;
+  activeTeams?: Team[];
+  isSubgroupsMode?: boolean;
 }
 
 const VisualInfographicPoster: React.FC<PosterProps> = ({
@@ -1691,7 +1738,9 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
   onOpenLightbox,
   onGoToMissions,
   onDirectUpload,
-  onEditReflection
+  onEditReflection,
+  activeTeams = [],
+  isSubgroupsMode = true
 }) => {
   const isEl = lang === 'el';
 
@@ -1907,8 +1956,14 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
                           : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
                       }`}
                     >
+                      <SubgroupCodeTag
+                        code={getSubgroupCode(sub.team, activeTeams, isSubgroupsMode)}
+                        color={sub.team.color}
+                        size="xs"
+                        isMainTeam={!isSubgroupsMode}
+                      />
                       <span>{sub.team.avatar}</span>
-                      <span className="font-bold">{isEl ? sub.team.name : sub.team.name_en || sub.team.name}</span>
+                      <span className="font-bold">{getCleanThematicTitle(sub.team, lang, isSubgroupsMode)}</span>
                       <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
                         {sub.effectiveLang === 'el' ? '🇬🇷 EL' : '🇬🇧 EN'}
                       </span>
@@ -2363,10 +2418,16 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-800">
                         <div className="flex items-center gap-2.5">
+                          <SubgroupCodeTag
+                            code={getSubgroupCode(sub.team, activeTeams, isSubgroupsMode)}
+                            color={sub.team.color}
+                            size="xs"
+                            isMainTeam={!isSubgroupsMode}
+                          />
                           <span className="text-2xl">{sub.team.avatar}</span>
                           <div>
                             <span className="font-bold text-sm text-white block">
-                              {isEl ? sub.team.name : sub.team.name_en || sub.team.name}
+                              {getCleanThematicTitle(sub.team, lang, isSubgroupsMode)}
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono">
                               {subLang === 'el' ? '🇬🇷 Ελληνικά' : '🇬🇧 English'}
@@ -2558,8 +2619,14 @@ const VisualInfographicPoster: React.FC<PosterProps> = ({
                   className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs"
                 >
                   <div className="flex items-center gap-2">
+                    <SubgroupCodeTag
+                      code={getSubgroupCode(sub.team, activeTeams, isSubgroupsMode)}
+                      color={sub.team.color}
+                      size="xs"
+                      isMainTeam={!isSubgroupsMode}
+                    />
                     <span>{sub.team.avatar}</span>
-                    <span className="font-bold text-white">{isEl ? sub.team.name : sub.team.name_en || sub.team.name}</span>
+                    <span className="font-bold text-white">{getCleanThematicTitle(sub.team, lang, isSubgroupsMode)}</span>
                     <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
                       {sub.effectiveLang === 'el' ? '🇬🇷' : '🇬🇧'}
                     </span>

@@ -27,6 +27,7 @@ export const STORAGE_KEYS = {
   TASK_ORDER: 'boundpad_task_order_v10',
   CUSTOM_TEAM_TITLES: 'boundpad_custom_team_titles_v10',
   CUSTOM_SUBGROUPS: 'boundpad_subgroups_v12',
+  SUBGROUPS_MODE_ENABLED: 'boundpad_subgroups_mode_enabled_v1',
   SYNC_VERSION: 'boundpad_sync_version_v12'
 } as const;
 
@@ -1112,6 +1113,13 @@ export const storageService = {
           safeSetItem(STORAGE_KEYS.CUSTOM_TEAM_TITLES, JSON.stringify(data.customTeamTitles));
           window.dispatchEvent(new CustomEvent('boundpad:teamTitles', { detail: { titles: data.customTeamTitles } }));
         }
+        if (typeof data.isSubgroupsMode === 'boolean') {
+          const current = this.getSubgroupsModeEnabled();
+          if (current !== data.isSubgroupsMode) {
+            safeSetItem(STORAGE_KEYS.SUBGROUPS_MODE_ENABLED, data.isSubgroupsMode ? 'true' : 'false');
+            window.dispatchEvent(new CustomEvent('boundpad:subgroupsMode', { detail: { enabled: data.isSubgroupsMode } }));
+          }
+        }
         return data.subgroups;
       }
       return null;
@@ -1292,6 +1300,77 @@ export const storageService = {
       console.warn('[StorageService] Error resetting subgroups:', e);
       return masterTeamsPool;
     }
+  },
+
+  /**
+   * Check whether Subgroups Mode is active (true: multiple subgroups like 1.1, 1.2; false: 4 main teams)
+   */
+  getSubgroupsModeEnabled(): boolean {
+    try {
+      const val = safeGetItem(STORAGE_KEYS.SUBGROUPS_MODE_ENABLED);
+      if (val === null) return true; // Default to true (subgroups active)
+      return val === 'true';
+    } catch {
+      return true;
+    }
+  },
+
+  /**
+   * Toggle or set Subgroups Mode (with strict idempotency to prevent render loops)
+   */
+  setSubgroupsModeEnabled(enabled: boolean): void {
+    try {
+      const current = this.getSubgroupsModeEnabled();
+      if (current === enabled) {
+        return; // Idempotent guard: already in target state
+      }
+      safeSetItem(STORAGE_KEYS.SUBGROUPS_MODE_ENABLED, enabled ? 'true' : 'false');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:subgroupsMode', { detail: { enabled } }));
+      }
+      if (crossTabChannel) {
+        try {
+          crossTabChannel.postMessage({ type: 'TOGGLE_SUBGROUPS_MODE', enabled });
+        } catch {}
+      }
+      this.syncSubgroupsModeToServer(enabled);
+    } catch (e) {
+      console.warn('[StorageService] Error saving subgroups mode:', e);
+    }
+  },
+
+  /**
+   * Set Subgroups Mode locally without triggering syncToServer (used by SSE & server pull)
+   */
+  setSubgroupsModeLocally(enabled: boolean): void {
+    try {
+      const current = this.getSubgroupsModeEnabled();
+      if (current === enabled) {
+        return;
+      }
+      safeSetItem(STORAGE_KEYS.SUBGROUPS_MODE_ENABLED, enabled ? 'true' : 'false');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('boundpad:subgroupsMode', { detail: { enabled } }));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error saving subgroups mode locally:', e);
+    }
+  },
+
+  /**
+   * Push subgroups mode state to server
+   */
+  async syncSubgroupsModeToServer(enabled: boolean): Promise<void> {
+    try {
+      if (typeof window === 'undefined') return;
+      await fetch('/api/sync/subgroups-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+    } catch (err) {
+      console.warn('[StorageService] syncSubgroupsModeToServer error:', err);
+    }
   }
 };
 
@@ -1304,7 +1383,13 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
     crossTabChannel = new BroadcastChannel('boundpad_subgroups_sync_channel');
     crossTabChannel.onmessage = (event) => {
       const data = event.data;
-      if (data && data.subgroups && Array.isArray(data.subgroups)) {
+      if (data && data.type === 'TOGGLE_SUBGROUPS_MODE') {
+        const current = storageService.getSubgroupsModeEnabled();
+        if (current !== data.enabled) {
+          safeSetItem(STORAGE_KEYS.SUBGROUPS_MODE_ENABLED, data.enabled ? 'true' : 'false');
+          window.dispatchEvent(new CustomEvent('boundpad:subgroupsMode', { detail: { enabled: data.enabled } }));
+        }
+      } else if (data && data.subgroups && Array.isArray(data.subgroups)) {
         storageService.purgeDeletedSubgroupsFromLocalStorage(
           data.subgroups,
           data.teamId ? [data.teamId] : []

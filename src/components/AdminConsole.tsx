@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ShieldCheck,
   ShieldAlert,
@@ -60,7 +60,11 @@ import {
   getLocalizedTeamSlogan,
   getTeamEffectiveLanguage,
   resolveTeamTrackId,
-  CORE_THEMATIC_TRACKS
+  CORE_THEMATIC_TRACKS,
+  getSubgroupCode,
+  getCoreThematicTitle,
+  getCleanThematicTitle,
+  getMainTeams
 } from '../data/masterTaskPool';
 import { storageService } from '../services/storageService';
 import { exportService } from '../services/exportService';
@@ -69,6 +73,7 @@ import { processLocalFile } from '../utils/fileUploadHelper';
 import { TaskQrCodeModal } from './TaskQrCodeModal';
 import { FieldMediaPlaybackModal } from './FieldMediaPlaybackModal';
 import { AppJoinQrModal } from './AppJoinQrModal';
+import { SubgroupCodeTag } from './SubgroupCodeTag';
 import { FieldSpotInfo } from '../types/game';
 
 interface AdminConsoleProps {
@@ -91,6 +96,8 @@ interface AdminConsoleProps {
   onUpdateCustomTeamTitles?: (newTitles: Record<string, CustomTeamTitleRecord>) => void;
   subgroups?: Team[];
   onUpdateSubgroups?: (subgroups: Team[]) => void;
+  isSubgroupsMode?: boolean;
+  onToggleSubgroupsMode?: (enabled: boolean) => void;
 }
 
 export const AdminConsole: React.FC<AdminConsoleProps> = ({
@@ -112,9 +119,57 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   customTeamTitles,
   onUpdateCustomTeamTitles,
   subgroups: subgroupsProp,
-  onUpdateSubgroups
+  onUpdateSubgroups,
+  isSubgroupsMode: isSubgroupsModeProp,
+  onToggleSubgroupsMode
 }) => {
   const isEl = lang === 'el';
+
+  // Subgroups Mode State (Optional Subgroups Switch)
+  // Single source of truth driven by isSubgroupsModeProp or fallback to storage
+  const [localSubgroupsMode, setLocalSubgroupsMode] = useState<boolean>(() => {
+    return isSubgroupsModeProp !== undefined ? isSubgroupsModeProp : storageService.getSubgroupsModeEnabled();
+  });
+
+  const isSubgroupsMode = isSubgroupsModeProp !== undefined ? isSubgroupsModeProp : localSubgroupsMode;
+
+  useEffect(() => {
+    if (isSubgroupsModeProp !== undefined) {
+      setLocalSubgroupsMode((prev) => (prev !== isSubgroupsModeProp ? isSubgroupsModeProp : prev));
+    }
+  }, [isSubgroupsModeProp]);
+
+  useEffect(() => {
+    const handleSubgroupsModeSync = (e: any) => {
+      if (e?.detail && typeof e.detail.enabled === 'boolean') {
+        setLocalSubgroupsMode((prev) => (prev !== e.detail.enabled ? e.detail.enabled : prev));
+      } else if (e instanceof StorageEvent && e.key === 'boundpad_subgroups_mode_enabled_v1' && e.newValue !== null) {
+        const val = e.newValue === 'true';
+        setLocalSubgroupsMode((prev) => (prev !== val ? val : prev));
+      }
+    };
+    window.addEventListener('boundpad:subgroupsMode', handleSubgroupsModeSync);
+    window.addEventListener('storage', handleSubgroupsModeSync);
+    return () => {
+      window.removeEventListener('boundpad:subgroupsMode', handleSubgroupsModeSync);
+      window.removeEventListener('storage', handleSubgroupsModeSync);
+    };
+  }, []);
+
+  const handleToggleSubgroupsMode = (nextVal: boolean) => {
+    if (isSubgroupsMode === nextVal) return;
+    setLocalSubgroupsMode(nextVal);
+    storageService.setSubgroupsModeEnabled(nextVal);
+    if (onToggleSubgroupsMode) {
+      onToggleSubgroupsMode(nextVal);
+    }
+    showNotification(
+      isEl
+        ? (nextVal ? '✅ Ενεργοποίηση Υποομάδων: Όλες οι υποομάδες (1.1, 1.2 κ.λπ.) είναι ενεργές!' : 'ℹ️ Απενεργοποίηση Υποομάδων: Εμφάνιση μόνο των 4 κύριων ομάδων.')
+        : (nextVal ? '✅ Subgroups Mode Enabled: Subgroup tracks (1.1, 1.2, etc.) are active!' : 'ℹ️ Subgroups Mode Disabled: Displaying 4 main teams only.'),
+      nextVal ? 'success' : 'info'
+    );
+  };
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -283,33 +338,88 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   };
 
   // Draft state for team titles in Admin
+  const isEditingDraftRef = useRef<boolean>(false);
   const [teamTitleDrafts, setTeamTitleDrafts] = useState<Record<string, CustomTeamTitleRecord>>(() => {
     return customTeamTitles || storageService.getCustomTeamTitles();
   });
 
   useEffect(() => {
     if (customTeamTitles) {
-      setTeamTitleDrafts(customTeamTitles);
+      setTeamTitleDrafts((prev) => {
+        if (isEditingDraftRef.current) {
+          return {
+            ...customTeamTitles,
+            ...prev
+          };
+        }
+        return customTeamTitles;
+      });
     }
   }, [customTeamTitles]);
 
-  // Quick Rename Team Modal state (for Tab 1 individual group banner)
+  // Quick Rename Team Modal state
   const [quickRenameTeam, setQuickRenameTeam] = useState<Team | null>(null);
+  const [quickNameEl, setQuickNameEl] = useState<string>('');
+  const [quickNameEn, setQuickNameEn] = useState<string>('');
+  const [quickSloganEl, setQuickSloganEl] = useState<string>('');
+  const [quickSloganEn, setQuickSloganEn] = useState<string>('');
+  const [quickAvatar, setQuickAvatar] = useState<string>('🦅');
+  const [quickLang, setQuickLang] = useState<'el' | 'en'>('el');
+  const currentQuickTeamIdRef = useRef<string | null>(null);
+
+  // When quickRenameTeam opens, initialize inputs with current values ONLY ONCE per opened team
+  useEffect(() => {
+    if (quickRenameTeam) {
+      if (currentQuickTeamIdRef.current !== quickRenameTeam.id) {
+        currentQuickTeamIdRef.current = quickRenameTeam.id;
+        const teamId = quickRenameTeam.id;
+        const custom = customTeamTitles?.[teamId] || {};
+        const draft = teamTitleDrafts[teamId] || {};
+        const defaultTeam = masterTeamsPool.find((t) => t.id === teamId) || quickRenameTeam;
+
+        setQuickNameEl(
+          draft.name !== undefined ? draft.name : (custom.name || quickRenameTeam.name || defaultTeam.name || '')
+        );
+        setQuickNameEn(
+          draft.name_en !== undefined ? draft.name_en : (custom.name_en || quickRenameTeam.name_en || quickRenameTeam.name || defaultTeam.name_en || defaultTeam.name || '')
+        );
+        setQuickSloganEl(
+          draft.slogan !== undefined ? draft.slogan : (custom.slogan || quickRenameTeam.slogan || defaultTeam.slogan || '')
+        );
+        setQuickSloganEn(
+          draft.slogan_en !== undefined ? draft.slogan_en : (custom.slogan_en || quickRenameTeam.slogan_en || defaultTeam.slogan_en || '')
+        );
+        setQuickAvatar(quickRenameTeam.avatar || defaultTeam.avatar || '🦅');
+        setQuickLang(quickRenameTeam.language || 'el');
+      }
+    } else {
+      currentQuickTeamIdRef.current = null;
+    }
+  }, [quickRenameTeam?.id]);
 
   const handleUpdateDraftField = (teamId: string, field: keyof CustomTeamTitleRecord, val: string) => {
-    setTeamTitleDrafts((prev) => ({
-      ...prev,
-      [teamId]: {
-        ...prev[teamId],
-        [field]: val
-      }
-    }));
+    isEditingDraftRef.current = true;
+    setTeamTitleDrafts((prev) => {
+      const current = prev[teamId] || {};
+      const targetTeam = activeTeams.find((t) => t.id === teamId);
+      const defaultTeam = masterTeamsPool.find((t) => t.id === teamId) || targetTeam;
+      return {
+        ...prev,
+        [teamId]: {
+          name: current.name !== undefined ? current.name : (targetTeam?.name || defaultTeam?.name || ''),
+          name_en: current.name_en !== undefined ? current.name_en : (targetTeam?.name_en || targetTeam?.name || defaultTeam?.name_en || defaultTeam?.name || ''),
+          slogan: current.slogan !== undefined ? current.slogan : (targetTeam?.slogan || defaultTeam?.slogan || ''),
+          slogan_en: current.slogan_en !== undefined ? current.slogan_en : (targetTeam?.slogan_en || defaultTeam?.slogan_en || ''),
+          [field]: val
+        }
+      };
+    });
   };
 
   const handleSaveTeamTitle = (teamId: string) => {
+    isEditingDraftRef.current = false;
     const draft = teamTitleDrafts[teamId] || {};
-    storageService.saveCustomTeamTitle(teamId, draft);
-    const updated = storageService.getCustomTeamTitles();
+    const updated = storageService.saveCustomTeamTitle(teamId, draft);
     setTeamTitleDrafts(updated);
     if (onUpdateCustomTeamTitles) {
       onUpdateCustomTeamTitles(updated);
@@ -330,9 +440,52 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     }
   };
 
+  const handleSaveQuickRename = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!quickRenameTeam) return;
+
+    const teamId = quickRenameTeam.id;
+    const finalData = {
+      name: quickNameEl.trim() || quickRenameTeam.name,
+      name_en: quickNameEn.trim() || quickRenameTeam.name_en || quickRenameTeam.name,
+      slogan: quickSloganEl.trim(),
+      slogan_en: quickSloganEn.trim()
+    };
+
+    // Save title overrides to localStorage
+    const updatedTitles = storageService.saveCustomTeamTitle(teamId, finalData);
+    setTeamTitleDrafts(updatedTitles);
+    if (onUpdateCustomTeamTitles) {
+      onUpdateCustomTeamTitles(updatedTitles);
+    }
+
+    // Also update subgroup avatar, language, and display labels
+    const updatedSubs = storageService.updateSubgroup(teamId, {
+      ...finalData,
+      avatar: quickAvatar,
+      language: quickLang
+    });
+    setSubgroupsList(updatedSubs);
+    if (onUpdateSubgroups) {
+      onUpdateSubgroups(updatedSubs);
+    }
+
+    showNotification(
+      isEl
+        ? `Τα στοιχεία της ομάδας "${finalData.name}" αποθηκεύτηκαν επιτυχώς!`
+        : `Team "${finalData.name_en || finalData.name}" updated successfully!`,
+      'success'
+    );
+
+    setQuickRenameTeam(null);
+  };
+
   const handleResetTeamTitle = (teamId: string) => {
-    storageService.resetCustomTeamTitle(teamId);
-    const updated = storageService.getCustomTeamTitles();
+    isEditingDraftRef.current = false;
+    const updated = storageService.resetCustomTeamTitle(teamId);
     setTeamTitleDrafts(updated);
     if (onUpdateCustomTeamTitles) {
       onUpdateCustomTeamTitles(updated);
@@ -1677,9 +1830,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                         {selectedTeamMeta.avatar}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <SubgroupCodeTag
+                            code={getSubgroupCode(selectedTeamMeta, activeTeams, isSubgroupsMode)}
+                            color={selectedTeamMeta.color}
+                            size="md"
+                            isMainTeam={!isSubgroupsMode}
+                          />
                           <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-amber-300 transition-colors flex items-center gap-2">
-                            <span>{getLocalizedTeamName(selectedTeamMeta, lang)}</span>
+                            <span>{getCleanThematicTitle(selectedTeamMeta, lang, isSubgroupsMode)}</span>
                             <Edit3 className="w-4 h-4 text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
                           </h2>
                           <span
@@ -1690,7 +1849,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                             }}
                             className="px-2.5 py-0.5 rounded-full text-xs font-black border uppercase"
                           >
-                            {selectedTeamMeta.id.replace('team-', 'GROUP ')}
+                            {isSubgroupsMode
+                              ? `${isEl ? 'ΠΥΛΩΝΑΣ' : 'TRACK'} ${(selectedTeamMeta.trackId || selectedTeamMeta.id).replace('team-', '')}`
+                              : selectedTeamMeta.id.replace('team-', 'GROUP ')}
                           </span>
                         </div>
                         <p className="text-xs text-slate-300 mt-0.5 italic">
@@ -3571,7 +3732,56 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
           <div className="space-y-8">
             {/* Section 1: Team Title Editing & Bilingual Renaming */}
             {/* Section 1: Subgroup Architecture & Multilingual Management */}
+            {/* Section 1: Subgroup Architecture & Multilingual Management */}
             <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-6 shadow-xl">
+              {/* Optional Subgroups Switch: 'Ενεργοποίηση Υποομάδων' (Enable Subgroups Mode) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-950 border-2 border-slate-800 flex items-center justify-between gap-4 flex-wrap shadow-inner">
+                <div className="space-y-1.5 max-w-xl">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-base sm:text-lg font-black text-white">
+                      {isEl ? 'Ενεργοποίηση Υποομάδων' : 'Enable Subgroups Mode'}
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider uppercase border ${
+                        isSubgroupsMode
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {isSubgroupsMode
+                        ? (isEl ? 'ΕΝΕΡΓΟΠΟΙΗΜΕΝΟ (1.1, 1.2 κ.λπ.)' : 'ENABLED (1.1, 1.2, etc.)')
+                        : (isEl ? 'ΑΠΕΝΕΡΓΟΠΟΙΗΜΕΝΟ (4 Κύριες Ομάδες)' : 'OFF (4 Main Teams Only)')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    {isEl
+                      ? 'Όταν είναι απενεργοποιημένο (OFF), η εφαρμογή εμφανίζει μόνο τις 4 κύριες ομάδες για απλοποιημένη προβολή. Όταν ενεργοποιηθεί (ON), ενεργοποιούνται οι υποομάδες (1.1, 1.2 κ.λπ.) με έντονη διακριτή αρίθμηση και κοινό πυλώνα.'
+                      : 'When OFF, the app displays only the main teams for a simplified view. When ON, the subgroup tracks (1.1, 1.2, etc.) become active with prominent numbering badges sharing the same thematic track.'}
+                  </p>
+                </div>
+
+                {/* Styled Switch Button */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleSubgroupsMode(!isSubgroupsMode)}
+                  className={`relative inline-flex h-9 w-18 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900 ${
+                    isSubgroupsMode ? 'bg-emerald-500' : 'bg-slate-700'
+                  }`}
+                  role="switch"
+                  aria-checked={isSubgroupsMode}
+                  title={isEl ? 'Εναλλαγή Ενεργοποίησης Υποομάδων' : 'Toggle Subgroups Mode'}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-8 w-8 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out flex items-center justify-center text-xs font-black ${
+                      isSubgroupsMode ? 'translate-x-9 text-emerald-700' : 'translate-x-0 text-slate-700'
+                    }`}
+                  >
+                    {isSubgroupsMode ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+              </div>
+
               <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-slate-800">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-2xl font-bold shrink-0">
@@ -3652,8 +3862,14 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               >
                                 <span className="text-2xl group-hover:scale-110 transition-transform">{sub.avatar}</span>
                                 <div className="min-w-0">
-                                  <div className="font-bold text-xs text-white truncate group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
-                                    <span>{getLocalizedTeamName(sub, lang)}</span>
+                                  <div className="font-bold text-xs text-white truncate group-hover:text-amber-300 transition-colors flex items-center gap-2">
+                                    <SubgroupCodeTag
+                                      code={getSubgroupCode(sub, activeTeams, isSubgroupsMode)}
+                                      color={sub.color}
+                                      size="xs"
+                                      isMainTeam={!isSubgroupsMode}
+                                    />
+                                    <span className="font-extrabold">{getCleanThematicTitle(sub, lang, isSubgroupsMode)}</span>
                                     <Edit3 className="w-3 h-3 text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
                                   </div>
                                   <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
@@ -3858,7 +4074,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               value={currentNameEl}
                               onChange={(e) => handleUpdateDraftField(team.id, 'name', e.target.value)}
                               placeholder={defaultTeam.name}
-                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                              disabled={false}
+                              readOnly={false}
+                              autoComplete="off"
+                              spellCheck="false"
+                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 cursor-text select-text transition-colors"
                             />
                           </div>
 
@@ -3872,7 +4092,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               value={currentNameEn}
                               onChange={(e) => handleUpdateDraftField(team.id, 'name_en', e.target.value)}
                               placeholder={defaultTeam.name_en || defaultTeam.name}
-                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                              disabled={false}
+                              readOnly={false}
+                              autoComplete="off"
+                              spellCheck="false"
+                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 cursor-text select-text transition-colors"
                             />
                           </div>
 
@@ -3886,7 +4110,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               value={currentSloganEl}
                               onChange={(e) => handleUpdateDraftField(team.id, 'slogan', e.target.value)}
                               placeholder={defaultTeam.slogan}
-                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                              disabled={false}
+                              readOnly={false}
+                              autoComplete="off"
+                              spellCheck="false"
+                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 cursor-text select-text transition-colors"
                             />
                           </div>
 
@@ -3900,7 +4128,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               value={currentSloganEn}
                               onChange={(e) => handleUpdateDraftField(team.id, 'slogan_en', e.target.value)}
                               placeholder={defaultTeam.slogan_en || defaultTeam.slogan}
-                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                              disabled={false}
+                              readOnly={false}
+                              autoComplete="off"
+                              spellCheck="false"
+                              className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 cursor-text select-text transition-colors"
                             />
                           </div>
                         </div>
@@ -4062,125 +4294,6 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
           </div>
         )}
       </main>
-
-      {/* Quick Team Rename Modal (Triggered from Tab 1 Group Banner) */}
-      {quickRenameTeam && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl p-1.5 rounded-xl bg-slate-800 border border-slate-700">
-                  {quickRenameTeam.avatar}
-                </span>
-                <div>
-                  <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <span>{isEl ? 'Μετονομασία Ομάδας' : 'Rename Team'}</span>
-                    <span
-                      style={{ backgroundColor: `${quickRenameTeam.color}25`, color: quickRenameTeam.color }}
-                      className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase border border-current/30"
-                    >
-                      {quickRenameTeam.id.replace('team-', 'GROUP ')}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    {isEl ? 'Προσαρμόστε τίτλο και σύνθημα σε Ελληνικά & Αγγλικά' : 'Custom title & slogan in Greek and English'}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setQuickRenameTeam(null)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Form inputs */}
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">
-                  {isEl ? 'Τίτλος Ομάδας (Ελληνικά):' : 'Team Title (Greek):'}
-                </label>
-                <input
-                  type="text"
-                  value={teamTitleDrafts[quickRenameTeam.id]?.name ?? quickRenameTeam.name}
-                  onChange={(e) => handleUpdateDraftField(quickRenameTeam.id, 'name', e.target.value)}
-                  placeholder="π.χ. Ομάδα 1: Ερευνητές Φύσης"
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">
-                  {isEl ? 'Team Title (English) • Αγγλικός Τίτλος:' : 'Team Title (English):'}
-                </label>
-                <input
-                  type="text"
-                  value={teamTitleDrafts[quickRenameTeam.id]?.name_en ?? quickRenameTeam.name_en ?? quickRenameTeam.name}
-                  onChange={(e) => handleUpdateDraftField(quickRenameTeam.id, 'name_en', e.target.value)}
-                  placeholder="e.g. Group 1: Nature Explorers"
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">
-                  {isEl ? 'Σύνθημα Ομάδας (Ελληνικά):' : 'Team Slogan (Greek):'}
-                </label>
-                <input
-                  type="text"
-                  value={teamTitleDrafts[quickRenameTeam.id]?.slogan ?? quickRenameTeam.slogan}
-                  onChange={(e) => handleUpdateDraftField(quickRenameTeam.id, 'slogan', e.target.value)}
-                  placeholder="π.χ. Ανακαλύπτουμε τα πάντα!"
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">
-                  {isEl ? 'Team Slogan (English) • Αγγλικό Σύνθημα:' : 'Team Slogan (English):'}
-                </label>
-                <input
-                  type="text"
-                  value={teamTitleDrafts[quickRenameTeam.id]?.slogan_en ?? quickRenameTeam.slogan_en ?? quickRenameTeam.slogan}
-                  onChange={(e) => handleUpdateDraftField(quickRenameTeam.id, 'slogan_en', e.target.value)}
-                  placeholder="e.g. Discovering everything!"
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-            </div>
-
-            {/* Modal actions */}
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => handleResetTeamTitle(quickRenameTeam.id)}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer transition-colors"
-              >
-                {isEl ? 'Επαναφορά Προεπιλογής' : 'Reset to Default'}
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setQuickRenameTeam(null)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
-                >
-                  {isEl ? 'Ακύρωση' : 'Cancel'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveTeamTitle(quickRenameTeam.id)}
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
-                >
-                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  <span>{isEl ? 'Αποθήκευση' : 'Save'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Task QR Code Generator & Placard Print Modal */}
       {qrModalTask && (
@@ -4411,6 +4524,266 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
           onClose={() => setShowJoinQrModal(false)}
           lang={lang}
         />
+      )}
+
+      {/* Quick Rename Team Modal */}
+      {quickRenameTeam && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
+          onClick={() => setQuickRenameTeam(null)}
+        >
+          <div
+            style={{ borderColor: `${quickRenameTeam.color}60` }}
+            className="w-full max-w-lg rounded-3xl bg-slate-900 border-2 shadow-2xl p-6 space-y-5 text-sm my-8 relative z-10"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <span
+                  style={{ backgroundColor: `${quickRenameTeam.color}25` }}
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-3xl border border-current/30 shadow-inner shrink-0"
+                >
+                  {quickAvatar || quickRenameTeam.avatar}
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <SubgroupCodeTag
+                      code={getSubgroupCode(quickRenameTeam, activeTeams, isSubgroupsMode)}
+                      color={quickRenameTeam.color}
+                      size="sm"
+                      isMainTeam={!isSubgroupsMode}
+                    />
+                    <h3 className="text-base font-black text-white">
+                      {isEl ? 'Μετονομασία Ομάδας / Υποομάδας' : 'Rename Team / Subgroup'}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {isEl
+                      ? 'Προσαρμόστε τον τίτλο, το σύνθημα και το avatar για άμεση εμφάνιση στους μαθητές.'
+                      : 'Customize team title, slogan, and avatar for immediate student display.'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setQuickRenameTeam(null)}
+                className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title={isEl ? 'Κλείσιμο' : 'Close'}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Live Interactive Preview Card */}
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  {isEl ? 'Προεπισκόπηση Εμφάνισης (Live Preview):' : 'Live Preview:'}
+                </span>
+                <span
+                  style={{ color: quickRenameTeam.color }}
+                  className="font-mono font-black"
+                >
+                  {quickRenameTeam.id}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <SubgroupCodeTag
+                  code={getSubgroupCode(quickRenameTeam, activeTeams, isSubgroupsMode)}
+                  color={quickRenameTeam.color}
+                  size="xs"
+                  isMainTeam={!isSubgroupsMode}
+                />
+                <span className="text-white font-extrabold text-sm truncate">
+                  {lang === 'en'
+                    ? (quickNameEn || quickNameEl || quickRenameTeam.name)
+                    : (quickNameEl || quickNameEn || quickRenameTeam.name)}
+                </span>
+              </div>
+              <div className="text-slate-400 italic text-[11px] truncate">
+                «{lang === 'en' ? (quickSloganEn || quickSloganEl || '...') : (quickSloganEl || quickSloganEn || '...')}»
+              </div>
+            </div>
+
+            {/* Form Inputs */}
+            <form onSubmit={handleSaveQuickRename} className="space-y-4">
+              <div className="space-y-3">
+                {/* Greek Title */}
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    {isEl ? 'Τίτλος Ομάδας (Ελληνικά):' : 'Team Title (Greek):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={quickNameEl}
+                    onChange={(e) => setQuickNameEl(e.target.value)}
+                    placeholder={quickRenameTeam.name}
+                    disabled={false}
+                    readOnly={false}
+                    autoComplete="off"
+                    spellCheck="false"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 cursor-text select-text transition-colors"
+                    autoFocus
+                  />
+                </div>
+
+                {/* English Title */}
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    {isEl ? 'Team Title (English) • Αγγλικός Τίτλος:' : 'Team Title (English):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={quickNameEn}
+                    onChange={(e) => setQuickNameEn(e.target.value)}
+                    placeholder={quickRenameTeam.name_en || quickRenameTeam.name}
+                    disabled={false}
+                    readOnly={false}
+                    autoComplete="off"
+                    spellCheck="false"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 cursor-text select-text transition-colors"
+                  />
+                </div>
+
+                {/* Greek Slogan */}
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    {isEl ? 'Σύνθημα Ομάδας (Ελληνικά):' : 'Team Slogan (Greek):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={quickSloganEl}
+                    onChange={(e) => setQuickSloganEl(e.target.value)}
+                    placeholder={quickRenameTeam.slogan || 'π.χ. Προστατεύουμε τους αιθέρες!'}
+                    disabled={false}
+                    readOnly={false}
+                    autoComplete="off"
+                    spellCheck="false"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 cursor-text select-text transition-colors"
+                  />
+                </div>
+
+                {/* English Slogan */}
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    {isEl ? 'Team Slogan (English) • Αγγλικό Σύνθημα:' : 'Team Slogan (English):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={quickSloganEn}
+                    onChange={(e) => setQuickSloganEn(e.target.value)}
+                    placeholder={quickRenameTeam.slogan_en || 'e.g. Protecting the skies!'}
+                    disabled={false}
+                    readOnly={false}
+                    autoComplete="off"
+                    spellCheck="false"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 cursor-text select-text transition-colors"
+                  />
+                </div>
+
+                {/* Avatar Picker */}
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                    {isEl ? 'Εικονίδιο / Avatar:' : 'Avatar Symbol:'}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {['🦅', '🦉', '🧭', '🔬', '🌿', '⛰️', '🛡️', '⭐', '🐾', '🌊', '🎯', '✨', '⚡', '🚀'].map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setQuickAvatar(emoji)}
+                        className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center border transition-all cursor-pointer ${
+                          quickAvatar === emoji
+                            ? 'bg-amber-500/20 border-amber-400 scale-110 shadow-sm'
+                            : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Language Preference */}
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                    {isEl ? 'Γλώσσα Προτίμησης Υποομάδας:' : 'Subgroup Language Preference:'}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQuickLang('el')}
+                      className={`flex-1 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        quickLang === 'el'
+                          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-xs'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <span>🇬🇷 Ελληνικά (EL)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickLang('en')}
+                      className={`flex-1 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        quickLang === 'en'
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-xs'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <span>🇬🇧 English (EN)</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="pt-4 border-t border-slate-800 flex items-center justify-between gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleResetTeamTitle(quickRenameTeam.id);
+                    setQuickRenameTeam(null);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                  title={isEl ? 'Επαναφορά στις αρχικές ρυθμίσεις' : 'Reset to default curriculum names'}
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{isEl ? 'Επαναφορά' : 'Default'}</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuickRenameTeam(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer"
+                  >
+                    {isEl ? 'Ακύρωση' : 'Cancel'}
+                  </button>
+                  <button
+                    type="submit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSaveQuickRename(e);
+                    }}
+                    style={{
+                      backgroundColor: quickRenameTeam.color,
+                      color: '#0f172a'
+                    }}
+                    className="px-5 py-2 rounded-xl font-black text-xs cursor-pointer shadow-lg flex items-center gap-1.5 hover:opacity-90 active:scale-95 transition-all"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>{isEl ? 'Αποθήκευση Αλλαγών' : 'Save Changes'}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

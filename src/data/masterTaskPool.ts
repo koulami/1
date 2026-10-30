@@ -15,9 +15,9 @@ export const CORE_THEMATIC_TRACKS: ThematicTrackInfo[] = [
     id: 'team-alpha',
     trackId: 'team-alpha',
     trackNumber: 1,
-    title: 'Ομάδα 1: Ταυτότητα & Γενικά Χαρακτηριστικά',
-    title_el: 'Ομάδα 1: Ταυτότητα & Γενικά Χαρακτηριστικά',
-    title_en: 'Group 1: Identity & Basics',
+    title: 'Ταυτότητα & Μορφολογία',
+    title_el: 'Ταυτότητα & Μορφολογία',
+    title_en: 'Identity & Morphology',
     theme: 'Ταυτότητα, μορφολογία, μέγεθος, αναπαραγωγή και πληθυσμός',
     theme_en: 'Identity, morphology, wingspan, lifecycle, and population status',
     description: 'Ταυτότητα, μορφολογία, μέγεθος, αναπαραγωγή και πληθυσμός',
@@ -30,9 +30,9 @@ export const CORE_THEMATIC_TRACKS: ThematicTrackInfo[] = [
     id: 'team-beta',
     trackId: 'team-beta',
     trackNumber: 2,
-    title: 'Ομάδα 2: Περιβάλλον, Φωλεοποίηση & Πτήση',
-    title_el: 'Ομάδα 2: Περιβάλλον, Φωλεοποίηση & Πτήση',
-    title_en: 'Group 2: Habitat, Nesting & Flight',
+    title: 'Περιβάλλον & Πτήση',
+    title_el: 'Περιβάλλον & Πτήση',
+    title_en: 'Habitat & Flight',
     theme: 'Απόκρημνοι γκρεμοί Επισκοπής, θερμικά ανοδικά ρεύματα και πτήση 100+ km',
     theme_en: 'Episkopi sea cliffs, thermal soaring updrafts, and long-range foraging',
     description: 'Απόκρημνοι γκρεμοί Επισκοπής, θερμικά ανοδικά ρεύματα και πτήση 100+ km',
@@ -45,9 +45,9 @@ export const CORE_THEMATIC_TRACKS: ThematicTrackInfo[] = [
     id: 'team-gamma',
     trackId: 'team-gamma',
     trackNumber: 3,
-    title: 'Ομάδα 3: Διατροφή & Βιολογία',
-    title_el: 'Ομάδα 3: Διατροφή & Βιολογία',
-    title_en: 'Group 3: Diet & Biology',
+    title: 'Διατροφή & Βιολογία',
+    title_el: 'Διατροφή & Βιολογία',
+    title_en: 'Diet & Biology',
     theme: 'Αποκλειστικοί πτωματοφάγοι, γυμνός λαιμός, pH στομάχου 1-2 και όραση',
     theme_en: 'Obligate scavengers, bare neck, acidic gastric pH 1-2, visual foraging',
     description: 'Αποκλειστικοί πτωματοφάγοι, γυμνός λαιμός, pH στομάχου 1-2 και όραση',
@@ -60,9 +60,9 @@ export const CORE_THEMATIC_TRACKS: ThematicTrackInfo[] = [
     id: 'team-delta',
     trackId: 'team-delta',
     trackNumber: 4,
-    title: 'Ομάδα 4: Απειλές & Προστασία',
-    title_el: 'Ομάδα 4: Απειλές & Προστασία',
-    title_en: 'Group 4: Threats & Conservation',
+    title: 'Απειλές & Προστασία',
+    title_el: 'Απειλές & Προστασία',
+    title_en: 'Threats & Conservation',
     theme: 'Παράνομες φόλες, σκύλοι K9, 4 ταΐστρες, σημαντήρες καλωδίων και Σύμφωνο',
     theme_en: 'Poison baits, anti-poison K9 units, feeding stations, power lines, and Charter',
     description: 'Παράνομες φόλες, σκύλοι K9, 4 ταΐστρες, σημαντήρες καλωδίων και Σύμφωνο',
@@ -74,12 +74,12 @@ export const CORE_THEMATIC_TRACKS: ThematicTrackInfo[] = [
 ];
 
 export const masterTeamsPool: Team[] = [
-  // Thematic Track 1: Identity & Basics (2 Subgroups)
+  // Thematic Track 1: Identity & Basics (Subgroups share identical core title)
   {
     id: "team-alpha",
     trackId: "team-alpha",
-    name: "Ομάδα 1.1: Ταυτότητα & Μορφολογία",
-    name_en: "Team 1.1: Identity & Morphology",
+    name: "Ταυτότητα & Μορφολογία",
+    name_en: "Identity & Morphology",
     color: "#10b981",
     avatar: "🧭",
     slogan: "Ανακαλύπτουμε τα πάντα για το Όρνιο!",
@@ -89,8 +89,8 @@ export const masterTeamsPool: Team[] = [
   {
     id: "team-alpha-2",
     trackId: "team-alpha",
-    name: "Ομάδα 1.2: Βιομετρία & Αναγνώριση",
-    name_en: "Team 1.2: Biometrics & Field Identification",
+    name: "Ταυτότητα & Μορφολογία",
+    name_en: "Identity & Morphology",
     color: "#10b981",
     avatar: "🦅",
     slogan: "Εξερευνητές των Κυπριακών Ουρανών!",
@@ -98,12 +98,12 @@ export const masterTeamsPool: Team[] = [
     language: "en"
   },
 
-  // Thematic Track 2: Habitat, Nesting & Flight (2 Subgroups)
+  // Thematic Track 2: Habitat, Nesting & Flight (Subgroups share identical core title)
   {
     id: "team-beta",
     trackId: "team-beta",
-    name: "Ομάδα 2.1: Περιβάλλον & Φωλεοποίηση",
-    name_en: "Team 2.1: Habitat & Nesting",
+    name: "Περιβάλλον & Πτήση",
+    name_en: "Habitat & Flight",
     color: "#06b6d4",
     avatar: "⚡",
     slogan: "Κυρίαρχοι των γκρεμών και των αιθέρων!",
@@ -113,8 +113,8 @@ export const masterTeamsPool: Team[] = [
   {
     id: "team-beta-2",
     trackId: "team-beta",
-    name: "Ομάδα 2.2: Θερμικά Ρεύματα & Πτήση",
-    name_en: "Team 2.2: Thermal Soaring & Flight",
+    name: "Περιβάλλον & Πτήση",
+    name_en: "Habitat & Flight",
     color: "#06b6d4",
     avatar: "⛰️",
     slogan: "Καταγράφουμε τους γκρεμούς της Επισκοπής!",
@@ -122,12 +122,12 @@ export const masterTeamsPool: Team[] = [
     language: "en"
   },
 
-  // Thematic Track 3: Diet & Biology (2 Subgroups)
+  // Thematic Track 3: Diet & Biology (Subgroups share identical core title)
   {
     id: "team-gamma",
     trackId: "team-gamma",
-    name: "Ομάδα 3.1: Διατροφή & Βιολογία",
-    name_en: "Team 3.1: Diet & Biology",
+    name: "Διατροφή & Βιολογία",
+    name_en: "Diet & Biology",
     color: "#f59e0b",
     avatar: "🚀",
     slogan: "Οι καθαριστές της κυπριακής φύσης!",
@@ -137,8 +137,8 @@ export const masterTeamsPool: Team[] = [
   {
     id: "team-gamma-2",
     trackId: "team-gamma",
-    name: "Ομάδα 3.2: Οικολογικός Ρόλος & Πεπτικό",
-    name_en: "Team 3.2: Ecological Sanitation & Digestion",
+    name: "Διατροφή & Βιολογία",
+    name_en: "Diet & Biology",
     color: "#f59e0b",
     avatar: "🥩",
     slogan: "Υπερασπιστές της οικολογικής ισορροπίας!",
@@ -146,12 +146,12 @@ export const masterTeamsPool: Team[] = [
     language: "en"
   },
 
-  // Thematic Track 4: Threats & Conservation (2 Subgroups)
+  // Thematic Track 4: Threats & Conservation (Subgroups share identical core title)
   {
     id: "team-delta",
     trackId: "team-delta",
-    name: "Ομάδα 4.1: Απειλές & Δηλητήρια",
-    name_en: "Team 4.1: Threats & Poisoning",
+    name: "Απειλές & Προστασία",
+    name_en: "Threats & Conservation",
     color: "#8b5cf6",
     avatar: "🔬",
     slogan: "Δράση και λύσεις για το μέλλον!",
@@ -161,8 +161,8 @@ export const masterTeamsPool: Team[] = [
   {
     id: "team-delta-2",
     trackId: "team-delta",
-    name: "Ομάδα 4.2: Μέτρα Προστασίας & Μονάδα K9",
-    name_en: "Team 4.2: Conservation & K9 Unit",
+    name: "Απειλές & Προστασία",
+    name_en: "Threats & Conservation",
     color: "#8b5cf6",
     avatar: "🐕",
     slogan: "Μηδενική ανοχή στα δηλητήρια και τις φόλες!",
@@ -2813,14 +2813,19 @@ export function getTeamsWithCustomTitles(
   return baseList.map((team) => {
     const override = customTitles[team.id];
     if (!override) return team;
+    const hasCustomName = Boolean(override.name && override.name.trim().length > 0);
+    const hasCustomNameEn = Boolean(override.name_en && override.name_en.trim().length > 0);
+    const hasCustomSlogan = Boolean(override.slogan && override.slogan.trim().length > 0);
+    const hasCustomSloganEn = Boolean(override.slogan_en && override.slogan_en.trim().length > 0);
     return {
       ...team,
       trackId: override.trackId || team.trackId || resolveTeamTrackId(team.id),
       language: override.language || team.language || 'el',
-      name: override.name && override.name.trim().length > 0 ? override.name.trim() : team.name,
-      name_en: override.name_en && override.name_en.trim().length > 0 ? override.name_en.trim() : (team.name_en || team.name),
-      slogan: override.slogan && override.slogan.trim().length > 0 ? override.slogan.trim() : team.slogan,
-      slogan_en: override.slogan_en && override.slogan_en.trim().length > 0 ? override.slogan_en.trim() : (team.slogan_en || team.slogan)
+      name: hasCustomName ? override.name!.trim() : team.name,
+      name_en: hasCustomNameEn ? override.name_en!.trim() : (team.name_en || team.name),
+      slogan: hasCustomSlogan ? override.slogan!.trim() : team.slogan,
+      slogan_en: hasCustomSloganEn ? override.slogan_en!.trim() : (team.slogan_en || team.slogan),
+      isCustomTitle: hasCustomName || hasCustomNameEn || hasCustomSlogan || hasCustomSloganEn
     };
   });
 }
@@ -2856,3 +2861,145 @@ export function getTeamEffectiveLanguage(team?: Team, globalLang: 'el' | 'en' = 
   }
   return globalLang;
 }
+
+/**
+ * Standardizes the core thematic title for each of the 4 tracks
+ */
+export function getCoreThematicTitle(trackId: string, lang: 'el' | 'en' = 'el'): string {
+  switch (trackId) {
+    case 'team-alpha':
+      return lang === 'el' ? 'Ταυτότητα & Μορφολογία' : 'Identity & Morphology';
+    case 'team-beta':
+      return lang === 'el' ? 'Περιβάλλον & Πτήση' : 'Habitat & Flight';
+    case 'team-gamma':
+      return lang === 'el' ? 'Διατροφή & Βιολογία' : 'Diet & Biology';
+    case 'team-delta':
+      return lang === 'el' ? 'Απειλές & Προστασία' : 'Threats & Conservation';
+    default:
+      return lang === 'el' ? 'Ταυτότητα & Μορφολογία' : 'Identity & Morphology';
+  }
+}
+
+/**
+ * Extracts or computes the prominent subgroup code (e.g. "1.1", "1.2", "2.1", etc.)
+ * Or in simplified Main Teams mode: "1", "2", "3", "4"
+ */
+export function getSubgroupCode(team: Team, allTeams?: Team[], isSubgroupsMode: boolean = true): string {
+  const trackId = team.trackId || resolveTeamTrackId(team.id, allTeams);
+  const trackMap: Record<CoreTrackId, number> = {
+    'team-alpha': 1,
+    'team-beta': 2,
+    'team-gamma': 3,
+    'team-delta': 4
+  };
+  const trackNum = trackMap[trackId as CoreTrackId] || 1;
+
+  if (!isSubgroupsMode) {
+    return `${trackNum}`;
+  }
+
+  // If active teams are provided, compute sequential 1.1, 1.2, etc. for that track
+  if (allTeams && allTeams.length > 0) {
+    const trackTeams = allTeams.filter((t) => (t.trackId || t.id) === trackId);
+    const subIdx = trackTeams.findIndex((t) => t.id === team.id);
+    if (subIdx >= 0) {
+      return `${trackNum}.${subIdx + 1}`;
+    }
+  }
+
+  // Fallback patterns based on ID
+  if (team.id.includes('-2')) return `${trackNum}.2`;
+  if (team.id.includes('-3')) return `${trackNum}.3`;
+  if (team.id.includes('-4')) return `${trackNum}.4`;
+  return `${trackNum}.1`;
+}
+
+/**
+ * Returns the clean core thematic title. When in Subgroups Mode, ensures
+ * subgroups sharing the same track display the exact identical thematic title.
+ */
+export function getCleanThematicTitle(
+  team: Team,
+  lang: 'el' | 'en' = 'el',
+  isSubgroupsMode: boolean = true
+): string {
+  const trackId = team.trackId || resolveTeamTrackId(team.id);
+  const defaultCoreTitle = getCoreThematicTitle(trackId, lang);
+
+  const rawTitle = lang === 'en'
+    ? (team.name_en && team.name_en.trim().length > 0 ? team.name_en : team.name)
+    : team.name;
+
+  if (!rawTitle) return defaultCoreTitle;
+
+  // If title has legacy prefixes like "Ομάδα 1.1: ", strip them for the clean title
+  const stripped = rawTitle.replace(/^(Ομάδα|Team|Group)\s*\d+(\.\d+)?[:\s-]*/i, '').trim();
+
+  // If teacher explicitly set a custom title, always honor it directly
+  if (team.isCustomTitle) {
+    return stripped || defaultCoreTitle;
+  }
+
+  // If in subgroups mode with standard curriculum titles, unify across subgroups sharing the same track
+  if (isSubgroupsMode) {
+    const lower = stripped.toLowerCase();
+    const stockTrackTitles = [
+      'ταυτότητα & βασικά χαρακτηριστικά',
+      'βιομετρία & μορφολογία',
+      'ταυτότητα & μορφολογία',
+      'identity & morphology',
+      'identity & basics',
+      'biometry & morphology',
+      'περιβάλλον & φωλεοποίηση',
+      'πτήση & θερμικά ρεύματα',
+      'περιβάλλον & πτήση',
+      'habitat & flight',
+      'habitat & nesting',
+      'flight & thermals',
+      'διατροφή & βιολογία',
+      'πεπτικό σύστημα & οικολογικός ρόλος',
+      'diet & biology',
+      'digestive system & ecological role',
+      'απειλές & δηλητήρια',
+      'προστασία & μονάδες k9',
+      'απειλές & προστασία',
+      'threats & conservation',
+      'threats & poisons',
+      'conservation & k9 units'
+    ];
+
+    if (!stripped || stockTrackTitles.some((stock) => lower === stock || lower.startsWith(stock))) {
+      return defaultCoreTitle;
+    }
+  }
+
+  return stripped || defaultCoreTitle;
+}
+
+/**
+ * Returns strictly the 4 main teams for the simplified view when Subgroups Mode is OFF
+ */
+export function getMainTeams(teams: Team[], customTitles?: Record<string, any>): Team[] {
+  const coreIds: CoreTrackId[] = ['team-alpha', 'team-beta', 'team-gamma', 'team-delta'];
+  return coreIds.map((coreId, idx) => {
+    const defaultMeta = masterTeamsPool.find((t) => t.id === coreId) || masterTeamsPool[idx];
+    const found = teams.find((t) => t.id === coreId) ||
+                  teams.find((t) => (t.trackId || t.id) === coreId) ||
+                  defaultMeta;
+
+    const custom = customTitles?.[coreId];
+    const cleanEl = custom?.name || getCoreThematicTitle(coreId, 'el');
+    const cleanEn = custom?.name_en || getCoreThematicTitle(coreId, 'en');
+
+    return {
+      ...found,
+      id: coreId,
+      trackId: coreId,
+      name: cleanEl,
+      name_en: cleanEn,
+      slogan: custom?.slogan || found.slogan || defaultMeta.slogan,
+      slogan_en: custom?.slogan_en || found.slogan_en || defaultMeta.slogan_en
+    };
+  });
+}
+

@@ -52,7 +52,10 @@ import {
   getLocalizedTeamSlogan,
   getTeamEffectiveLanguage,
   resolveTeamTrackId,
-  CORE_THEMATIC_TRACKS
+  CORE_THEMATIC_TRACKS,
+  getSubgroupCode,
+  getCleanThematicTitle,
+  getMainTeams
 } from './data/masterTaskPool';
 import { storageService } from './services/storageService';
 import { Question, Team, Submission, FieldSpotInfo, CoreTrackId } from './types/game';
@@ -73,6 +76,7 @@ import { TeamPresentationArena } from './components/TeamPresentationArena';
 import { FieldQrScannerModal } from './components/FieldQrScannerModal';
 import { FieldMediaPlaybackModal } from './components/FieldMediaPlaybackModal';
 import { AppJoinQrModal } from './components/AppJoinQrModal';
+import { SubgroupCodeTag } from './components/SubgroupCodeTag';
 
 const VALID_TABS = ['home', 'group-1', 'group-2', 'group-3', 'group-4', 'arena'] as const;
 type ValidTab = typeof VALID_TABS[number];
@@ -153,18 +157,127 @@ function SafeImage({ src, alt, className = '' }: { src?: string; alt: string; cl
 }
 
 export default function App() {
-  // Safe Tab State with bulletproof persistence
-  const [activeTab, setActiveTabRaw] = useState<string>(() => storageService.getActiveTab('home'));
-  const [lang, setLangState] = useState<'el' | 'en'>(() => storageService.getLanguage('el'));
+  // ============================================================================
+  // 1. ALL CORE STATE VARIABLES INITIALIZED AT THE VERY TOP (ZERO TDZ)
+  // ============================================================================
+
+  // Core Role & Teacher Mode State (Must be first to prevent any initialization error)
+  const [isTeacherMode, setIsTeacherMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mode') === 'teacher' || params.get('admin') === 'true' || params.get('admin') === '1') {
+          return true;
+        }
+      } catch {
+        // safe fallback
+      }
+    }
+    try {
+      return storageService.isAdminAuthenticated();
+    } catch {
+      return false;
+    }
+  });
+
+  // Subgroups Mode State (Optional Subgroups Switch)
+  const [isSubgroupsMode, setIsSubgroupsMode] = useState<boolean>(() => {
+    try {
+      return storageService.getSubgroupsModeEnabled();
+    } catch {
+      return true;
+    }
+  });
+
+  // Navigation & Language States
+  const [activeTab, setActiveTabRaw] = useState<string>(() => {
+    try {
+      return storageService.getActiveTab('home');
+    } catch {
+      return 'home';
+    }
+  });
+  const [lang, setLangState] = useState<'el' | 'en'>(() => {
+    try {
+      return storageService.getLanguage('el');
+    } catch {
+      return 'el';
+    }
+  });
+
+  // Submissions State with clean bulletproof persistence
+  const [submissions, setSubmissions] = useState<Record<string, Submission>>(() => {
+    return storageService.getSubmissions();
+  });
+
+  // Admin Console Open State, Task Active Overrides & Custom Question Edits
+  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [gameStarted, setGameStarted] = useState<boolean>(() => {
+    return storageService.getGameStarted();
+  });
+
+  const [taskOverrides, setTaskOverrides] = useState<Record<string, boolean>>(() => {
+    return storageService.getTaskActiveOverrides();
+  });
+  const [customQuestions, setCustomQuestions] = useState<Record<string, Question>>(() => {
+    return storageService.getCustomQuestions();
+  });
+  const [taskOrder, setTaskOrder] = useState<string[]>(() => {
+    return storageService.getTaskOrder();
+  });
+
+  // Field Station QR Scanner & Media Playback Modal states
+  const [isFieldScannerOpen, setIsFieldScannerOpen] = useState<boolean>(false);
+  const [fieldPlaybackModal, setFieldPlaybackModal] = useState<{ question: Question; fieldSpot: FieldSpotInfo } | null>(null);
+  const [isJoinQrOpen, setIsJoinQrOpen] = useState<boolean>(false);
+
+  // Custom Team Titles state (Greek and English overrides)
+  const [customTeamTitles, setCustomTeamTitles] = useState<Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }>>(() => {
+    return storageService.getCustomTeamTitles();
+  });
+
+  // Subgroups state (allows multiple student groups per core thematic track with independent language)
+  const [subgroups, setSubgroups] = useState<Team[]>(() => {
+    return storageService.getSubgroups();
+  });
+
+  // Track the active subgroup for each of the 4 core thematic tracks
+  const [selectedSubgroupIds, setSelectedSubgroupIds] = useState<Record<string, string>>({
+    'team-alpha': 'team-alpha',
+    'team-beta': 'team-beta',
+    'team-gamma': 'team-gamma',
+    'team-delta': 'team-delta'
+  });
+
+  // ============================================================================
+  // 2. HELPER FUNCTIONS & EFFECTS
+  // ============================================================================
 
   const setLang = (newLang: 'el' | 'en') => {
     setLangState(newLang);
     storageService.saveLanguage(newLang);
   };
 
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setIsTeacherMode(storageService.isAdminAuthenticated());
+    };
+    window.addEventListener('boundpad:adminAuth', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+    return () => {
+      window.removeEventListener('boundpad:adminAuth', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
+  }, []);
+
   // Robust tab setter that validates and persists
   const safeSetActiveTab = (tabName: string) => {
     try {
+      if (!isTeacherMode && tabName === 'arena') {
+        setActiveTabRaw('home');
+        storageService.saveActiveTab('home');
+        return;
+      }
       if (VALID_TABS.includes(tabName as ValidTab)) {
         setActiveTabRaw(tabName);
         storageService.saveActiveTab(tabName);
@@ -181,16 +294,12 @@ export default function App() {
     ? (activeTab as ValidTab)
     : 'home';
 
-  // Submissions State with clean bulletproof persistence
-  const [submissions, setSubmissions] = useState<Record<string, Submission>>(() => {
-    return storageService.getSubmissions();
-  });
-
-  // Admin Console Open State, Task Active Overrides & Custom Question Edits
-  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
-  const [gameStarted, setGameStarted] = useState<boolean>(() => {
-    return storageService.getGameStarted();
-  });
+  // Enforce student view restriction from arena
+  useEffect(() => {
+    if (!isTeacherMode && currentTab === 'arena') {
+      safeSetActiveTab('home');
+    }
+  }, [isTeacherMode, currentTab]);
 
   useEffect(() => {
     const syncGame = () => {
@@ -210,43 +319,7 @@ export default function App() {
     storageService.setGameStarted(next);
   };
 
-  const [taskOverrides, setTaskOverrides] = useState<Record<string, boolean>>(() => {
-    return storageService.getTaskActiveOverrides();
-  });
-  const [customQuestions, setCustomQuestions] = useState<Record<string, Question>>(() => {
-    return storageService.getCustomQuestions();
-  });
-  const [taskOrder, setTaskOrder] = useState<string[]>(() => {
-    return storageService.getTaskOrder();
-  });
 
-  // Field Station QR Scanner & Media Playback Modal states
-  const [isFieldScannerOpen, setIsFieldScannerOpen] = useState<boolean>(false);
-  const [fieldPlaybackModal, setFieldPlaybackModal] = useState<{ question: Question; fieldSpot: FieldSpotInfo } | null>(null);
-  const [isJoinQrOpen, setIsJoinQrOpen] = useState<boolean>(false);
-
-  // Teacher Mode vs Student Participant View
-  const [isTeacherMode, setIsTeacherMode] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('mode') === 'teacher' || params.get('admin') === 'true' || params.get('admin') === '1') {
-        return true;
-      }
-    }
-    return storageService.isAdminAuthenticated();
-  });
-
-  useEffect(() => {
-    const handleAuthChange = () => {
-      setIsTeacherMode(storageService.isAdminAuthenticated());
-    };
-    window.addEventListener('boundpad:adminAuth', handleAuthChange);
-    window.addEventListener('storage', handleAuthChange);
-    return () => {
-      window.removeEventListener('boundpad:adminAuth', handleAuthChange);
-      window.removeEventListener('storage', handleAuthChange);
-    };
-  }, []);
 
   useEffect(() => {
     const handleTaskOrderChange = () => {
@@ -264,11 +337,6 @@ export default function App() {
     setTaskOrder(newOrder);
     storageService.saveTaskOrder(newOrder);
   };
-
-  // Custom Team Titles state (Greek and English overrides)
-  const [customTeamTitles, setCustomTeamTitles] = useState<Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }>>(() => {
-    return storageService.getCustomTeamTitles();
-  });
 
   useEffect(() => {
     const syncTeamTitles = () => {
@@ -288,11 +356,6 @@ export default function App() {
     setCustomTeamTitles(newTitles);
     storageService.saveCustomTeamTitles(newTitles);
   };
-
-  // Subgroups state (allows multiple student groups per core thematic track with independent language)
-  const [subgroups, setSubgroups] = useState<Team[]>(() => {
-    return storageService.getSubgroups();
-  });
 
   useEffect(() => {
     // 1. Initial fetch from server to get authoritative state immediately
@@ -319,6 +382,11 @@ export default function App() {
               setSubgroups(payload.state.subgroups);
               if (payload.state.customTeamTitles) {
                 setCustomTeamTitles(payload.state.customTeamTitles);
+              }
+              if (typeof payload.state.isSubgroupsMode === 'boolean') {
+                const incoming = payload.state.isSubgroupsMode;
+                setIsSubgroupsMode((prev) => (prev !== incoming ? incoming : prev));
+                storageService.setSubgroupsModeLocally(incoming);
               }
             }
           } catch (err) {
@@ -354,14 +422,6 @@ export default function App() {
     };
   }, []);
 
-  // Track the active subgroup for each of the 4 core thematic tracks
-  const [selectedSubgroupIds, setSelectedSubgroupIds] = useState<Record<string, string>>({
-    'team-alpha': 'team-alpha',
-    'team-beta': 'team-beta',
-    'team-gamma': 'team-gamma',
-    'team-delta': 'team-delta'
-  });
-
   // Whenever subgroups change (e.g. deletion from admin), purge deleted IDs from selectedSubgroupIds
   useEffect(() => {
     const validIds = new Set(subgroups.map((s) => s.id));
@@ -386,10 +446,35 @@ export default function App() {
     }));
   };
 
+  useEffect(() => {
+    const handleSubgroupsModeSync = (e: any) => {
+      if (e?.detail && typeof e.detail.enabled === 'boolean') {
+        setIsSubgroupsMode((prev) => (prev !== e.detail.enabled ? e.detail.enabled : prev));
+      } else if (e instanceof StorageEvent && e.key === 'boundpad_subgroups_mode_enabled_v1' && e.newValue !== null) {
+        const val = e.newValue === 'true';
+        setIsSubgroupsMode((prev) => (prev !== val ? val : prev));
+      }
+    };
+    window.addEventListener('boundpad:subgroupsMode', handleSubgroupsModeSync);
+    window.addEventListener('storage', handleSubgroupsModeSync);
+    return () => {
+      window.removeEventListener('boundpad:subgroupsMode', handleSubgroupsModeSync);
+      window.removeEventListener('storage', handleSubgroupsModeSync);
+    };
+  }, []);
+
   // Active teams / subgroups with custom Greek/English titles and slogans merged
   const activeTeams: Team[] = useMemo(() => {
     return getTeamsWithCustomTitles(customTeamTitles, subgroups);
   }, [customTeamTitles, subgroups]);
+
+  // Effective teams displayed across the application depending on Subgroups Mode
+  const effectiveTeams: Team[] = useMemo(() => {
+    if (!isSubgroupsMode) {
+      return getMainTeams(subgroups, customTeamTitles);
+    }
+    return activeTeams;
+  }, [isSubgroupsMode, subgroups, customTeamTitles, activeTeams]);
 
   // Map from track id to all subgroups assigned to that track
   const subgroupsByTrack = useMemo(() => {
@@ -399,25 +484,41 @@ export default function App() {
       'team-gamma': [],
       'team-delta': []
     };
-    activeTeams.forEach((t) => {
-      const trackId = resolveTeamTrackId(t.id, activeTeams);
+    effectiveTeams.forEach((t) => {
+      const trackId = resolveTeamTrackId(t.id, effectiveTeams);
       if (map[trackId]) {
         map[trackId].push(t);
       }
     });
     return map;
-  }, [activeTeams]);
+  }, [effectiveTeams]);
 
   // Resolve current active team for each track
   const getActiveSubgroupForTrack = (trackId: CoreTrackId): Team => {
     const trackSubgroups = subgroupsByTrack[trackId] || [];
     const selectedId = selectedSubgroupIds[trackId];
     const found = trackSubgroups.find((t) => t.id === selectedId);
-    return found || trackSubgroups[0] || masterTeamsPool.find((t) => t.id === trackId) || masterTeamsPool[0];
+    return found || trackSubgroups[0] || effectiveTeams.find((t) => (t.trackId || t.id) === trackId) || masterTeamsPool.find((t) => t.id === trackId) || masterTeamsPool[0];
   };
 
+  // Active student team derived from currentTab
+  const activeStudentTrackId: CoreTrackId | null = useMemo(() => {
+    switch (currentTab) {
+      case 'group-1': return 'team-alpha';
+      case 'group-2': return 'team-beta';
+      case 'group-3': return 'team-gamma';
+      case 'group-4': return 'team-delta';
+      default: return null;
+    }
+  }, [currentTab]);
+
+  const activeTeamForStudent: Team | null = useMemo(() => {
+    if (!activeStudentTrackId) return null;
+    return getActiveSubgroupForTrack(activeStudentTrackId);
+  }, [activeStudentTrackId, selectedSubgroupIds, effectiveTeams, subgroupsByTrack]);
+
   const handleToggleSubgroupLanguage = (subgroupId: string) => {
-    const target = activeTeams.find((t) => t.id === subgroupId);
+    const target = effectiveTeams.find((t) => t.id === subgroupId) || activeTeams.find((t) => t.id === subgroupId);
     const newLang = (target?.language === 'en') ? 'el' : 'en';
     const updated = storageService.updateSubgroup(subgroupId, { language: newLang });
     setSubgroups(updated);
@@ -546,13 +647,13 @@ export default function App() {
   // Compute live team stats dynamically from master pool with task overrides, custom edits & task order
   const allTeamStats: TeamTaskStats[] = useMemo(() => {
     try {
-      return activeTeams.map((team) =>
+      return effectiveTeams.map((team) =>
         computeTeamTaskStats(team, submissions, taskOverrides, customQuestions, taskOrder)
       );
     } catch {
       return [];
     }
-  }, [activeTeams, submissions, taskOverrides, customQuestions, taskOrder]);
+  }, [effectiveTeams, submissions, taskOverrides, customQuestions, taskOrder]);
 
   // Tab mapping for the 4 groups
   const teamTabs: { tab: ValidTab; teamIndex: number; icon: any }[] = [
@@ -748,103 +849,171 @@ export default function App() {
 
         {/* ===================== TAB NAVIGATION BAR ===================== */}
         <div className="max-w-7xl mx-auto mt-3 pt-2 border-t border-slate-800/80 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {/* Home Tab */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              safeSetActiveTab('home');
-            }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer ${
-              currentTab === 'home'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-bold'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white'
-            }`}
-          >
-            <HomeIcon className="w-4 h-4" />
-            <span>{lang === 'el' ? 'Αρχική' : 'Home'}</span>
-          </button>
+          {!isTeacherMode ? (
+            currentTab === 'home' ? (
+              <div className="flex items-center justify-between w-full py-1 text-xs text-slate-400">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-bold text-slate-200">
+                    {lang === 'el' ? 'Μαθητική Προβολή:' : 'Student Participant View:'}
+                  </span>
+                  <span className="text-slate-400">
+                    {lang === 'el'
+                      ? 'Επιλέξτε την ερευνητική σας ομάδα παρακάτω για να εισέλθετε στον χώρο εργασίας σας'
+                      : 'Select your assigned research team below to enter your workspace'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              /* Dedicated Student Workspace Header Bar */
+              <div className="flex items-center justify-between w-full py-0.5 flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      safeSetActiveTab('home');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 border border-slate-700 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer shadow-sm group"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-amber-400 group-hover:-translate-x-1 transition-transform" />
+                    <span>{lang === 'el' ? '← Αλλαγή Ομάδας' : '← Change Team'}</span>
+                  </button>
 
-          {/* 4 Group Tabs */}
-          {teamTabs.map(({ tab, teamIndex }) => {
-            const trackInfo = CORE_THEMATIC_TRACKS[teamIndex];
-            const trackId = ((trackInfo && (trackInfo.trackId || trackInfo.id)) || masterTeamsPool[teamIndex]?.id || 'team-alpha') as CoreTrackId;
-            const currentSubgroup = getActiveSubgroupForTrack(trackId);
-            const trackSubgroups = subgroupsByTrack[trackId] || [];
-            const stat = allTeamStats.find((s) => s.team.id === currentSubgroup.id || s.teamId === currentSubgroup.id);
-            const isActive = currentTab === tab;
-            const teamDisplayName = getLocalizedTeamName(currentSubgroup, lang);
-            const effectiveSubLang = currentSubgroup.language || 'el';
+                  {activeTeamForStudent && (
+                    <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+                      <SubgroupCodeTag
+                        code={getSubgroupCode(activeTeamForStudent, effectiveTeams, isSubgroupsMode)}
+                        color={activeTeamForStudent.color}
+                        size="sm"
+                        isMainTeam={!isSubgroupsMode}
+                      />
+                      <span className="text-base">{activeTeamForStudent.avatar}</span>
+                      <span className="font-extrabold text-xs sm:text-sm text-white">
+                        {getCleanThematicTitle(activeTeamForStudent, lang, isSubgroupsMode)}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-800 text-slate-300 border border-slate-700">
+                        {activeTeamForStudent.language === 'el' ? '🇬🇷' : '🇬🇧'}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-            return (
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>
+                    {lang === 'el' ? 'Αποκλειστικός Χώρος Εργασίας Ομάδας' : 'Dedicated Team Workspace'}
+                  </span>
+                </div>
+              </div>
+            )
+          ) : (
+            /* Teacher Mode: Full Navigation */
+            <>
+              {/* Home Tab */}
               <button
-                key={tab}
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  safeSetActiveTab(tab);
+                  safeSetActiveTab('home');
                 }}
-                style={{
-                  borderColor: isActive ? currentSubgroup.color : 'transparent'
-                }}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 border transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-slate-800 text-white shadow-md ring-1 ring-white/10'
-                    : 'bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white'
+                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer ${
+                  currentTab === 'home'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-bold'
+                    : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white'
                 }`}
-                title={`${teamDisplayName} (${effectiveSubLang === 'el' ? 'Ελληνικά' : 'English'})`}
               >
-                <span className="text-base">{currentSubgroup.avatar}</span>
-                <span className="truncate max-w-[130px] sm:max-w-none">
-                  {teamDisplayName}
-                </span>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-900 border border-slate-700 text-slate-300">
-                  {effectiveSubLang === 'el' ? '🇬🇷' : '🇬🇧'}
-                </span>
-                {trackSubgroups.length > 1 && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    {trackSubgroups.length}
-                  </span>
-                )}
-                {isTeacherMode && stat && (
-                  <span
-                    style={{ backgroundColor: `${currentSubgroup.color}25`, color: currentSubgroup.color }}
-                    className="px-1.5 py-0.5 rounded-md text-[10px] font-bold ml-0.5"
-                  >
-                    {stat.totalScore}p
-                  </span>
-                )}
+                <HomeIcon className="w-4 h-4" />
+                <span>{lang === 'el' ? 'Αρχική' : 'Home'}</span>
               </button>
-            );
-          })}
 
-          {/* Team Arena / Digital Posters Tab */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              safeSetActiveTab('arena');
-            }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer ${
-              currentTab === 'arena'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-amber-300 hover:text-white'
-            }`}
-          >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>{lang === 'el' ? 'Αρένα Παρουσίασης & Posters' : 'Team Arena & Posters'}</span>
-          </button>
+              {/* 4 Group Tabs */}
+              {teamTabs.map(({ tab, teamIndex }) => {
+                const trackInfo = CORE_THEMATIC_TRACKS[teamIndex];
+                const trackId = ((trackInfo && (trackInfo.trackId || trackInfo.id)) || masterTeamsPool[teamIndex]?.id || 'team-alpha') as CoreTrackId;
+                const currentSubgroup = getActiveSubgroupForTrack(trackId);
+                const trackSubgroups = subgroupsByTrack[trackId] || [];
+                const stat = allTeamStats.find((s) => s.team.id === currentSubgroup.id || s.teamId === currentSubgroup.id);
+                const isActive = currentTab === tab;
+                const teamDisplayName = getCleanThematicTitle(currentSubgroup, lang, isSubgroupsMode);
+                const effectiveSubLang = currentSubgroup.language || 'el';
+                const subgroupCode = getSubgroupCode(currentSubgroup, effectiveTeams, isSubgroupsMode);
 
-          {/* Admin Console Shortcut in Navbar */}
-          {isTeacherMode && (
-            <button
-              type="button"
-              onClick={() => setIsAdminOpen(true)}
-              className="ml-auto px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-slate-800/80 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400 shadow-sm transition-all cursor-pointer"
-            >
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>{lang === 'el' ? 'Κονσόλα Admin & Εξαγωγές' : 'Admin & Exports'}</span>
-            </button>
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      safeSetActiveTab(tab);
+                    }}
+                    style={{
+                      borderColor: isActive ? currentSubgroup.color : 'transparent'
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 border transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-slate-800 text-white shadow-md ring-1 ring-white/10'
+                        : 'bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white'
+                    }`}
+                    title={`${teamDisplayName} (${effectiveSubLang === 'el' ? 'Ελληνικά' : 'English'})`}
+                  >
+                    <SubgroupCodeTag
+                      code={subgroupCode}
+                      color={currentSubgroup.color}
+                      size="xs"
+                      isMainTeam={!isSubgroupsMode}
+                    />
+                    <span className="text-base">{currentSubgroup.avatar}</span>
+                    <span className="truncate max-w-[130px] sm:max-w-none">
+                      {teamDisplayName}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-900 border border-slate-700 text-slate-300">
+                      {effectiveSubLang === 'el' ? '🇬🇷' : '🇬🇧'}
+                    </span>
+                    {isSubgroupsMode && trackSubgroups.length > 1 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        {trackSubgroups.length}
+                      </span>
+                    )}
+                    {stat && (
+                      <span
+                        style={{ backgroundColor: `${currentSubgroup.color}25`, color: currentSubgroup.color }}
+                        className="px-1.5 py-0.5 rounded-md text-[10px] font-bold ml-0.5"
+                      >
+                        {stat.totalScore}p
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Team Arena / Digital Posters Tab */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  safeSetActiveTab('arena');
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer ${
+                  currentTab === 'arena'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black'
+                    : 'bg-slate-800/60 hover:bg-slate-800 text-amber-300 hover:text-white'
+                }`}
+              >
+                <Trophy className="w-4 h-4 text-amber-400" />
+                <span>{lang === 'el' ? 'Αρένα Παρουσίασης & Posters' : 'Team Arena & Posters'}</span>
+              </button>
+
+              {/* Admin Console Shortcut in Navbar */}
+              <button
+                type="button"
+                onClick={() => setIsAdminOpen(true)}
+                className="ml-auto px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-slate-800/80 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400 shadow-sm transition-all cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <span>{lang === 'el' ? 'Κονσόλα Admin & Εξαγωγές' : 'Admin & Exports'}</span>
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -858,7 +1027,7 @@ export default function App() {
                 lang={lang}
                 teamStats={allTeamStats}
                 onSelectTab={safeSetActiveTab}
-                teams={activeTeams}
+                teams={effectiveTeams}
                 subgroupsByTrack={subgroupsByTrack}
                 onSelectSubgroupForTrack={(trackId, subgroupId) => {
                   handleSelectSubgroupForTrack(trackId, subgroupId);
@@ -868,6 +1037,7 @@ export default function App() {
                 onOpenAdmin={() => setIsAdminOpen(true)}
                 onOpenJoinQr={() => setIsJoinQrOpen(true)}
                 isTeacherMode={isTeacherMode}
+                isSubgroupsMode={isSubgroupsMode}
               />
             </SectionErrorBoundary>
           )}
@@ -890,6 +1060,8 @@ export default function App() {
                 onSaveSubmission={saveSubmission}
                 onGoHome={() => safeSetActiveTab('home')}
                 isTeacherMode={isTeacherMode}
+                isSubgroupsMode={isSubgroupsMode}
+                effectiveTeams={effectiveTeams}
               />
             </SectionErrorBoundary>
           )}
@@ -912,6 +1084,8 @@ export default function App() {
                 onSaveSubmission={saveSubmission}
                 onGoHome={() => safeSetActiveTab('home')}
                 isTeacherMode={isTeacherMode}
+                isSubgroupsMode={isSubgroupsMode}
+                effectiveTeams={effectiveTeams}
               />
             </SectionErrorBoundary>
           )}
@@ -934,6 +1108,8 @@ export default function App() {
                 onSaveSubmission={saveSubmission}
                 onGoHome={() => safeSetActiveTab('home')}
                 isTeacherMode={isTeacherMode}
+                isSubgroupsMode={isSubgroupsMode}
+                effectiveTeams={effectiveTeams}
               />
             </SectionErrorBoundary>
           )}
@@ -956,6 +1132,8 @@ export default function App() {
                 onSaveSubmission={saveSubmission}
                 onGoHome={() => safeSetActiveTab('home')}
                 isTeacherMode={isTeacherMode}
+                isSubgroupsMode={isSubgroupsMode}
+                effectiveTeams={effectiveTeams}
               />
             </SectionErrorBoundary>
           )}
@@ -971,6 +1149,7 @@ export default function App() {
                 synthesisNotes={synthesisNotes}
                 customTeamTitles={customTeamTitles}
                 subgroups={subgroups}
+                isSubgroupsMode={isSubgroupsMode}
                 onGoBack={() => safeSetActiveTab('home')}
                 onSelectTeamMissions={(teamIdx) => safeSetActiveTab(`group-${teamIdx + 1}` as ValidTab)}
               />
@@ -994,6 +1173,11 @@ export default function App() {
           onUpdateSubgroups={(newSubs) => {
             setSubgroups(newSubs);
             storageService.saveSubgroups(newSubs);
+          }}
+          isSubgroupsMode={isSubgroupsMode}
+          onToggleSubgroupsMode={(val) => {
+            setIsSubgroupsMode(val);
+            storageService.setSubgroupsModeEnabled(val);
           }}
           onUpdateTaskOrder={handleUpdateTaskOrder}
           onUpdateTaskOverrides={handleUpdateTaskOverrides}
@@ -1185,6 +1369,7 @@ interface HomeScreenProps {
   onOpenAdmin?: () => void;
   onOpenJoinQr?: () => void;
   isTeacherMode?: boolean;
+  isSubgroupsMode?: boolean;
 }
 
 function HomeScreen({
@@ -1196,7 +1381,8 @@ function HomeScreen({
   onSelectSubgroupForTrack,
   onOpenAdmin,
   onOpenJoinQr,
-  isTeacherMode = false
+  isTeacherMode = false,
+  isSubgroupsMode = true
 }: HomeScreenProps) {
   const isEl = lang === 'el';
   const displayTeams = teams && teams.length > 0 ? teams : masterTeamsPool;
@@ -1304,7 +1490,7 @@ function HomeScreen({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {displayTeams.map((team, idx) => {
-              const trackId = ((team.trackId || (masterTeamsPool[idx]?.id as CoreTrackId) || 'team-alpha')) as CoreTrackId;
+              const trackId = resolveTeamTrackId(team.id, displayTeams);
               const trackIdx = CORE_THEMATIC_TRACKS.findIndex((t) => t.id === trackId || t.trackId === trackId);
               const teamLang = team.language || 'el';
 
@@ -1329,9 +1515,17 @@ function HomeScreen({
                     </div>
 
                     <div>
-                      <h4 className="font-extrabold text-white text-lg group-hover:text-emerald-400 transition-colors">
-                        {getLocalizedTeamName(team, lang)}
-                      </h4>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <SubgroupCodeTag
+                          code={getSubgroupCode(team, displayTeams, isSubgroupsMode)}
+                          color={team.color}
+                          size="sm"
+                          isMainTeam={!isSubgroupsMode}
+                        />
+                        <h4 className="font-extrabold text-white text-lg group-hover:text-emerald-400 transition-colors">
+                          {getCleanThematicTitle(team, lang, isSubgroupsMode)}
+                        </h4>
+                      </div>
                       <p className="text-xs text-slate-400 mt-1 italic line-clamp-2">
                         «{getLocalizedTeamSlogan(team, lang)}»
                       </p>
@@ -1399,9 +1593,17 @@ function HomeScreen({
                         </div>
                       </div>
                     </div>
-                    <h4 className="font-bold text-white text-base group-hover:text-amber-300 transition-colors">
-                      {getLocalizedTeamName(team, lang)}
-                    </h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <SubgroupCodeTag
+                        code={getSubgroupCode(team, displayTeams, isSubgroupsMode)}
+                        color={team.color}
+                        size="xs"
+                        isMainTeam={!isSubgroupsMode}
+                      />
+                      <h4 className="font-bold text-white text-base group-hover:text-amber-300 transition-colors">
+                        {getCleanThematicTitle(team, lang, isSubgroupsMode)}
+                      </h4>
+                    </div>
                     <p className="text-xs text-slate-400 mt-1 line-clamp-1">
                       {getLocalizedTeamSlogan(team, lang)}
                     </p>
@@ -1431,85 +1633,93 @@ function HomeScreen({
         </div>
       )}
 
-      {/* 4 Thematic Pillars with assigned student subgroups */}
-      <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-emerald-400" />
-            <span>
-              {isEl
-                ? 'Οι 4 Θεματικοί Πυλώνες & Ανάθεση Υποομάδων'
-                : 'The 4 Thematic Tracks & Subgroup Assignments'}
-            </span>
-          </h3>
-          {isTeacherMode && onOpenAdmin && (
-            <button
-              type="button"
-              onClick={onOpenAdmin}
-              className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{isEl ? 'Προσθήκη / Διαχείριση Υποομάδων (Admin)' : 'Manage Subgroups (Admin)'}</span>
-            </button>
-          )}
-        </div>
+      {/* 4 Thematic Pillars with assigned student subgroups (Teacher / Facilitator View Only) */}
+      {isTeacherMode && (
+        <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-emerald-400" />
+              <span>
+                {isEl
+                  ? 'Οι 4 Θεματικοί Πυλώνες & Ανάθεση Υποομάδων'
+                  : 'The 4 Thematic Tracks & Subgroup Assignments'}
+              </span>
+            </h3>
+            {onOpenAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isEl ? 'Προσθήκη / Διαχείριση Υποομάδων (Admin)' : 'Manage Subgroups (Admin)'}</span>
+              </button>
+            )}
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {CORE_THEMATIC_TRACKS.map((track, trackIdx) => {
-            const trackId = (track.trackId || track.id) as CoreTrackId;
-            const trackSubgroups: Team[] = subgroupsByTrack?.[trackId] || displayTeams.filter((t) => (t.trackId || t.id) === trackId);
-            const pillarColors = ['border-emerald-700/40 text-emerald-400', 'border-cyan-700/40 text-cyan-400', 'border-amber-700/40 text-amber-400', 'border-purple-700/40 text-purple-400'];
-            const colorClass = pillarColors[trackIdx % pillarColors.length];
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {CORE_THEMATIC_TRACKS.map((track, trackIdx) => {
+              const trackId = (track.trackId || track.id) as CoreTrackId;
+              const trackSubgroups: Team[] = subgroupsByTrack?.[trackId] || displayTeams.filter((t) => (t.trackId || t.id) === trackId);
+              const pillarColors = ['border-emerald-700/40 text-emerald-400', 'border-cyan-700/40 text-cyan-400', 'border-amber-700/40 text-amber-400', 'border-purple-700/40 text-purple-400'];
+              const colorClass = pillarColors[trackIdx % pillarColors.length];
 
-            return (
-              <div key={trackId} className={`p-4 rounded-xl bg-slate-800/40 border ${colorClass.split(' ')[0]} space-y-3 flex flex-col justify-between`}>
-                <div className="space-y-2">
-                  <div className={`font-bold text-sm ${colorClass.split(' ')[1]}`}>
-                    {isEl ? track.title : track.title_en}
+              return (
+                <div key={trackId} className={`p-4 rounded-xl bg-slate-800/40 border ${colorClass.split(' ')[0]} space-y-3 flex flex-col justify-between`}>
+                  <div className="space-y-2">
+                    <div className={`font-bold text-sm ${colorClass.split(' ')[1]}`}>
+                      {isEl ? track.title : track.title_en}
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      {isEl ? (track.description || track.theme) : (track.description_en || track.theme_en)}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {isEl ? (track.description || track.theme) : (track.description_en || track.theme_en)}
-                  </p>
-                </div>
 
-                {/* Assigned Subgroups Chips */}
-                <div className="pt-2 border-t border-slate-700/50 space-y-1.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                    <span>{isEl ? 'Υποομάδες Πυλώνα:' : 'Assigned Subgroups:'}</span>
-                    <span className="text-slate-300">{trackSubgroups.length}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {trackSubgroups.map((sub: Team) => {
-                      const subLang = sub.language || 'el';
-                      const subStat = teamStats.find((s) => s.team.id === sub.id || s.teamId === sub.id);
-                      return (
-                        <button
-                          key={sub.id}
-                          type="button"
-                          onClick={() => handleSubgroupClick(trackId, sub.id, trackIdx)}
-                          className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                          title={getLocalizedTeamName(sub, lang)}
-                        >
-                          <span>{sub.avatar}</span>
-                          <span className="truncate max-w-[90px]">{getLocalizedTeamName(sub, lang)}</span>
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400">
-                            {subLang === 'el' ? '🇬🇷' : '🇬🇧'}
-                          </span>
-                          {isTeacherMode && subStat && (
-                            <span style={{ color: sub.color }} className="font-extrabold text-[10px]">
-                              {subStat.totalScore}p
+                  {/* Assigned Subgroups Chips */}
+                  <div className="pt-2 border-t border-slate-700/50 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                      <span>{isEl ? 'Υποομάδες Πυλώνα:' : 'Assigned Subgroups:'}</span>
+                      <span className="text-slate-300">{trackSubgroups.length}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {trackSubgroups.map((sub: Team) => {
+                        const subLang = sub.language || 'el';
+                        const subStat = teamStats.find((s) => s.team.id === sub.id || s.teamId === sub.id);
+                        return (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            onClick={() => handleSubgroupClick(trackId, sub.id, trackIdx)}
+                            className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                            title={getLocalizedTeamName(sub, lang)}
+                          >
+                            <SubgroupCodeTag
+                              code={getSubgroupCode(sub, displayTeams, isSubgroupsMode)}
+                              color={sub.color}
+                              size="xs"
+                              isMainTeam={!isSubgroupsMode}
+                            />
+                            <span>{sub.avatar}</span>
+                            <span className="truncate max-w-[90px]">{getCleanThematicTitle(sub, lang, isSubgroupsMode)}</span>
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400">
+                              {subLang === 'el' ? '🇬🇷' : '🇬🇧'}
                             </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                            {isTeacherMode && subStat && (
+                              <span style={{ color: sub.color }} className="font-extrabold text-[10px]">
+                                {subStat.totalScore}p
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1676,6 +1886,8 @@ interface GroupMissionsViewProps {
   onSelectSubgroup?: (subgroupId: string) => void;
   onToggleSubgroupLanguage?: (subgroupId: string) => void;
   isTeacherMode?: boolean;
+  isSubgroupsMode?: boolean;
+  effectiveTeams?: Team[];
 }
 
 function GroupMissionsView({
@@ -1693,7 +1905,9 @@ function GroupMissionsView({
   subgroupsInTrack,
   onSelectSubgroup,
   onToggleSubgroupLanguage,
-  isTeacherMode = false
+  isTeacherMode = false,
+  isSubgroupsMode = true,
+  effectiveTeams = []
 }: GroupMissionsViewProps) {
   const team = teamProp || masterTeamsPool[teamIndex] || masterTeamsPool[0];
   const effectiveLang = getTeamEffectiveLanguage(team, lang);
@@ -1820,7 +2034,7 @@ function GroupMissionsView({
           className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer group"
         >
           <ArrowLeft className="w-4 h-4 text-amber-400 group-hover:-translate-x-1 transition-transform" />
-          <span>{effectiveLang === 'el' ? '← Επιστροφή στην Αρχική' : '← Return to Overview'}</span>
+          <span>{effectiveLang === 'el' ? '← Αλλαγή Ομάδας' : '← Change Team'}</span>
         </button>
 
         {/* View Mode Switcher */}
@@ -1852,8 +2066,8 @@ function GroupMissionsView({
         </div>
       </div>
 
-      {/* Subgroup Switcher Bar for Multi-subgroup Tracks */}
-      {subgroupsInTrack && subgroupsInTrack.length > 1 && (
+      {/* Subgroup Switcher Bar for Multi-subgroup Tracks (Teacher Mode Only) */}
+      {isTeacherMode && subgroupsInTrack && subgroupsInTrack.length > 1 && (
         <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between flex-wrap gap-2.5 shadow-lg">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-amber-400" />
@@ -1880,8 +2094,14 @@ function GroupMissionsView({
                       : 'bg-slate-950/70 hover:bg-slate-800 text-slate-300'
                   }`}
                 >
+                  <SubgroupCodeTag
+                    code={getSubgroupCode(sub, effectiveTeams.length > 0 ? effectiveTeams : subgroupsInTrack, isSubgroupsMode)}
+                    color={sub.color}
+                    size="xs"
+                    isMainTeam={!isSubgroupsMode}
+                  />
                   <span>{sub.avatar}</span>
-                  <span>{getLocalizedTeamName(sub, effectiveLang)}</span>
+                  <span>{getCleanThematicTitle(sub, effectiveLang, isSubgroupsMode)}</span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-900 border border-slate-700">
                     {subLang === 'el' ? '🇬🇷 GR' : '🇬🇧 EN'}
                   </span>
@@ -1936,9 +2156,17 @@ function GroupMissionsView({
                 </button>
               )}
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
-              {getLocalizedTeamName(team, effectiveLang)}
-            </h2>
+            <div className="flex items-center gap-2.5 mt-1 flex-wrap">
+              <SubgroupCodeTag
+                code={getSubgroupCode(team, effectiveTeams.length > 0 ? effectiveTeams : subgroupsInTrack, isSubgroupsMode)}
+                color={team.color}
+                size="md"
+                isMainTeam={!isSubgroupsMode}
+              />
+              <h2 className="text-xl sm:text-2xl font-black text-white">
+                {getCleanThematicTitle(team, effectiveLang, isSubgroupsMode)}
+              </h2>
+            </div>
           </div>
         </div>
 

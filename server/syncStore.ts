@@ -14,6 +14,7 @@ export interface ServerSyncState {
   subgroups: Team[];
   customTeamTitles: Record<string, { name?: string; name_en?: string; slogan?: string; slogan_en?: string }>;
   deletedSubgroupIds: string[];
+  isSubgroupsMode?: boolean;
 }
 
 type SyncListener = (state: ServerSyncState) => void;
@@ -37,7 +38,8 @@ class ServerSyncStore {
             updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now(),
             subgroups: parsed.subgroups,
             customTeamTitles: parsed.customTeamTitles || {},
-            deletedSubgroupIds: Array.isArray(parsed.deletedSubgroupIds) ? parsed.deletedSubgroupIds : []
+            deletedSubgroupIds: Array.isArray(parsed.deletedSubgroupIds) ? parsed.deletedSubgroupIds : [],
+            isSubgroupsMode: typeof parsed.isSubgroupsMode === 'boolean' ? parsed.isSubgroupsMode : true
           };
         }
       }
@@ -50,7 +52,8 @@ class ServerSyncStore {
       updatedAt: Date.now(),
       subgroups: masterTeamsPool,
       customTeamTitles: {},
-      deletedSubgroupIds: []
+      deletedSubgroupIds: [],
+      isSubgroupsMode: true
     };
   }
 
@@ -79,7 +82,8 @@ class ServerSyncStore {
       updatedAt: this.state.updatedAt,
       subgroups: [...this.state.subgroups],
       customTeamTitles: { ...this.state.customTeamTitles },
-      deletedSubgroupIds: [...this.state.deletedSubgroupIds]
+      deletedSubgroupIds: [...this.state.deletedSubgroupIds],
+      isSubgroupsMode: this.state.isSubgroupsMode ?? true
     };
   }
 
@@ -185,7 +189,8 @@ class ServerSyncStore {
       updatedAt: Date.now(),
       subgroups: masterTeamsPool,
       customTeamTitles: {},
-      deletedSubgroupIds: updatedDeletedList
+      deletedSubgroupIds: updatedDeletedList,
+      isSubgroupsMode: this.state.isSubgroupsMode ?? true
     };
 
     this.notify();
@@ -203,6 +208,24 @@ class ServerSyncStore {
       version: this.state.version + 1,
       updatedAt: Date.now(),
       customTeamTitles: { ...this.state.customTeamTitles, ...titles }
+    };
+
+    this.notify();
+    return this.getState();
+  }
+
+  /**
+   * Set Subgroups Mode toggle
+   */
+  public setSubgroupsMode(enabled: boolean): ServerSyncState {
+    if (this.state.isSubgroupsMode === enabled) {
+      return this.getState();
+    }
+    this.state = {
+      ...this.state,
+      version: this.state.version + 1,
+      updatedAt: Date.now(),
+      isSubgroupsMode: enabled
     };
 
     this.notify();

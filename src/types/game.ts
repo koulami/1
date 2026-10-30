@@ -200,6 +200,7 @@ export interface Team {
   questionOrder?: string[]; // IDs of questions in sequence for this team
   sequentialProgression?: boolean; // If true, team must answer questions in order
   reflectionText?: string; // Student reflection and wow moment quote
+  isCustomTitle?: boolean; // True when teacher has saved a custom title override
 }
 
 export interface Submission {

@@ -80,6 +80,17 @@ async function startServer() {
     }
   });
 
+  // Toggle Subgroups Mode (Optional Subgroups Switch)
+  app.post('/api/sync/subgroups-mode', (req, res) => {
+    try {
+      const { enabled } = req.body || {};
+      const updated = serverSyncStore.setSubgroupsMode(Boolean(enabled));
+      return res.json({ success: true, ...updated });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to update subgroups mode' });
+    }
+  });
+
   // Server-Sent Events (SSE) stream for instant real-time sync across all connected student devices
   app.get('/api/sync/stream', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
